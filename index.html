@@ -1,0 +1,198 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>维度黑客：魔方追逃 (Dimension Hack: Rubik's Pursuit)</title>
+    <!-- 引入 Orbitron 字体和 Inter 字体 -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&family=Orbitron:wght@400;700;900&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="style.css">
+    <!-- 引入 Three.js -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <!-- 引入 Three.js OrbitControls -->
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+</head>
+<body>
+    <!-- 赛博背景特效 -->
+    <div class="cyber-bg"></div>
+
+    <!-- 开局配置面板 Overlay -->
+    <div id="setup-overlay" class="overlay active">
+        <div class="glass-panel setup-panel">
+            <h1 class="glitch-text" data-text="DIMENSION HACK">DIMENSION HACK</h1>
+            <p class="subtitle">魔方追逃 · 3D 拓扑战术博弈 Demo</p>
+            
+            <div class="setup-section">
+                <h3>1. 地图大小 (N x N)</h3>
+                <div class="btn-group" id="map-size-group">
+                    <button class="btn btn-size active" data-size="3">3x3 (经典魔方)</button>
+                    <button class="btn btn-size" data-size="4">4x4 (高阶测试)</button>
+                </div>
+            </div>
+
+            <div class="setup-section">
+                <h3>2. AI 敌人配置 (可添加最多 3 个)</h3>
+                <div class="ai-config-list" id="ai-list">
+                    <!-- 动态生成 AI 配置项 -->
+                    <div class="ai-item" data-index="0">
+                        <span class="ai-label ai-chaser">AI #1 (追猎者 - 红色)</span>
+                        <select class="ai-type">
+                            <option value="chaser">Chaser (直接追踪)</option>
+                            <option value="ambusher">Ambusher (前瞻拦截)</option>
+                            <option value="guardian">Guardian (芯片守护)</option>
+                        </select>
+                        <select class="ai-spawn">
+                            <option value="random">随机位置</option>
+                            <option value="opposite">对立面角落</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="ai-controls">
+                    <button id="add-ai-btn" class="btn btn-secondary">+ 添加 AI</button>
+                    <button id="remove-ai-btn" class="btn btn-secondary" style="display:none;">- 移除 AI</button>
+                </div>
+            </div>
+
+            <div class="setup-section">
+                <h3>3. 游戏机制简介</h3>
+                <ul class="intro-rules">
+                    <li>🟢 玩家 (绿色)：每回合 2 个行动点 (AP)。走 1 格扣 1 AP；旋转 1 层魔方扣 2 AP。</li>
+                    <li>🔴/🟣/🟡 AI：分别执行直接追踪、前瞻拦截和芯片守护策略。</li>
+                    <li>💎 胜利条件：收集完所有蓝色数据芯片，并前往绿色激活的出口。</li>
+                    <li>⚡ 空间重组：你有旋转能量限制，每次旋转都会改写两者的空间位置！</li>
+                </ul>
+            </div>
+
+            <button id="start-game-btn" class="btn btn-primary btn-large">初始化神经元连接 (开始游戏)</button>
+        </div>
+    </div>
+
+    <!-- 游戏主界面 -->
+    <div id="game-container" style="display:none;">
+        <!-- 左侧 HUD 行动面板 -->
+        <div class="hud-panel left-panel glass-panel">
+            <h2 class="neon-title-blue">系统状态</h2>
+            
+            <div class="status-item">
+                <span class="label">当前回合</span>
+                <span id="turn-count" class="value text-neon-blue">1</span>
+            </div>
+            
+            <div class="status-item">
+                <span class="label">当前行动点 (AP)</span>
+                <span id="ap-display" class="value text-neon-green">2 / 2</span>
+            </div>
+            <div class="ap-bar-container">
+                <div id="ap-bar-fill" class="ap-bar-fill"></div>
+            </div>
+
+            <div class="status-item">
+                <span class="label">旋转能量 (Charge)</span>
+                <span id="rotation-charge" class="value text-neon-yellow">1 / 1</span>
+            </div>
+            <p class="small-desc">（每 3 回合自动回复 1 点，旋转层消耗 2 AP）</p>
+
+            <hr class="cyber-divider">
+
+            <h2 class="neon-title-green">战术操作</h2>
+            
+            <!-- 旋转控制组 -->
+            <div class="action-section">
+                <h3>🌀 空间折叠 (魔方层旋转)</h3>
+                <p class="section-desc">选择要旋转的魔方层（消耗 2 AP + 1 能量）：</p>
+                <div class="control-row">
+                    <label>选择轴向:</label>
+                    <select id="rotate-axis" class="cyber-select">
+                        <option value="X">X 轴 (左右切片)</option>
+                        <option value="Y">Y 轴 (上下切片)</option>
+                        <option value="Z">Z 轴 (前后切片)</option>
+                    </select>
+                </div>
+                <div class="control-row">
+                    <label>选择层数:</label>
+                    <select id="rotate-layer" class="cyber-select">
+                        <!-- 根据 N 动态填充 -->
+                    </select>
+                </div>
+                <div class="control-row btn-pair">
+                    <button id="btn-rotate-cw" class="btn btn-action">顺时针 (CW)</button>
+                    <button id="btn-rotate-ccw" class="btn btn-action">逆时针 (CCW)</button>
+                </div>
+            </div>
+
+            <hr class="cyber-divider">
+            
+            <div class="action-buttons">
+                <button id="btn-confirm-path" class="btn btn-primary" disabled>执行规划路径</button>
+                <button id="btn-end-turn" class="btn btn-danger">跳过回合 / AI行动</button>
+                <button id="btn-reset" class="btn btn-secondary">重置本局</button>
+            </div>
+        </div>
+
+        <!-- 中部 3D 渲染画布 -->
+        <div id="canvas-container">
+            <!-- 3D Canvas 将插入此处 -->
+            <div id="canvas-overlay-ui">
+                <div class="help-tooltip">💡 按住鼠标左键并拖拽可以旋转魔方视角</div>
+            </div>
+        </div>
+
+        <!-- 右侧 HUD 2D全局雷达与状态 -->
+        <div class="hud-panel right-panel glass-panel">
+            <h2 class="neon-title-purple">2D 展开雷达</h2>
+            <p class="section-desc">可直接点击下方网格进行跨面寻路点选：</p>
+            
+            <div class="minimap-container">
+                <canvas id="minimap-canvas" width="280" height="360"></canvas>
+            </div>
+
+            <hr class="cyber-divider">
+
+            <h2 class="neon-title-yellow">任务目标</h2>
+            <div class="objective-list">
+                <div class="objective-item">
+                    <span class="obj-dot" id="obj-chips-dot"></span>
+                    <span id="obj-chips-text">数据芯片收集: 0 / 3</span>
+                </div>
+                <div class="objective-item">
+                    <span class="obj-dot" id="obj-exit-dot"></span>
+                    <span id="obj-exit-text">前往数据导出港 (未激活)</span>
+                </div>
+            </div>
+
+            <hr class="cyber-divider">
+
+            <div class="ai-status-panel">
+                <h3>👾 威胁源追踪</h3>
+                <div id="ai-status-list">
+                    <!-- 动态生成 AI 状态 -->
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 游戏结束/胜利 Overlays -->
+    <div id="gameover-overlay" class="overlay">
+        <div class="glass-panel end-panel failure">
+            <h1 class="glitch-text text-red" data-text="CONNECTION LOST">CONNECTION LOST</h1>
+            <p class="end-msg">你被威胁源捕获，意识体已被强行断开连接...</p>
+            <div class="stats-summary" id="failure-summary"></div>
+            <button class="btn btn-danger btn-large btn-restart">重构神经连接 (再来一局)</button>
+        </div>
+    </div>
+
+    <div id="victory-overlay" class="overlay">
+        <div class="glass-panel end-panel success">
+            <h1 class="glitch-text text-green" data-text="MISSION ACCOMPLISHED">MISSION ACCOMPLISHED</h1>
+            <p class="end-msg">所有数据芯片已成功导出，意识体安全撤离！</p>
+            <div class="stats-summary" id="victory-summary"></div>
+            <button class="btn btn-primary btn-large btn-restart">再接再厉</button>
+        </div>
+    </div>
+
+    <!-- 载入脚本 -->
+    <script src="game.js"></script>
+    <script src="render.js"></script>
+    <script src="main.js"></script>
+</body>
+</html>
