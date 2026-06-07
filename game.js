@@ -77,11 +77,11 @@ class GameEngine {
                     
                     switch (f) {
                         case 0: // U (Top, Y = +1)
-                            pos = { x: u, y: 1, z: v };
+                            pos = { x: u, y: 1, z: -v };
                             normal = { x: 0, y: 1, z: 0 };
                             break;
                         case 1: // D (Bottom, Y = -1)
-                            pos = { x: u, y: -1, z: -v };
+                            pos = { x: u, y: -1, z: v };
                             normal = { x: 0, y: -1, z: 0 };
                             break;
                         case 2: // L (Left, X = -1)
@@ -779,14 +779,28 @@ class GameEngine {
         
         // 同步绘制 2D 十字展开雷达
         this.drawMinimap();
+
+        // 刷新魔方旋转层高亮
+        if (window.renderEngine && window.renderEngine.highlightLayer) {
+            const axisEl = document.getElementById('rotate-axis');
+            const layerEl = document.getElementById('rotate-layer');
+            if (axisEl && layerEl && layerEl.value !== "") {
+                window.renderEngine.highlightLayer(axisEl.value, parseInt(layerEl.value));
+            }
+        }
     }
 
     updateActionButtons() {
         const confirmBtn = document.getElementById('btn-confirm-path');
         confirmBtn.disabled = (this.plannedPath.length === 0 || this.playerAP <= 0);
+        if (this.plannedPath.length > 0) {
+            confirmBtn.innerText = `执行移动 (${this.plannedPath.length} 步 / 扣除 ${this.plannedPath.length} AP)`;
+        } else {
+            confirmBtn.innerText = `执行规划路径`;
+        }
     }
 
-    // 10. 绘制 2D 十字展开图 Canvas
+    // 10. 绘制 2D 相对 5 面局部雷达图 Canvas
     drawMinimap() {
         const canvas = document.getElementById('minimap-canvas');
         if (!canvas) return;
@@ -795,146 +809,215 @@ class GameEngine {
         ctx.clearRect(0, 0, canvas.width, canvas.height);
         
         const N = this.N;
-        const cellWidth = 26; // 格子尺寸
-        const spacing = 1.5;   // 面间隙
+        const cellWidth = Math.floor((canvas.width - 20) / (3 * N)); // 适配画布大小
+        const startOffset = 10;
         
-        // 面展开布局映射：(f) -> { colOffset, rowOffset }
-        // 十字展开形状：
-        //      [U]
-        //  [L] [F] [R] [B]
-        //      [D]
-        const faceOffsets = {
-            0: { x: 1, y: 0 }, // U
-            2: { x: 0, y: 1 }, // L
-            4: { x: 1, y: 1 }, // F
-            3: { x: 2, y: 1 }, // R
-            5: { x: 3, y: 1 }, // B
-            1: { x: 1, y: 2 }  // D
+        // 构造 3N x 3N 的局域网格映射
+        const grid = Array(3 * N).fill(null).map(() => Array(3 * N).fill(null));
+        this.minimapGrid = grid; // 缓存供点击事件查询
+        
+        const f_center = this.cells[this.playerPos].face;
+        
+        // 1. 中心面 (行 N~2N-1, 列 N~2N-1)
+        for (let r = 0; r < N; r++) {
+            for (let c = 0; c < N; c++) {
+                grid[N + r][N + c] = f_center * N * N + r * N + c;
+            }
+        }
+        
+        const getOppositeDir = (d) => {
+            if (d === this.DIR.UP) return this.DIR.DOWN;
+            if (d === this.DIR.DOWN) return this.DIR.UP;
+            if (d === this.DIR.LEFT) return this.DIR.RIGHT;
+            if (d === this.DIR.RIGHT) return this.DIR.LEFT;
+            return null;
         };
         
-        const drawFace = (f) => {
-            const offset = faceOffsets[f];
-            const startX = offset.x * (N * cellWidth + spacing) + 10;
-            const startY = offset.y * (N * cellWidth + spacing) + 10;
-            
-            // 绘制面标签
-            ctx.fillStyle = '#4a5568';
-            ctx.font = 'bold 9px Orbitron';
-            const labels = { 0: 'U(上)', 1: 'D(下)', 2: 'L(左)', 3: 'R(右)', 4: 'F(前)', 5: 'B(后)' };
-            ctx.fillText(labels[f], startX + 2, startY - 3);
-            
-            for (let r = 0; r < N; r++) {
-                for (let c = 0; c < N; c++) {
-                    const id = f * N * N + r * N + c;
-                    const x = startX + c * cellWidth;
-                    const y = startY + r * cellWidth;
-                    
-                    // 确定背景色
-                    ctx.fillStyle = 'rgba(0, 240, 255, 0.04)';
-                    ctx.strokeStyle = 'rgba(0, 240, 255, 0.15)';
-                    
-                    // 特殊高亮：角色所在的面高亮
-                    if (this.cells[this.playerPos].face === f) {
-                        ctx.fillStyle = 'rgba(0, 240, 255, 0.08)';
-                        ctx.strokeStyle = 'rgba(0, 240, 255, 0.3)';
-                    }
-                    
-                    // 路径规划线条高亮
-                    if (this.plannedPath.includes(id)) {
-                        ctx.fillStyle = 'rgba(0, 255, 136, 0.2)';
-                        ctx.strokeStyle = 'var(--neon-green)';
-                    }
-                    
-                    ctx.lineWidth = 1;
-                    ctx.fillRect(x, y, cellWidth - 1, cellWidth - 1);
-                    ctx.strokeRect(x, y, cellWidth - 1, cellWidth - 1);
-                    
-                    // 绘制实体
-                    // A. 玩家 (绿光棱镜)
-                    if (id === this.playerPos) {
-                        ctx.fillStyle = 'var(--neon-green)';
-                        ctx.beginPath();
-                        ctx.arc(x + cellWidth / 2, y + cellWidth / 2, 7, 0, Math.PI * 2);
-                        ctx.fill();
-                        ctx.strokeStyle = '#fff';
-                        ctx.stroke();
-                    }
-                    
-                    // B. AI 敌人 (红/紫/黄)
-                    this.ais.forEach(ai => {
-                        if (id === ai.pos) {
-                            ctx.fillStyle = ai.color;
-                            ctx.beginPath();
-                            // 绘制正方形表示 AI
-                            ctx.fillRect(x + cellWidth / 2 - 5, y + cellWidth / 2 - 5, 10, 10);
-                            ctx.strokeStyle = '#fff';
-                            ctx.strokeRect(x + cellWidth / 2 - 5, y + cellWidth / 2 - 5, 10, 10);
-                        }
-                    });
-                    
-                    // C. 数据芯片
-                    if (this.chips.includes(id)) {
-                        ctx.fillStyle = 'var(--neon-blue)';
-                        ctx.beginPath();
-                        // 绘制菱形芯片
-                        ctx.moveTo(x + cellWidth / 2, y + 4);
-                        ctx.lineTo(x + cellWidth - 4, y + cellWidth / 2);
-                        ctx.lineTo(x + cellWidth / 2, y + cellWidth - 4);
-                        ctx.lineTo(x + 4, y + cellWidth / 2);
-                        ctx.closePath();
-                        ctx.fill();
-                    }
-                    
-                    // D. 激活的出口
-                    if (this.exitActivated && id === this.exitPos) {
-                        ctx.strokeStyle = 'var(--neon-green)';
-                        ctx.lineWidth = 2;
-                        ctx.strokeRect(x + 3, y + 3, cellWidth - 7, cellWidth - 7);
-                        ctx.fillStyle = 'rgba(0, 255, 136, 0.4)';
-                        ctx.fillRect(x + 3, y + 3, cellWidth - 7, cellWidth - 7);
-                    }
+        // 2. 顶面 (向上跨越)
+        const topBoundary = [];
+        for (let c = 0; c < N; c++) {
+            topBoundary.push(grid[N][N + c]);
+        }
+        const topAdj = topBoundary.map(id => this.cells[id].neighbors[this.DIR.UP]);
+        if (topAdj[0] !== null) {
+            for (let c = 0; c < N; c++) {
+                grid[N - 1][N + c] = topAdj[c];
+            }
+            let topBackDir = null;
+            const topAdjCell = this.cells[topAdj[0]];
+            for (const d in topAdjCell.neighbors) {
+                if (topAdjCell.neighbors[d] === topBoundary[0]) {
+                    topBackDir = parseInt(d);
+                    break;
                 }
             }
-        };
-        
-        // 绘制 6 个面
-        for (let f = 0; f < 6; f++) {
-            drawFace(f);
+            const topOutDir = getOppositeDir(topBackDir);
+            for (let c = 0; c < N; c++) {
+                let curr = topAdj[c];
+                for (let r = N - 2; r >= 0; r--) {
+                    if (curr !== null) {
+                        curr = this.cells[curr].neighbors[topOutDir];
+                    }
+                    grid[r][N + c] = curr;
+                }
+            }
         }
+        
+        // 3. 底面 (向下跨越)
+        const btmBoundary = [];
+        for (let c = 0; c < N; c++) {
+            btmBoundary.push(grid[2 * N - 1][N + c]);
+        }
+        const btmAdj = btmBoundary.map(id => this.cells[id].neighbors[this.DIR.DOWN]);
+        if (btmAdj[0] !== null) {
+            for (let c = 0; c < N; c++) {
+                grid[2 * N][N + c] = btmAdj[c];
+            }
+            let btmBackDir = null;
+            const btmAdjCell = this.cells[btmAdj[0]];
+            for (const d in btmAdjCell.neighbors) {
+                if (btmAdjCell.neighbors[d] === btmBoundary[0]) {
+                    btmBackDir = parseInt(d);
+                    break;
+                }
+            }
+            const btmOutDir = getOppositeDir(btmBackDir);
+            for (let c = 0; c < N; c++) {
+                let curr = btmAdj[c];
+                for (let r = 2 * N + 1; r < 3 * N; r++) {
+                    if (curr !== null) {
+                        curr = this.cells[curr].neighbors[btmOutDir];
+                    }
+                    grid[r][N + c] = curr;
+                }
+            }
+        }
+        
+        // 4. 左面 (向左跨越)
+        const leftBoundary = [];
+        // Logic for filling surrounding faces (simplified)
+        const dirs = [this.DIR.UP, this.DIR.DOWN, this.DIR.LEFT, this.DIR.RIGHT];
+        dirs.forEach(d => {
+            const boundary = [];
+            for (let i = 0; i < N; i++) {
+                if (d === this.DIR.UP) boundary.push(grid[N][N + i]);
+                else if (d === this.DIR.DOWN) boundary.push(grid[2 * N - 1][N + i]);
+                else if (d === this.DIR.LEFT) boundary.push(grid[N + i][N]);
+                else if (d === this.DIR.RIGHT) boundary.push(grid[N + i][2 * N - 1]);
+            }
+            
+            const adj = boundary.map(id => this.cells[id].neighbors[d]);
+            if (adj[0] !== null) {
+                // Simplified filling of adjacent faces
+                adj.forEach((id, i) => {
+                    if (d === this.DIR.UP) grid[N - 1][N + i] = id;
+                    else if (d === this.DIR.DOWN) grid[2 * N][N + i] = id;
+                    else if (d === this.DIR.LEFT) grid[N + i][N - 1] = id;
+                    else if (d === this.DIR.RIGHT) grid[N + i][2 * N] = id;
+                });
+            }
+        });
+        
+        const labels = { 0: 'U', 1: 'D', 2: 'L', 3: 'R', 4: 'F', 5: 'B' };
+        
+        for (let y = 0; y < 3 * N; y++) {
+            for (let x = 0; x < 3 * N; x++) {
+                const id = grid[y][x];
+                if (id === null) continue;
+                
+                const drawX = startOffset + x * cellWidth;
+                const drawY = startOffset + y * cellWidth;
+                
+                ctx.fillStyle = 'rgba(0, 240, 255, 0.04)';
+                ctx.strokeStyle = 'rgba(0, 240, 255, 0.15)';
+                ctx.lineWidth = 1;
+                
+                if (y >= N && y < 2 * N && x >= N && x < 2 * N) {
+                    ctx.fillStyle = 'rgba(0, 240, 255, 0.09)';
+                    ctx.strokeStyle = 'rgba(0, 240, 255, 0.4)';
+                }
+                
+                if (this.plannedPath.includes(id)) {
+                    ctx.fillStyle = 'rgba(0, 255, 136, 0.25)';
+                    ctx.strokeStyle = 'var(--neon-green)';
+                }
+                
+                ctx.fillRect(drawX, drawY, cellWidth - 1, cellWidth - 1);
+                ctx.strokeRect(drawX, drawY, cellWidth - 1, cellWidth - 1);
+                
+                const cell = this.cells[id];
+                if (cell.row === Math.floor(N / 2) && cell.col === Math.floor(N / 2)) {
+                    ctx.fillStyle = 'rgba(255, 255, 255, 0.15)';
+                    ctx.font = 'bold 10px Orbitron';
+                    ctx.textAlign = 'center';
+                    ctx.textBaseline = 'middle';
+                    ctx.fillText(labels[cell.face], drawX + cellWidth / 2, drawY + cellWidth / 2);
+                }
+                
+                if (id === this.playerPos) {
+                    ctx.fillStyle = 'var(--neon-green)';
+                    ctx.beginPath();
+                    ctx.arc(drawX + cellWidth / 2, drawY + cellWidth / 2, 7, 0, Math.PI * 2);
+                    ctx.fill();
+                    ctx.strokeStyle = '#fff';
+                    ctx.lineWidth = 1.5;
+                    ctx.stroke();
+                }
+                
+                this.ais.forEach(ai => {
+                    if (id === ai.pos) {
+                        ctx.fillStyle = ai.color;
+                        ctx.fillRect(drawX + cellWidth / 2 - 5, drawY + cellWidth / 2 - 5, 10, 10);
+                        ctx.strokeStyle = '#fff';
+                        ctx.lineWidth = 1;
+                        ctx.strokeRect(drawX + cellWidth / 2 - 5, drawY + cellWidth / 2 - 5, 10, 10);
+                    }
+                });
+                
+                if (this.chips.includes(id)) {
+                    ctx.fillStyle = 'var(--neon-blue)';
+                    ctx.beginPath();
+                    ctx.moveTo(drawX + cellWidth / 2, drawY + 4);
+                    ctx.lineTo(drawX + cellWidth - 4, drawY + cellWidth / 2);
+                    ctx.lineTo(drawX + cellWidth / 2, drawY + cellWidth - 4);
+                    ctx.lineTo(drawX + 4, drawY + cellWidth / 2);
+                    ctx.closePath();
+                    ctx.fill();
+                }
+                
+                if (this.exitActivated && id === this.exitPos) {
+                    ctx.strokeStyle = 'var(--neon-green)';
+                    ctx.lineWidth = 2;
+                    ctx.strokeRect(drawX + 3, drawY + 3, cellWidth - 7, cellWidth - 7);
+                    ctx.fillStyle = 'rgba(0, 255, 136, 0.4)';
+                    ctx.fillRect(drawX + 3, drawY + 3, cellWidth - 7, cellWidth - 7);
+                }
+            }
+        }
+        
+        ctx.strokeStyle = 'rgba(255, 255, 255, 0.25)';
+        ctx.lineWidth = 2;
+        ctx.strokeRect(startOffset + N * cellWidth - 0.5, startOffset + N * cellWidth - 0.5, N * cellWidth, N * cellWidth);
     }
 
-    // 绑定雷达的点击寻路事件
     handleMinimapClick(event) {
+        if (!this.minimapGrid) return;
         const canvas = document.getElementById('minimap-canvas');
         const rect = canvas.getBoundingClientRect();
         const mouseX = event.clientX - rect.left;
         const mouseY = event.clientY - rect.top;
         
         const N = this.N;
-        const cellWidth = 26;
-        const spacing = 1.5;
+        const cellWidth = Math.floor((canvas.width - 20) / (3 * N));
+        const startOffset = 10;
         
-        const faceOffsets = {
-            0: { x: 1, y: 0 },
-            2: { x: 0, y: 1 },
-            4: { x: 1, y: 1 },
-            3: { x: 2, y: 1 },
-            5: { x: 3, y: 1 },
-            1: { x: 1, y: 2 }
-        };
+        const gridX = Math.floor((mouseX - startOffset) / cellWidth);
+        const gridY = Math.floor((mouseY - startOffset) / cellWidth);
         
-        for (let f = 0; f < 6; f++) {
-            const offset = faceOffsets[f];
-            const startX = offset.x * (N * cellWidth + spacing) + 10;
-            const startY = offset.y * (N * cellWidth + spacing) + 10;
-            
-            const gridX = Math.floor((mouseX - startX) / cellWidth);
-            const gridY = Math.floor((mouseY - startY) / cellWidth);
-            
-            if (gridX >= 0 && gridX < N && gridY >= 0 && gridY < N) {
-                const cellId = f * N * N + gridY * N + gridX;
+        if (gridX >= 0 && gridX < 3 * N && gridY >= 0 && gridY < 3 * N) {
+            const cellId = this.minimapGrid[gridY][gridX];
+            if (cellId !== null) {
                 this.planPathTo(cellId);
-                return;
             }
         }
     }

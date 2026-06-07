@@ -74,6 +74,18 @@ class RenderEngine {
         this.buildCube3D();
         this.spawnEntities3D();
         
+        // 创建路径终点高亮指示器 (黄框)
+        const indicatorGeo = new THREE.BoxGeometry(2.05, 2.05, 2.05);
+        const indicatorMat = new THREE.MeshBasicMaterial({
+            color: 0xffd700,
+            wireframe: true,
+            transparent: true,
+            opacity: 0.8
+        });
+        this.targetIndicator = new THREE.Mesh(indicatorGeo, indicatorMat);
+        this.targetIndicator.visible = false;
+        this.scene.add(this.targetIndicator);
+        
         // 5. 绑定窗口尺寸自适应
         window.addEventListener('resize', this.onWindowResize.bind(this));
         
@@ -253,11 +265,14 @@ class RenderEngine {
         });
     }
 
-    // 绘制规划路径引导线 (绿色光带)
+    // 绘制规划路径引导线 (绿色光带) 与终点高亮
     drawPlannedPath(path) {
         if (this.plannedLine) this.scene.remove(this.plannedLine);
         
-        if (path.length === 0) return;
+        if (path.length === 0) {
+            if (this.targetIndicator) this.targetIndicator.visible = false;
+            return;
+        }
         
         // 收集路径世界坐标
         const points = [this.getCellWorldPosition(this.game.playerPos)];
@@ -282,6 +297,16 @@ class RenderEngine {
         
         this.plannedLine = new THREE.Line(geometry, material);
         this.scene.add(this.plannedLine);
+
+        // 更新终点高亮指示器
+        const targetId = path[path.length - 1];
+        const targetPos = this.getCellWorldPosition(targetId);
+        this.targetIndicator.position.copy(targetPos);
+        
+        const cell = this.game.cells[targetId];
+        const normal = new THREE.Vector3(cell.normal.x, cell.normal.y, cell.normal.z);
+        this.targetIndicator.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), normal);
+        this.targetIndicator.visible = true;
     }
 
     // 生成激活的出口 (绿色光环传送门)
@@ -414,18 +439,9 @@ class RenderEngine {
         // 定位属于该旋转层的所有 3D 物体
         const rotatingMeshes = [];
         
-        // A. 判定子立方体是否在旋转层内
-        const getLayerVal = (pos, ax) => {
-            const val = pos[ax.toLowerCase()];
-            const H = (N - 1) / 2;
-            // 将真实 3D 坐标映射回 [0, N-1] 的格数索引
-            const idx = Math.round((val / 2) + H);
-            return Math.min(N - 1, Math.max(0, idx));
-        };
-        
         this.cublets.forEach(cublet => {
             // 注意：当魔方旋转后，子块的位置发生了物理改变，我们需要根据其当前 3D position 来确定层
-            const currentLayer = getLayerVal(cublet.position, axis);
+            const currentLayer = this.getLayerVal(cublet.position, axis);
             if (currentLayer === layerIdx) {
                 rotatingMeshes.push(cublet);
             }
@@ -552,6 +568,50 @@ class RenderEngine {
         if (this.renderer && this.scene && this.camera) {
             this.renderer.render(this.scene, this.camera);
         }
+    }
+    // 获取子块当前坐标在指定轴向上的层数索引
+    getLayerVal(pos, ax) {
+        const N = this.game.N;
+        const val = pos[ax.toLowerCase()];
+        const H = (N - 1) / 2;
+        // 将真实 3D 坐标映射回 [0, N-1] 的格数索引
+        const idx = Math.round((val / 2) + H);
+        return Math.min(N - 1, Math.max(0, idx));
+    }
+
+    // 旋转层高亮 (Visual Layer Highlight)
+    highlightLayer(axis, layerIdx) {
+        this.cublets.forEach(cublet => {
+            const currentLayer = this.getLayerVal(cublet.position, axis);
+            const line = cublet.children[0]; // 边缘线
+            const isTargetLayer = (currentLayer === layerIdx);
+            
+            if (isTargetLayer) {
+                // 高亮该旋转层网格边缘
+                if (line && line.material) {
+                    line.material.color.setHex(0xffd700); // 亮金色
+                    line.material.opacity = 0.85;
+                }
+                
+                // 仅高亮该层发光面贴色，避免更改黑色底座的共享材质
+                cublet.material.forEach(mat => {
+                    if (mat && mat.emissive && mat.emissive.getHex() !== 0) {
+                        mat.emissiveIntensity = 0.45; // 增加发光亮度
+                    }
+                });
+            } else {
+                // 恢复普通层状态
+                if (line && line.material) {
+                    line.material.color.setHex(0x00f0ff); // 默认青色
+                    line.material.opacity = 0.25;
+                }
+                cublet.material.forEach(mat => {
+                    if (mat && mat.emissive && mat.emissive.getHex() !== 0) {
+                        mat.emissiveIntensity = 0.15; // 恢复默认亮度
+                    }
+                });
+            }
+        });
     }
 }
 

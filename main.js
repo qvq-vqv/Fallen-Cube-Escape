@@ -158,6 +158,7 @@ document.addEventListener('DOMContentLoaded', () => {
         if (canvas) canvas.remove();
         
         render.init('canvas-container', game);
+        setTimeout(updateRotationHighlight, 100);
     });
 
     // ==========================================
@@ -206,6 +207,15 @@ document.addEventListener('DOMContentLoaded', () => {
         const layer = parseInt(rotateLayerSelect.value);
         game.rotateLayer(axis, layer, 'CCW');
     });
+
+    // 监听下拉框以实时更新 3D 旋转层高亮
+    function updateRotationHighlight() {
+        if (render && render.highlightLayer && rotateLayerSelect.value !== "") {
+            render.highlightLayer(rotateAxisSelect.value, parseInt(rotateLayerSelect.value));
+        }
+    }
+    rotateAxisSelect.addEventListener('change', updateRotationHighlight);
+    rotateLayerSelect.addEventListener('change', updateRotationHighlight);
 
     // ==========================================
     // 4. 雷达 2D 点选与交互
