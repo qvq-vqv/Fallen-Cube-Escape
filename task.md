@@ -3,52 +3,88 @@
 > 状态：`[PLAN_APPROVED]`  
 > 执行者：Codex  
 > 红线：不使用任何 2D Net 展开图逻辑（彻底废弃 2D Net 画线，仅保留 3D 界面画线与 Twist 层）；保持极致的 UI 微动效与毛玻璃美学；不使用占位美术。
+> 📌 **大学申请专用 Git 备份规范**：Codex 每完成一个子任务（M4.1~M4.4），**必须**在工作区自动执行 `git add` 并按照下方注明的 commit message 进行一次干净的 Git Commit，严禁所有修改堆在一个 commit 中。
 
-- [ ] **M4.1 页面布局与正常模式控制重构 (UI & Normal Mode Controls)**
-  - [ ] 彻底移除左侧面板 `left-panel` 极其样式。
+- [ ] **M4.1 页面布局与控制台重构 (UI & Esc Menu)**
+  - [ ] 彻底移除左侧面板 `left-panel` 及其样式。
   - [ ] 实现顶部极简 HUD 栏：显示关卡名称、当前回合数、剩余行动点 (AP)。
-  - [ ] 实现 **正常模式分流 (Normal Mode Controls)**：
-    - 鼠标左键点击格子（`moved <= 10px`）：追加路径。
-    - 鼠标左键拖拽（`moved > 10px`）：直接转动相机视角（OrbitControls 保持 enabled，对魔方与空白处拖拽均生效）。
   - [ ] 实现 **Esc 全屏模糊控制台 (Esc Menu)**：
     - 按 `Escape` 键或点击顶部 `☰` 按钮触发，背景应用 `backdrop-filter: blur(10px)`。
-    - 左侧显示关卡介绍、任务目标与星级回合挑战清单（根据 A* Bot 结果动态定义三星/二星回合线）。
-    - 右侧显示控制按钮（继续游戏、重新开始、声音开关、返回菜单）和生存数据统计（信任值、已用旋转数等）。
-  - [ ] 重构右侧 E-7 手机面板：
-    - 增加左侧边缘的 Notch 拉手（`◀` / `▶`），点击可优雅向右隐藏或滑出。
-    - 仅保留「通讯（Comms）」与「档案（Archive）」两个 Tab（删除展开图和任务 Tab）。
-    - 档案页中将 Achievements (成就) 移到 Story (剧情碎片) 上方。
-
-- [ ] **M4.2 3D 空间直控与画线规划 (3D Cube Interaction)**
+    - 左侧显�- [ ] **M4.2 3D 空间直控与自然拧动 (3D Cube Interaction)**
   - [ ] 废弃 2D Canvas（minimapCanvas）事件，直接在 3D Canvas 上进行交互。
+  - [ ] **正常模式分流 (Normal Mode Controls)**：
+    - 开启 OrbitControls 视角旋转 (`this.controls.enableRotate = true`)。
+    - 鼠标左键点击格子（`moved <= 10px`）：追加路径。
+    - 鼠标左键拖拽（`moved > 10px`）：转动相机视角。在魔方和空白处拖动均有效。
+    - 悔棋与重置：清空 `plannedPath` 并同步 3D 路径线。
   - [ ] **射线点击判定修复 (Raycasting Fix)**：
     - 在 `pickBoardCell` 中，过滤 intersections，只取第一个类型为 `Mesh`、具有 `face` 面数据且不是 `layerOverlay` 遮罩的相交对象，忽略 LineSegments 边缘线和高亮覆盖层。
   - [ ] **旋转后坐标映射修复 (Post-Rotation Alignment)**：
     - 废弃依赖静态 `userData` 映射。通过 `face.normal.applyQuaternion(cublet.quaternion)` 计算世界空间法线确定物理面 $F$。
     - 根据 cublet 的 3D 世界坐标反推当前网格坐标 $(gx, gy, gz)$，并映射到面内行列 $(r, c)$ 获取正确 Cell ID。
   - [ ] **Twist 旋转模式与自然拖动映射 (Natural Swipe-to-Twist)**：
-    - 绑定 Shift 键（或 E-7 手机上的切换悬浮按钮）开启/关闭。
-    - 开启时：悬浮高亮整层霓虹光晕；在魔方上左键拖动时**禁用 OrbitControls**，松开时恢复。
+    - 绑定 Shift 键（或手机上的 Twist 悬浮按钮）开启/关闭。悬浮高亮整层霓虹光晕。
+    - 开启时：在魔方上拖动时**临时禁用 OrbitControls**，松开时恢复。
     - 拧动计算：将屏幕拖动向量投影到相机坐标并映射到切平面 `swipePlane`，计算得到垂直的旋转轴、旋转层及 CW/CCW 方向。每次旋转消耗 1 AP (原为 2 AP)。
-  - [ ] **画线规划模式与代数反馈**：
-    - 关闭 Twist 模式时，画线规划路径每段中点生成指向下一个单元格的锥形箭头。
-    - 画线时在 comms 输入框实时生成代数格式的指令（例如 `走向：绿b2 -> 绿a2`）。
-    - 确认路径按钮改在 Comms 聊天框底部，点击以“发送”气泡形式发出路径指令。
+  - [ ] **L05 旋转小考重排**：
+    - 修改 L05 `levels.js` 结构：虚空改为纵向切断 Front 面：`[at(4, 0, 1), at(4, 1, 1), at(4, 2, 1)]`。
+    - 钥匙设在左半侧 `at(4, 1, 0)`，玩家在 Face 0，必须拧水平中层接通道路取得钥匙。与 L04 彻底做区分。
+  - [ ] *Git Checkpoint*：完成此项后 commit：`feat(control): implement 3D direct controls, natural swipe-to-twist, and redesign L05 connection quiz`
 
-- [ ] **M4.3 E-7 信任值与理智逆反系统 (Trust & Obedience System)**
+- [ ] **M4.3 坐标代数生成与通讯气泡发送 (Coordinate Commands & Comms Log)**
+  - [ ] **中文代数坐标转换**：
+    - 对应面颜色：0-蓝，1-紫，2-橙，3-红，4-绿，5-黄。列：a/b/c，行：1/2/3。
+    - 修改 `describeCell(cellId)`，使返回诸如 `绿b2`、`蓝a1` 的中文代数格式坐标。
+  - [ ] **指令气泡自动生成发送**：
+    - 点击「发送路线」执行路径时，生成玩家命令气泡：`路线：绿b2 -> 绿a2 -> 橙a2`，并随 E-7 对话滚动到通讯框最底端。
+    - 每次拧动魔方完成时，生成指令气泡：`指令：旋转 Y 轴第 2 层 [顺时针]`
+    - 铺设补片时，生成指令气泡：`指令：在 绿b2 部署补片`
+    - 投放诱饵时，生成指令气泡：`指令：在 绿b2 部署诱饵`
+    - 碎解格子时，生成指令气泡：`指令：碎解 绿b2`
+    - 点击跳过回合时，生成指令气泡：`指令：原地待命 (跳过回合)`
+  - [ ] 确保聊天记录区容器在添加气泡后，scrollTop 自动平滑滚动至最底端。
+  - [ ] *Git Checkpoint*：完成此项后 commit：`feat(comms): integrate Chinese color algebraic coordinates and auto-generate player command bubbles in terminal log`
+
+- [ ] **M4.4 主动碎解格子机制与 L07 重构 (Break Tool & L07 Overhaul)**
+  - [ ] **碎解引擎逻辑实装**：
+    - `resetRuntimeState()` 增加 `this.breakCharges = 0` 且在 `initLevel()` 中读取 `level.breakCharges || 0`。
+    - 编写 `isLegalBreakTarget(cellId)`：过滤空缺口、玩家位置、怪位置、钥匙、门、传送门，确认合法性。
+    - 编写 `placeBreak(cellId)`：从 `activePatchCells` 移出（若有），加入 `this.voidCells`，扣减 1 次碎解点数，播放 `patchBreak` 合成音，发送 `breakPlaced` 游戏事件。
+    - `handleBoardCellClick(cellId)` 对接 `this.toolMode === 'break'` 执行碎解。
+  - [ ] **碎解 UI 与交互绑定**：
+    - 在 `index.html` 工具栏加入 `btn-tool-break` 碎解按钮与数量计数。
+    - 在 `main.js` 绑定按钮事件，切换 `toolMode` 为 `break`，在 `updateUI()` 中更新可用次数。
+  - [ ] **L07 关卡碎解阻断重构**：
+    - 将 `levels.js` 中的 L07 改造为碎解首秀关：重命名为 `L07 碎解阻断`，添加 `breakCharges: 1`。
+    - 改变关卡地形与守卫位置，使玩家必须主动碎解守卫必经之路上的一个格子阻止其围剿，才能成功过关。
+  - [ ] **验证求解器同步**：
+    - 修改 `tools/playtest_bot.js` 与 `tools/validate-levels.js`：在搜索状态中模拟 `breakCharges` 计数与 `usedBreak`；当碎解可用时，生成 `break` 动作，并在状态的 `voids` 集合中添加被碎解格。
+  - [ ] *Git Checkpoint*：完成此项后 commit：`feat(tool): implement active Break Tool, integrate UI/engine/solvers, and redesign L07`
+
+- [ ] **M4.5 E-7 信任系统与理智逆反 (Trust & Obedience System)**
   - [ ] 引入持久化的关系信任值 (0-100，保存在 `localStorage`，初始默认 80)。
   - [ ] 动态交互影响：通关成功 +3 信任，死亡 -10 信任。发关心表情 +1 信任，发挑衅/吐槽表情 -2 信任。
   - [ ] 逆反判定：不听话概率为 `(100 - 信任值) * 0.3`。
   - [ ] 理智逆反执行：发生逆反时中断路径，消耗 1 AP。50% 概率原地不动，50% 概率随机乱走一格。乱走时**只能选择非缺口、无怪物、安全的相邻格子**，如无安全格则原地不动。
+  - [ ] *Git Checkpoint*：完成此项后 commit：`feat(narrative): implement E-7 trust relationship system, localStorage persistence, and random safe movement for disobedience`
 
-- [ ] **M4.4 细节抛光与体验优化 (Polish & Game Feel)**
-  - [ ] **视角重置**：切换/重置关卡时自动将 Three.js 相机复位至默认角度。
-  - [ ] **平移手势**：统一触控板双指与鼠标右键拖拽的平移逻辑，防止冲突。
-  - [ ] **角色与门**：调低出口门发光亮度防止过曝；提高 E-7 主角棋子自身的对比度与亮度。
-  - [ ] **结算延迟**：获胜/失败弹窗必须等待 3D 行走动画播放结束后才弹出。
-  - [ ] **狂暴警告**：守钥者被激活后颜色变红（原本是淡黄色），并提示 `rage` 狂暴。
-  - [ ] **残局复盘分析**：玩家死亡后，失败分析界面会对比玩家路线中每一步，指出哪些步骤是“离怪物更近了一步”的致命动作。
-  - [ ] **学术报告 AI 声明**：在 `project_pitch_report.md` 尾部追加 AI Statement。
+- [ ] **M4.6 互动教程卡片与第一幕大终局 (Tutorial Card & Finale Exam)**
+  - [ ] **互动教程引导 (Contextual Tutorial Guides)**：
+    - 在 3D 画布左下方浮动显示一个毛玻璃教程卡片 `#tutorial-helper-card`，具有关闭按钮，在 L01（走路）、L02（钥匙）、L03（红格）、L04（首次旋转）、L21（补片）、L23（信标）等教学关卡中动态展现详细的图文指引。
+  - [ ] **L12 第一幕 graduation 毕业残局重写**：
+    - 修改 L12 `levels.js`：将钥匙设在 `at(4, 0, 2)` (Front面右上角)，添加虚空隔断 `[at(4, 2, 1), at(0, 2, 1)]`。
+    - 增加**两个追击者**，位置分别在 `at(5, 0, 0)` 和 `at(2, 2, 0)`。
+    - 将守钥者行为改为 `guardianAggro: 'guardDoor'`，当钥匙到手时它会全力狂暴围堵出口门，强迫玩家做出旋转与诱导路线判断。
+  - [ ] **剧情呈现与应用优化**：
+    - 第一幕序章：四帧漫画以 `cubic-bezier(0.16, 1, 0.3, 1)` 渐入，背景深度模糊。
+    - 第一幕终（L12 通关）：人物移动至门且动作播放完毕后，延迟 1.5s 弹出胜利界面，展现第二幕接入的 4 帧极简反转插画，按钮变为“进入第二幕”。
+  - [ ] **细节抛光与体验优化**：
+    - 视角重置：切换/重置关卡时自动将 Three.js 相机复位至默认角度。
+    - 角色与门：调低出口门发光亮度防止过曝；提高 E-7 主角棋子自身的对比度与亮度。
+    - 狂暴警告：守钥者被激活后颜色变红（原本是淡黄色），并提示 `rage` 狂暴。
+    - 残局复盘分析：玩家死亡后，失败分析界面会对比玩家路线中每一步，指出哪些步骤是“离怪物更近了一步”的致命动作。
+    - 在 `project_pitch_report.md` 尾部追加 AI Statement。
+  - [ ] *Git Checkpoint*：完成此项后 commit：`feat(tutorial): implement floating tutorial helper card, rewrite L12 finale climax, and polish game details`
 
 ---
 
