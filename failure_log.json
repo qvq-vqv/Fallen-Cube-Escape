@@ -1,0 +1,15 @@
+{
+  "createdAt": "2026-06-11T17:45:23.956Z",
+  "updatedAt": "2026-06-12T12:30:00+08:00",
+  "status": "resolved",
+  "tool": "tools/playtest_bot.js",
+  "failures": [
+    {
+      "level": "L04 夹击拧门",
+      "reason": "Successfully forced rotation and validated solvable status.",
+      "expanded": 142,
+      "resolution": "L04 was reworked into a solvable rotation-required layout using voids. Verified by validate-levels."
+    }
+  ],
+  "activeBlockers": []
+}

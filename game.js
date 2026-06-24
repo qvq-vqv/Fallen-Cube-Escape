@@ -1,175 +1,285 @@
 /**
- * 维度黑客：魔方追逃 (Dimension Hack: Rubik's Pursuit)
- * 核心游戏逻辑与拓扑图计算
+ * 黎明魔方：立方体逃亡残局
+ * 核心游戏逻辑、拓扑图计算、全局展开图与手动画路交互
  */
 
 class GameEngine {
     constructor() {
-        this.N = 3; // 默认三阶魔方
+        this.N = 3;
         this.cells = [];
         this.playerPos = 0;
         this.playerLastPos = 0;
         this.playerAP = 2;
         this.maxAP = 2;
-        this.rotationCharge = 1;
-        this.maxRotationCharge = 1;
+        this.rotationEnabled = false;
+        this.rotationsUsed = 0;
         this.turn = 1;
         this.ais = [];
-        this.chips = [];
+        this.keyPos = null;
+        this.hasKey = false;
         this.exitPos = null;
-        this.exitActivated = false;
         this.gameState = 'setup'; // 'setup', 'playing', 'win', 'gameover'
-        
-        // 动作枚举
-        this.DIR = { UP: 0, DOWN: 1, LEFT: 2, RIGHT: 3 };
-        
-        // 置换缓存
-        // Format: rotationPermutations[axis][layer][direction] = Array of 6*N^2 indices
-        this.rotationPermutations = {
-            X: {},
-            Y: {},
-            Z: {}
-        };
-        
-        // 规划路径 (玩家点击但尚未确认执行的路径)
         this.plannedPath = [];
+        this.historyStack = [];
+        this.eventLog = [];
+        this.currentLevelIndex = 0;
+        this.currentLevel = null;
+        this.lastFailure = null;
+        this.minimapGrid = null;
+        this.minimapMetrics = null;
+        this.lastInputCell = null;
+        this.trackingEnabled = false;
+        this.trackerCell = null;
+        this.trackerMode = false;
+        this.bridges = [];
+        this.voidCells = new Set();
+        this.activePatchCells = new Set();
+        this.patchCharges = 0;
+        this.beaconCharges = 0;
+        this.beaconCell = null;
+        this.beaconTTL = 0;
+        this.toolMode = 'route';
+        this.trust = 80;
+
+        this.DIR = { UP: 0, DOWN: 1, LEFT: 2, RIGHT: 3 };
+        this.rotationPermutations = { X: {}, Y: {}, Z: {} };
+
+        this.faceLabels = { 0: 'U', 1: 'D', 2: 'L', 3: 'R', 4: 'F', 5: 'B' };
+        this.faceNames = { 0: '上', 1: '下', 2: '左', 3: '右', 4: '前', 5: '后' };
+        this.faceMarks = { 0: '▲', 1: '◆', 2: '▥', 3: '×', 4: '●', 5: '≈' };
+        this.faceColors = {
+            0: '#00f0ff',
+            1: '#bd00ff',
+            2: '#ff7700',
+            3: '#ff0055',
+            4: '#00ff88',
+            5: '#ffdd00'
+        };
+        this.netLayout = {
+            0: { x: 1, y: 0 }, // U
+            2: { x: 0, y: 1 }, // L
+            4: { x: 1, y: 1 }, // F
+            3: { x: 2, y: 1 }, // R
+            5: { x: 3, y: 1 }, // B
+            1: { x: 1, y: 2 }  // D
+        };
+        this.levels = this.createLevelBook();
     }
 
-    // 初始化游戏
     init(N, aiConfigs) {
-        this.N = N;
-        this.cells = [];
-        this.ais = [];
-        this.chips = [];
-        this.exitPos = null;
-        this.exitActivated = false;
-        this.playerAP = this.maxAP;
-        this.rotationCharge = this.maxRotationCharge;
-        this.turn = 1;
-        this.plannedPath = [];
-        
+        // 第一版锁定 3x3，避免在核心读图还未稳定时增加脑内负担。
+        this.N = 3;
+        this.currentLevel = null;
+        this.currentLevelIndex = 0;
+        this.resetRuntimeState();
         this.buildTopology();
         this.precomputeRotations();
         this.spawnEntities(aiConfigs);
-        
+
         this.gameState = 'playing';
         this.updateUI();
     }
 
-    // 1. 建立 N*N*N 魔方表面拓扑图
+    initLevel(levelIndex = 0) {
+        this.currentLevelIndex = Math.max(0, Math.min(this.levels.length - 1, levelIndex));
+        this.currentLevel = this.levels[this.currentLevelIndex];
+        this.N = this.currentLevel.size || 3;
+        this.resetRuntimeState();
+        this.buildTopology();
+        this.precomputeRotations();
+        this.spawnEntities(this.currentLevel.ais);
+        this.recordEvent('levelStart', {
+            levelTitle: this.currentLevel.title,
+            playerAt: this.playerPos,
+            keyAt: this.keyPos,
+            exitAt: this.exitPos
+        });
+
+        this.gameState = 'playing';
+        this.updateUI();
+    }
+
+    resetRuntimeState() {
+        this.cells = [];
+        this.ais = [];
+        this.keyPos = null;
+        this.hasKey = false;
+        this.exitPos = null;
+        this.playerAP = this.maxAP;
+        this.rotationEnabled = false;
+        this.rotationsUsed = 0;
+        this.turn = 1;
+        this.plannedPath = [];
+        this.historyStack = [];
+        this.eventLog = [];
+        this.lastFailure = null;
+        this.lastInputCell = null;
+        this.trackingEnabled = false;
+        this.trackerCell = null;
+        this.trackerMode = false;
+        this.bridges = [];
+        this.voidCells = new Set();
+        this.activePatchCells = new Set();
+        this.patchCharges = 0;
+        this.beaconCharges = 0;
+        this.beaconCell = null;
+        this.beaconTTL = 0;
+        this.toolMode = 'route';
+        this.trust = this.loadTrust();
+        this.gameState = 'setup';
+    }
+
+    loadTrust() {
+        if (typeof localStorage === 'undefined') return 80;
+        const stored = Number(localStorage.getItem('dimensionHackTrust'));
+        if (!Number.isFinite(stored)) return 80;
+        return Math.max(0, Math.min(100, Math.round(stored)));
+    }
+
+    setTrust(value, reason = 'sync') {
+        const next = Math.max(0, Math.min(100, Math.round(value)));
+        const previous = this.trust;
+        this.trust = next;
+        if (typeof localStorage !== 'undefined') {
+            localStorage.setItem('dimensionHackTrust', String(next));
+        }
+        if (previous !== next) {
+            this.recordEvent('trustChanged', { previous, next, reason });
+        }
+        return next;
+    }
+
+    adjustTrust(delta, reason = 'event') {
+        return this.setTrust(this.trust + delta, reason);
+    }
+
+    createLevelBook() {
+        if (typeof window !== 'undefined' && typeof window.createLevelBook === 'function') {
+            return window.createLevelBook();
+        }
+        throw new Error('Level book is not loaded. Include levels.js before game.js.');
+    }
+
+    resolveCoord(coord) {
+        if (!coord) return null;
+        return this.cellId(coord.face, coord.row, coord.col);
+    }
+
+    cellId(face, row, col) {
+        return face * this.N * this.N + row * this.N + col;
+    }
+
+    getFaceCenter(face) {
+        const mid = Math.floor(this.N / 2);
+        return this.cellId(face, mid, mid);
+    }
+
     buildTopology() {
         const N = this.N;
         const totalCells = 6 * N * N;
-        
-        // 步骤 A: 生成每个格子的 3D 几何坐标与面法向量
-        // U=0(上), D=1(下), L=2(左), R=3(右), F=4(前), B=5(后)
+
         for (let f = 0; f < 6; f++) {
             for (let r = 0; r < N; r++) {
                 for (let c = 0; c < N; c++) {
-                    const id = f * N * N + r * N + c;
-                    
-                    // 归一化网格坐标 [-1, 1]
+                    const id = this.cellId(f, r, c);
                     const u = -1 + (2 * c + 1) / N;
                     const v = 1 - (2 * r + 1) / N;
-                    
+
                     let pos = { x: 0, y: 0, z: 0 };
                     let normal = { x: 0, y: 0, z: 0 };
-                    
+
                     switch (f) {
-                        case 0: // U (Top, Y = +1)
+                        case 0: // U
                             pos = { x: u, y: 1, z: -v };
                             normal = { x: 0, y: 1, z: 0 };
                             break;
-                        case 1: // D (Bottom, Y = -1)
+                        case 1: // D
                             pos = { x: u, y: -1, z: v };
                             normal = { x: 0, y: -1, z: 0 };
                             break;
-                        case 2: // L (Left, X = -1)
+                        case 2: // L
                             pos = { x: -1, y: v, z: u };
                             normal = { x: -1, y: 0, z: 0 };
                             break;
-                        case 3: // R (Right, X = +1)
+                        case 3: // R
                             pos = { x: 1, y: v, z: -u };
                             normal = { x: 1, y: 0, z: 0 };
                             break;
-                        case 4: // F (Front, Z = +1)
+                        case 4: // F
                             pos = { x: u, y: v, z: 1 };
                             normal = { x: 0, y: 0, z: 1 };
                             break;
-                        case 5: // B (Back, Z = -1)
+                        case 5: // B
                             pos = { x: -u, y: v, z: -1 };
                             normal = { x: 0, y: 0, z: -1 };
                             break;
                     }
-                    
+
                     this.cells[id] = {
-                        id: id,
+                        id,
                         face: f,
                         row: r,
                         col: c,
-                        pos: pos,
-                        normal: normal,
-                        neighbors: {} // 待填充: { 0: nbId, 1: nbId, 2: nbId, 3: nbId }
+                        pos,
+                        normal,
+                        neighbors: {}
                     };
                 }
             }
         }
-        
-        // 步骤 B: 基于折叠连通性填充邻接网格表
+
         for (let id = 0; id < totalCells; id++) {
             const cell = this.cells[id];
             const f = cell.face;
             const r = cell.row;
             const c = cell.col;
-            
-            // 默认同平面邻居
-            let up = (r > 0) ? (f * N * N + (r - 1) * N + c) : null;
-            let down = (r < N - 1) ? (f * N * N + (r + 1) * N + c) : null;
-            let left = (c > 0) ? (f * N * N + r * N + (c - 1)) : null;
-            let right = (c < N - 1) ? (f * N * N + r * N + (c + 1)) : null;
-            
-            // 跨边界情况 (Portals)
-            if (r === 0) { // 向上跨越
+
+            let up = (r > 0) ? this.cellId(f, r - 1, c) : null;
+            let down = (r < N - 1) ? this.cellId(f, r + 1, c) : null;
+            let left = (c > 0) ? this.cellId(f, r, c - 1) : null;
+            let right = (c < N - 1) ? this.cellId(f, r, c + 1) : null;
+
+            if (r === 0) {
                 switch (f) {
-                    case 0: up = 5 * N * N + 0 * N + (N - 1 - c); break; // U-Up -> B-Top (inv col)
-                    case 1: up = 4 * N * N + (N - 1) * N + c; break;    // D-Up -> F-Bottom
-                    case 2: up = 0 * N * N + c * N + 0; break;          // L-Up -> U-Left
-                    case 3: up = 0 * N * N + (N - 1 - c) * N + (N - 1); break; // R-Up -> U-Right
-                    case 4: up = 0 * N * N + (N - 1) * N + c; break;    // F-Up -> U-Bottom
-                    case 5: up = 0 * N * N + 0 * N + (N - 1 - c); break; // B-Up -> U-Top (inv col)
+                    case 0: up = this.cellId(5, 0, N - 1 - c); break;
+                    case 1: up = this.cellId(4, N - 1, c); break;
+                    case 2: up = this.cellId(0, c, 0); break;
+                    case 3: up = this.cellId(0, N - 1 - c, N - 1); break;
+                    case 4: up = this.cellId(0, N - 1, c); break;
+                    case 5: up = this.cellId(0, 0, N - 1 - c); break;
                 }
             }
-            if (r === N - 1) { // 向下跨越
+            if (r === N - 1) {
                 switch (f) {
-                    case 0: down = 4 * N * N + 0 * N + c; break;         // U-Down -> F-Top
-                    case 1: down = 5 * N * N + (N - 1) * N + (N - 1 - c); break; // D-Down -> B-Bottom (inv col)
-                    case 2: down = 1 * N * N + (N - 1 - c) * N + 0; break;       // L-Down -> D-Left
-                    case 3: down = 1 * N * N + c * N + (N - 1); break;          // R-Down -> D-Right
-                    case 4: down = 1 * N * N + 0 * N + c; break;         // F-Down -> D-Top
-                    case 5: down = 1 * N * N + (N - 1) * N + (N - 1 - c); break; // B-Down -> D-Bottom (inv col)
+                    case 0: down = this.cellId(4, 0, c); break;
+                    case 1: down = this.cellId(5, N - 1, N - 1 - c); break;
+                    case 2: down = this.cellId(1, N - 1 - c, 0); break;
+                    case 3: down = this.cellId(1, c, N - 1); break;
+                    case 4: down = this.cellId(1, 0, c); break;
+                    case 5: down = this.cellId(1, N - 1, N - 1 - c); break;
                 }
             }
-            if (c === 0) { // 向左跨越
+            if (c === 0) {
                 switch (f) {
-                    case 0: left = 2 * N * N + 0 * N + r; break;         // U-Left -> L-Top
-                    case 1: left = 2 * N * N + (N - 1) * N + (N - 1 - r); break; // D-Left -> L-Bottom (inv row)
-                    case 2: left = 5 * N * N + r * N + (N - 1); break;   // L-Left -> B-Right
-                    case 3: left = 4 * N * N + r * N + (N - 1); break;   // R-Left -> F-Right
-                    case 4: left = 2 * N * N + r * N + (N - 1); break;   // F-Left -> L-Right
-                    case 5: left = 3 * N * N + r * N + (N - 1); break;   // B-Left -> R-Right
+                    case 0: left = this.cellId(2, 0, r); break;
+                    case 1: left = this.cellId(2, N - 1, N - 1 - r); break;
+                    case 2: left = this.cellId(5, r, N - 1); break;
+                    case 3: left = this.cellId(4, r, N - 1); break;
+                    case 4: left = this.cellId(2, r, N - 1); break;
+                    case 5: left = this.cellId(3, r, N - 1); break;
                 }
             }
-            if (c === N - 1) { // 向右跨越
+            if (c === N - 1) {
                 switch (f) {
-                    case 0: right = 3 * N * N + 0 * N + (N - 1 - r); break; // U-Right -> R-Top (inv row)
-                    case 1: right = 3 * N * N + (N - 1) * N + r; break;   // D-Right -> R-Bottom
-                    case 2: right = 4 * N * N + r * N + 0; break;        // L-Right -> F-Left
-                    case 3: right = 5 * N * N + r * N + 0; break;        // R-Right -> B-Left
-                    case 4: right = 3 * N * N + r * N + 0; break;        // F-Right -> R-Left
-                    case 5: right = 2 * N * N + r * N + 0; break;        // B-Right -> L-Left
+                    case 0: right = this.cellId(3, 0, N - 1 - r); break;
+                    case 1: right = this.cellId(3, N - 1, r); break;
+                    case 2: right = this.cellId(4, r, 0); break;
+                    case 3: right = this.cellId(5, r, 0); break;
+                    case 4: right = this.cellId(3, r, 0); break;
+                    case 5: right = this.cellId(2, r, 0); break;
                 }
             }
-            
+
             cell.neighbors[this.DIR.UP] = up;
             cell.neighbors[this.DIR.DOWN] = down;
             cell.neighbors[this.DIR.LEFT] = left;
@@ -177,196 +287,288 @@ class GameEngine {
         }
     }
 
-    // 2. 使用 3D 向量空间几何旋转，预计算层旋转的节点置换表
     precomputeRotations() {
         const N = this.N;
         const totalCells = 6 * N * N;
         const axes = ['X', 'Y', 'Z'];
         const directions = ['CW', 'CCW'];
-        
-        // 浮点数安全比较
-        const epsilon = 1e-4;
-        
-        // 定义各轴坐标切片 bin
+
         const getLayerIndex = (pos, axis) => {
             const val = pos[axis.toLowerCase()];
-            // 归一化映射：[-1, 1] 映射到 [0, N-1] 的层索引
-            // 边缘情况处理：若值在 [-1, 1] 外则限幅
             const clamped = Math.max(-1, Math.min(1, val));
             const idx = Math.floor((clamped + 1) / 2 * N);
             return Math.min(N - 1, idx);
         };
-        
+
         for (const axis of axes) {
             this.rotationPermutations[axis] = {};
             for (let layer = 0; layer < N; layer++) {
                 this.rotationPermutations[axis][layer] = { CW: [], CCW: [] };
-                
+
                 for (const dir of directions) {
                     const perm = new Array(totalCells);
-                    
-                    // 对 54 个格子的位置进行旋转变换
+
                     for (let id = 0; id < totalCells; id++) {
                         const cell = this.cells[id];
                         const cellLayer = getLayerIndex(cell.pos, axis);
-                        
-                        if (cellLayer === layer) {
-                            // 旋转该单元的 pos 与 normal
-                            let rotatedPos = { ...cell.pos };
-                            let rotatedNormal = { ...cell.normal };
-                            
-                            // 旋转公式
-                            if (axis === 'X') {
-                                const angle = (dir === 'CW') ? -Math.PI / 2 : Math.PI / 2; // 右手法则
-                                const cos = Math.cos(angle);
-                                const sin = Math.sin(angle);
-                                
-                                rotatedPos.y = cell.pos.y * cos - cell.pos.z * sin;
-                                rotatedPos.z = cell.pos.y * sin + cell.pos.z * cos;
-                                
-                                rotatedNormal.y = cell.normal.y * cos - cell.normal.z * sin;
-                                rotatedNormal.z = cell.normal.y * sin + cell.normal.z * cos;
-                            } else if (axis === 'Y') {
-                                const angle = (dir === 'CW') ? -Math.PI / 2 : Math.PI / 2;
-                                const cos = Math.cos(angle);
-                                const sin = Math.sin(angle);
-                                
-                                rotatedPos.x = cell.pos.x * cos + cell.pos.z * sin;
-                                rotatedPos.z = -cell.pos.x * sin + cell.pos.z * cos;
-                                
-                                rotatedNormal.x = cell.normal.x * cos + cell.normal.z * sin;
-                                rotatedNormal.z = -cell.normal.x * sin + cell.normal.z * cos;
-                            } else if (axis === 'Z') {
-                                const angle = (dir === 'CW') ? -Math.PI / 2 : Math.PI / 2;
-                                const cos = Math.cos(angle);
-                                const sin = Math.sin(angle);
-                                
-                                rotatedPos.x = cell.pos.x * cos - cell.pos.y * sin;
-                                rotatedPos.y = cell.pos.x * sin + cell.pos.y * cos;
-                                
-                                rotatedNormal.x = cell.normal.x * cos - cell.normal.y * sin;
-                                rotatedNormal.y = cell.normal.x * sin + cell.normal.y * cos;
-                            }
-                            
-                            // 在原始 cell 集合中寻找最匹配的新位置和新法线
-                            let bestMatch = -1;
-                            let minDistance = Infinity;
-                            
-                            for (let searchId = 0; searchId < totalCells; searchId++) {
-                                const targetCell = this.cells[searchId];
-                                
-                                // 计算 3D 距离
-                                const dist = Math.hypot(
-                                    rotatedPos.x - targetCell.pos.x,
-                                    rotatedPos.y - targetCell.pos.y,
-                                    rotatedPos.z - targetCell.pos.z
-                                );
-                                
-                                // 法线重合度
-                                const normalDot = rotatedNormal.x * targetCell.normal.x +
-                                                  rotatedNormal.y * targetCell.normal.y +
-                                                  rotatedNormal.z * targetCell.normal.z;
-                                
-                                if (dist < minDistance && normalDot > 0.9) {
-                                    minDistance = dist;
-                                    bestMatch = searchId;
-                                }
-                            }
-                            
-                            perm[id] = (bestMatch !== -1 && minDistance < 0.2) ? bestMatch : id;
-                        } else {
-                            // 未参与旋转的层，索引保持不变
+
+                        if (cellLayer !== layer) {
                             perm[id] = id;
+                            continue;
                         }
+
+                        const rotatedPos = { ...cell.pos };
+                        const rotatedNormal = { ...cell.normal };
+                        const angle = (dir === 'CW') ? -Math.PI / 2 : Math.PI / 2;
+                        const cos = Math.cos(angle);
+                        const sin = Math.sin(angle);
+
+                        if (axis === 'X') {
+                            rotatedPos.y = cell.pos.y * cos - cell.pos.z * sin;
+                            rotatedPos.z = cell.pos.y * sin + cell.pos.z * cos;
+                            rotatedNormal.y = cell.normal.y * cos - cell.normal.z * sin;
+                            rotatedNormal.z = cell.normal.y * sin + cell.normal.z * cos;
+                        } else if (axis === 'Y') {
+                            rotatedPos.x = cell.pos.x * cos + cell.pos.z * sin;
+                            rotatedPos.z = -cell.pos.x * sin + cell.pos.z * cos;
+                            rotatedNormal.x = cell.normal.x * cos + cell.normal.z * sin;
+                            rotatedNormal.z = -cell.normal.x * sin + cell.normal.z * cos;
+                        } else if (axis === 'Z') {
+                            rotatedPos.x = cell.pos.x * cos - cell.pos.y * sin;
+                            rotatedPos.y = cell.pos.x * sin + cell.pos.y * cos;
+                            rotatedNormal.x = cell.normal.x * cos - cell.normal.y * sin;
+                            rotatedNormal.y = cell.normal.x * sin + cell.normal.y * cos;
+                        }
+
+                        let bestMatch = -1;
+                        let minDistance = Infinity;
+                        for (let searchId = 0; searchId < totalCells; searchId++) {
+                            const targetCell = this.cells[searchId];
+                            const dist = Math.hypot(
+                                rotatedPos.x - targetCell.pos.x,
+                                rotatedPos.y - targetCell.pos.y,
+                                rotatedPos.z - targetCell.pos.z
+                            );
+                            const normalDot = rotatedNormal.x * targetCell.normal.x +
+                                rotatedNormal.y * targetCell.normal.y +
+                                rotatedNormal.z * targetCell.normal.z;
+
+                            if (dist < minDistance && normalDot > 0.9) {
+                                minDistance = dist;
+                                bestMatch = searchId;
+                            }
+                        }
+
+                        perm[id] = (bestMatch !== -1 && minDistance < 0.2) ? bestMatch : id;
                     }
-                    
+
                     this.rotationPermutations[axis][layer][dir] = perm;
                 }
             }
         }
     }
 
-    // 3. 生成实体 (Entity Spawner)
     spawnEntities(aiConfigs) {
         const N = this.N;
         const totalCells = 6 * N * N;
-        
-        // 玩家固定在 U 面中心 (N=3 时是 4，即 U-中心)
-        this.playerPos = Math.floor(N * N / 2); // U 的中心
+
+        this.playerPos = this.currentLevel ? this.resolveCoord(this.currentLevel.player) : this.getFaceCenter(0);
         this.playerLastPos = this.playerPos;
-        
-        // 过滤掉不可用坐标（玩家位置）
+        this.hasKey = Boolean(this.currentLevel && this.currentLevel.hasKeyStart);
+        this.keyPos = this.currentLevel ? this.resolveCoord(this.currentLevel.key) : this.getFaceCenter(4);
+        if (this.hasKey) this.keyPos = null;
+        this.exitPos = this.currentLevel ? this.resolveCoord(this.currentLevel.exit) : this.getFaceCenter(1);
+        this.rotationEnabled = this.currentLevel
+            ? Boolean(this.currentLevel.rotationEnabled)
+            : true;
+        this.trackingEnabled = this.currentLevel
+            ? Boolean(this.currentLevel.trackingEnabled)
+            : false;
+        this.trackerCell = this.currentLevel?.trackerStart
+            ? this.resolveCoord(this.currentLevel.trackerStart)
+            : null;
+        this.trackerMode = false;
+        this.voidCells = new Set(this.normalizeCellList(this.currentLevel?.voids || []));
+        this.activePatchCells = new Set();
+        this.patchCharges = Number(this.currentLevel?.patchCharges || 0);
+        this.beaconCharges = Number(this.currentLevel?.beaconCharges || 0);
+        this.beaconCell = null;
+        this.beaconTTL = 0;
+        this.toolMode = 'route';
+        this.bridges = (this.currentLevel?.bridges || [])
+            .map(link => ({
+                a: this.resolveCoord(link.a),
+                b: this.resolveCoord(link.b)
+            }))
+            .filter(link => link.a !== null && link.b !== null && link.a !== link.b);
+        this.rotationsUsed = 0;
+
+        const configs = this.currentLevel
+            ? (aiConfigs || [])
+            : ((aiConfigs && aiConfigs.length > 0) ? aiConfigs : [{ type: 'chaser', spawn: 'opposite' }]);
+
         const getAvailablePositions = (exclude = []) => {
             const list = [];
             for (let i = 0; i < totalCells; i++) {
-                if (i !== this.playerPos && !exclude.includes(i)) {
-                    list.push(i);
-                }
+                if (!exclude.includes(i) && this.isWalkableForAI(i)) list.push(i);
             }
             return list;
         };
 
-        // 放置数据芯片 (随机在除 U 面以外的面上)
-        const chipExclude = [this.playerPos];
-        for (let i = 0; i < 3; i++) {
-            const pool = getAvailablePositions(chipExclude).filter(id => {
-                const cell = this.cells[id];
-                // 优先生成在非 U 面，且互不相邻
-                return cell.face !== 0;
-            });
-            const selected = pool[Math.floor(Math.random() * pool.length)] || getAvailablePositions(chipExclude)[0];
-            this.chips.push(selected);
-            chipExclude.push(selected);
-        }
-        
-        // 生成 AI
-        aiConfigs.forEach((config, idx) => {
-            let spawnPos = 0;
-            const excludePool = [this.playerPos, ...this.chips, ...this.ais.map(a => a.pos)];
-            
-            if (config.spawn === 'opposite') {
-                // 对立面 D 面的四个角落
+        configs.forEach((config, idx) => {
+            const excludePool = [
+                this.playerPos,
+                ...(this.keyPos !== null ? [this.keyPos] : []),
+                this.exitPos,
+                ...this.ais.map(ai => ai.pos)
+            ];
+            let spawnPos;
+
+            if (config.pos) {
+                spawnPos = this.resolveCoord(config.pos);
+                if (excludePool.includes(spawnPos) || !this.isWalkableForAI(spawnPos)) {
+                    spawnPos = this.findGuardianGuardPost(excludePool) || getAvailablePositions(excludePool)[0];
+                }
+            } else if (config.type === 'guardian') {
+                spawnPos = this.findGuardianGuardPost(excludePool) || getAvailablePositions(excludePool)[0];
+            } else if (config.spawn === 'opposite') {
                 const oppositeCornerPool = [
-                    1 * N * N + 0 * N + 0,
-                    1 * N * N + 0 * N + (N - 1),
-                    1 * N * N + (N - 1) * N + 0,
-                    1 * N * N + (N - 1) * N + (N - 1)
+                    this.cellId(1, 0, 0),
+                    this.cellId(1, 0, N - 1),
+                    this.cellId(1, N - 1, 0),
+                    this.cellId(1, N - 1, N - 1)
                 ].filter(id => !excludePool.includes(id));
-                
-                spawnPos = oppositeCornerPool[Math.floor(Math.random() * oppositeCornerPool.length)] || getAvailablePositions(excludePool)[0];
+                spawnPos = oppositeCornerPool[Math.floor(Math.random() * oppositeCornerPool.length)] ||
+                    getAvailablePositions(excludePool)[0];
             } else {
-                // 随机位置
-                const pool = getAvailablePositions(excludePool);
-                spawnPos = pool[Math.floor(Math.random() * pool.length)];
+                const pool = getAvailablePositions(excludePool)
+                    .filter(id => this.cells[id].face !== 0);
+                spawnPos = pool[Math.floor(Math.random() * pool.length)] ||
+                    getAvailablePositions(excludePool)[0];
             }
-            
+
             this.ais.push({
                 id: idx,
                 pos: spawnPos,
-                type: config.type, // 'chaser', 'ambusher', 'guardian'
-                state: config.type === 'guardian' ? 'patrol' : 'alert',
-                patrolTargetChipIndex: idx % this.chips.length, // 守护者绑定的巡逻芯片
-                color: config.type === 'chaser' ? '#ff0055' : (config.type === 'ambusher' ? '#bd00ff' : '#ffb700')
+                type: config.type,
+                state: config.type === 'guardian' ? 'guard' : 'alert',
+                aggro: config.aggro || (config.type === 'guardian' && this.currentLevel
+                    ? this.currentLevel.guardianAggro || 'sameFace'
+                    : 'always'),
+                guardPost: spawnPos,
+                color: config.type === 'chaser' ? '#ff0055' :
+                    (config.type === 'ambusher' ? '#bd00ff' : '#ffb700')
             });
         });
     }
 
-    // 4. 基于拓扑图的 BFS 广度优先最快路径搜索
-    findPath(startId, endId) {
+    findGuardianGuardPost(excludePool) {
+        if (this.keyPos === null) return null;
+        const keyCell = this.cells[this.keyPos];
+        const sameFaceCorners = [
+            this.cellId(keyCell.face, 0, 0),
+            this.cellId(keyCell.face, 0, this.N - 1),
+            this.cellId(keyCell.face, this.N - 1, 0),
+            this.cellId(keyCell.face, this.N - 1, this.N - 1)
+        ].filter(id => id !== this.keyPos && !excludePool.includes(id) && this.isWalkableForAI(id));
+        if (sameFaceCorners.length > 0) return sameFaceCorners[0];
+
+        const keyNeighbors = Object.values(this.cells[this.keyPos].neighbors)
+            .filter(id => id !== null && id !== this.keyPos && !excludePool.includes(id) && this.isWalkableForAI(id));
+        return keyNeighbors[0] || null;
+    }
+
+    normalizeCellList(coords = []) {
+        return coords
+            .map(coord => this.resolveCoord(coord))
+            .filter(cellId => cellId !== null && cellId !== undefined);
+    }
+
+    isVoidCell(cellId) {
+        return this.voidCells.has(cellId);
+    }
+
+    isActivePatchCell(cellId) {
+        return this.activePatchCells.has(cellId);
+    }
+
+    isWalkableForPlayer(cellId) {
+        if (cellId === null || cellId === undefined || !this.cells[cellId]) return false;
+        return !this.isVoidCell(cellId) || this.isActivePatchCell(cellId);
+    }
+
+    isWalkableForAI(cellId) {
+        if (cellId === null || cellId === undefined || !this.cells[cellId]) return false;
+        if (this.isVoidCell(cellId)) return false;
+        if (this.isActivePatchCell(cellId)) return false;
+        return true;
+    }
+
+    isReservedCell(cellId) {
+        if (cellId === null || cellId === undefined) return true;
+        if (cellId === this.playerPos) return true;
+        if (!this.hasKey && this.keyPos !== null && cellId === this.keyPos) return true;
+        if (this.exitPos !== null && cellId === this.exitPos) return true;
+        if (this.ais.some(ai => ai.pos === cellId)) return true;
+        if ((this.bridges || []).some(link => link.a === cellId || link.b === cellId)) return true;
+        if (this.activePatchCells.has(cellId)) return true;
+        return false;
+    }
+
+    isLegalPatchTarget(cellId) {
+        return this.patchCharges > 0 &&
+            this.isVoidCell(cellId) &&
+            !this.isActivePatchCell(cellId);
+    }
+
+    isLegalBeaconTarget(cellId) {
+        return this.beaconCharges > 0 &&
+            this.isWalkableForPlayer(cellId) &&
+            !this.isReservedCell(cellId);
+    }
+
+    getBridgeDestination(cellId) {
+        const bridge = this.bridges.find(link => link.a === cellId || link.b === cellId);
+        if (!bridge) return null;
+        return bridge.a === cellId ? bridge.b : bridge.a;
+    }
+
+    isBridgeStep(fromId, toId) {
+        if (fromId === null || fromId === undefined || toId === null || toId === undefined) return false;
+        return this.getBridgeDestination(fromId) === toId;
+    }
+
+    getNeighbors(cellId, options = {}) {
+        if (cellId === null || cellId === undefined || !this.cells[cellId]) return [];
+        const actor = options.actor || 'player';
+        const canEnter = actor === 'ai'
+            ? cellIdToCheck => this.isWalkableForAI(cellIdToCheck)
+            : cellIdToCheck => this.isWalkableForPlayer(cellIdToCheck);
+
+        const baseNeighbors = Object.values(this.cells[cellId].neighbors)
+            .filter(id => id !== null && id !== undefined && canEnter(id));
+        const bridgeTarget = this.getBridgeDestination(cellId);
+        if (bridgeTarget === null || bridgeTarget === undefined || !canEnter(bridgeTarget)) {
+            return baseNeighbors;
+        }
+        return [...new Set([...baseNeighbors, bridgeTarget])];
+    }
+
+    findPath(startId, endId, options = {}) {
         if (startId === endId) return [startId];
-        
+        const actor = options.actor || 'player';
+        if (actor === 'ai' && (!this.isWalkableForAI(startId) || !this.isWalkableForAI(endId))) return null;
+        if (actor !== 'ai' && (!this.isWalkableForPlayer(startId) || !this.isWalkableForPlayer(endId))) return null;
+
         const queue = [[startId]];
-        const visited = new Set();
-        visited.add(startId);
-        
+        const visited = new Set([startId]);
+
         while (queue.length > 0) {
             const path = queue.shift();
             const curr = path[path.length - 1];
-            
-            const nbs = this.cells[curr].neighbors;
-            for (const dir in nbs) {
-                const neighborId = nbs[dir];
-                if (neighborId !== null && !visited.has(neighborId)) {
+
+            for (const neighborId of this.getNeighbors(curr, options)) {
+                if (!visited.has(neighborId)) {
                     const newPath = [...path, neighborId];
                     if (neighborId === endId) return newPath;
                     visited.add(neighborId);
@@ -374,60 +576,428 @@ class GameEngine {
                 }
             }
         }
-        return null; // 无路径
+
+        return null;
     }
 
-    // 5. 规划与执行路径操作
-    planPathTo(targetId) {
-        if (this.gameState !== 'playing' || this.playerAP <= 0) return;
-        
-        // 计算当前位置到目标位置的最短路径
-        const path = this.findPath(this.playerPos, targetId);
-        if (!path) return;
-        
-        // 限制在剩余 AP 步数之内
-        const maxSteps = this.playerAP;
-        this.plannedPath = path.slice(1, maxSteps + 1); // 排除起点
-        
-        // 触发 UI 渲染更新
-        if (window.renderEngine) {
-            window.renderEngine.drawPlannedPath(this.plannedPath);
+    isAdjacent(fromId, toId) {
+        if (fromId === null || toId === null) return false;
+        return this.getNeighbors(fromId).includes(toId);
+    }
+
+    clearPlannedPath() {
+        const hadPath = this.plannedPath.length > 0;
+        this.plannedPath = [];
+        this.lastInputCell = null;
+        if (window.renderEngine) window.renderEngine.drawPlannedPath([]);
+        this.updateActionButtons();
+        this.drawMinimap();
+        if (hadPath) {
+            this.playFeel('routeUndo');
+        }
+    }
+
+    playFeel(soundName) {
+        if (window.audioFeedback) window.audioFeedback.play(soundName);
+    }
+
+    showFeel(text, tone = 'info', flash = false) {
+        if (window.gameFeel) {
+            window.gameFeel.note(text, tone);
+            if (flash) window.gameFeel.flashScreen(tone);
+        }
+    }
+
+    recordEvent(type, data = {}) {
+        const event = {
+            type,
+            turn: this.turn,
+            playerPos: this.playerPos,
+            hasKey: this.hasKey,
+            ...data
+        };
+        this.eventLog.push(event);
+        if (this.eventLog.length > 32) {
+            this.eventLog.shift();
+        }
+        if (typeof window !== 'undefined') {
+            window.dispatchEvent(new CustomEvent('dimensionhack:event', { detail: event }));
+        }
+    }
+
+    distanceBetween(fromId, toId) {
+        if (fromId === null || fromId === undefined || toId === null || toId === undefined) return null;
+        if (fromId === toId) return 0;
+        const path = this.findPath(fromId, toId);
+        return path ? path.length - 1 : null;
+    }
+
+    createSnapshot(reason) {
+        return {
+            reason,
+            playerPos: this.playerPos,
+            playerLastPos: this.playerLastPos,
+            playerAP: this.playerAP,
+            rotationEnabled: this.rotationEnabled,
+            rotationsUsed: this.rotationsUsed,
+            turn: this.turn,
+            ais: this.ais.map(ai => ({ ...ai })),
+            keyPos: this.keyPos,
+            hasKey: this.hasKey,
+            exitPos: this.exitPos,
+            trackingEnabled: this.trackingEnabled,
+            trackerCell: this.trackerCell,
+            trackerMode: this.trackerMode,
+            bridges: this.bridges.map(link => ({ ...link })),
+            voidCells: [...this.voidCells],
+            activePatchCells: [...this.activePatchCells],
+            patchCharges: this.patchCharges,
+            beaconCharges: this.beaconCharges,
+            beaconCell: this.beaconCell,
+            beaconTTL: this.beaconTTL,
+            toolMode: this.toolMode,
+            trust: this.trust,
+            gameState: this.gameState,
+            plannedPath: [...this.plannedPath],
+            lastFailure: this.lastFailure ? { ...this.lastFailure } : null,
+            eventLog: this.eventLog.map(event => ({ ...event })),
+            currentLevelIndex: this.currentLevelIndex
+        };
+    }
+
+    pushHistory(reason) {
+        this.historyStack.push(this.createSnapshot(reason));
+        if (this.historyStack.length > 80) {
+            this.historyStack.shift();
         }
         this.updateActionButtons();
     }
 
-    // 确认并执行移动路径
+    canUndo() {
+        return this.historyStack.length > 0;
+    }
+
+    undoTurn() {
+        if (!this.canUndo()) return false;
+        const snapshot = this.historyStack.pop();
+        this.restoreSnapshot(snapshot);
+        this.playFeel('undo');
+        return true;
+    }
+
+    restoreSnapshot(snapshot) {
+        this.playerPos = snapshot.playerPos;
+        this.playerLastPos = snapshot.playerLastPos;
+        this.playerAP = snapshot.playerAP;
+        this.rotationEnabled = Boolean(snapshot.rotationEnabled);
+        this.rotationsUsed = snapshot.rotationsUsed ?? 0;
+        this.turn = snapshot.turn;
+        this.ais = snapshot.ais.map(ai => ({ ...ai }));
+        this.keyPos = snapshot.keyPos;
+        this.hasKey = snapshot.hasKey;
+        this.exitPos = snapshot.exitPos;
+        this.trackingEnabled = Boolean(snapshot.trackingEnabled);
+        this.trackerCell = snapshot.trackerCell ?? null;
+        this.trackerMode = Boolean(snapshot.trackerMode);
+        this.bridges = (snapshot.bridges || []).map(link => ({ ...link }));
+        this.voidCells = new Set(snapshot.voidCells || []);
+        this.activePatchCells = new Set(snapshot.activePatchCells || []);
+        this.patchCharges = snapshot.patchCharges ?? 0;
+        this.beaconCharges = snapshot.beaconCharges ?? 0;
+        this.beaconCell = snapshot.beaconCell ?? null;
+        this.beaconTTL = snapshot.beaconTTL ?? 0;
+        this.toolMode = snapshot.toolMode || 'route';
+        this.trust = snapshot.trust ?? this.trust;
+        this.gameState = snapshot.gameState === 'gameover' ? 'playing' : snapshot.gameState;
+        this.plannedPath = snapshot.plannedPath || [];
+        this.lastFailure = snapshot.lastFailure || null;
+        this.eventLog = (snapshot.eventLog || []).map(event => ({ ...event }));
+        this.currentLevelIndex = snapshot.currentLevelIndex ?? this.currentLevelIndex;
+        this.currentLevel = this.levels[this.currentLevelIndex] || this.currentLevel;
+        this.lastInputCell = null;
+
+        document.getElementById('gameover-overlay')?.classList.remove('active', 'jump-alert');
+        document.getElementById('victory-overlay')?.classList.remove('active');
+
+        if (window.renderEngine) {
+            window.renderEngine.buildCube3D();
+            window.renderEngine.spawnEntities3D();
+            window.renderEngine.drawPlannedPath(this.plannedPath);
+        }
+
+        this.updateUI();
+    }
+
+    skipTurn() {
+        if (this.gameState !== 'playing') return;
+        this.pushHistory('skip');
+        this.recordEvent('skip', { apBefore: this.playerAP });
+        this.playerAP = 0;
+        this.clearPlannedPath();
+        this.triggerAITurn();
+    }
+
+    toggleTrackerMode() {
+        if (!this.trackingEnabled) {
+            this.playFeel('invalid');
+            this.showFeel('该标记工具已从主线移除', 'warn');
+            return;
+        }
+
+        this.trackerMode = !this.trackerMode;
+        if (this.trackerMode) {
+            this.clearPlannedPath();
+            this.showFeel('标记工具已退居档案；现在直接操作 3D 魔方', 'info');
+        } else {
+            this.showFeel('已取消标记', 'info');
+        }
+        this.updateUI();
+    }
+
+    setTrackerCell(cellId) {
+        if (!this.trackingEnabled || cellId === null || cellId === undefined) return;
+
+        this.trackerCell = cellId;
+        this.trackerMode = false;
+        this.recordEvent('trackerSet', { cell: cellId });
+        this.playFeel('uiConfirm');
+        this.showFeel(`标记：${this.describeCell(cellId)}`, 'good');
+        this.updateUI();
+    }
+
+    clearTracker() {
+        if (!this.trackingEnabled) return;
+        const hadMarker = this.trackerCell !== null && this.trackerCell !== undefined;
+        this.trackerCell = null;
+        this.trackerMode = false;
+        if (hadMarker) {
+            this.recordEvent('trackerClear');
+            this.playFeel('routeUndo');
+            this.showFeel('标记已清除', 'info');
+        }
+        this.updateUI();
+    }
+
+    setToolMode(mode = 'route') {
+        const nextMode = ['route', 'patch', 'beacon'].includes(mode) ? mode : 'route';
+        if (nextMode === 'patch' && this.patchCharges <= 0) {
+            this.playFeel('invalid');
+            this.showFeel('没有可用补片', 'warn');
+            return;
+        }
+        if (nextMode === 'beacon' && this.beaconCharges <= 0) {
+            this.playFeel('invalid');
+            this.showFeel('没有可用诱饵', 'warn');
+            return;
+        }
+        this.toolMode = nextMode;
+        const labels = { route: '画路线', patch: '选择缺口放补片', beacon: '选择格子放诱饵' };
+        this.showFeel(labels[nextMode], nextMode === 'route' ? 'info' : 'good');
+        this.updateUI();
+    }
+
+    placePatch(cellId) {
+        if (this.gameState !== 'playing') return false;
+        if (!this.isLegalPatchTarget(cellId)) {
+            this.playFeel('invalid');
+            this.showFeel('补片只能铺在黑色缺口上', 'warn');
+            return false;
+        }
+
+        this.pushHistory('patch');
+        this.patchCharges -= 1;
+        this.activePatchCells.add(cellId);
+        this.toolMode = 'route';
+        this.recordEvent('patchPlaced', { at: cellId });
+        this.playFeel('patchPlace');
+        this.showFeel('临时补片已铺好。别停在上面。', 'good', true);
+        if (window.renderEngine) {
+            window.renderEngine.spawnEntities3D();
+            window.renderEngine.spawnCellPulse(cellId, '#8bdcff', 1.2);
+        }
+        this.updateUI();
+        return true;
+    }
+
+    placeBeacon(cellId) {
+        if (this.gameState !== 'playing') return false;
+        if (!this.isLegalBeaconTarget(cellId)) {
+            this.playFeel('invalid');
+            this.showFeel('诱饵要放在空的安全格上', 'warn');
+            return false;
+        }
+
+        this.pushHistory('beacon');
+        this.beaconCharges -= 1;
+        this.beaconCell = cellId;
+        this.beaconTTL = Math.max(1, Number(this.currentLevel?.beaconDuration || 1));
+        this.toolMode = 'route';
+        this.recordEvent('beaconPlaced', { at: cellId, ttl: this.beaconTTL });
+        this.playFeel('beaconPlace');
+        this.showFeel('诱饵信标已投放', 'good', true);
+        if (window.renderEngine) {
+            window.renderEngine.spawnEntities3D();
+            window.renderEngine.spawnCellPulse(cellId, '#ffb700', 1.2);
+        }
+        this.updateUI();
+        return true;
+    }
+
+    handleBoardCellClick(cellId) {
+        if (cellId === null || cellId === undefined) return false;
+        if (this.toolMode === 'patch') return this.placePatch(cellId);
+        if (this.toolMode === 'beacon') return this.placeBeacon(cellId);
+        this.appendPathCell(cellId);
+        return true;
+    }
+
+    appendPathCell(targetId) {
+        if (this.gameState !== 'playing') return;
+        if (this.playerAP <= 0) {
+            this.playFeel('invalid');
+            this.showFeel('行动点不足，先确认或结束回合', 'warn');
+            return;
+        }
+        if (targetId === null || targetId === undefined) return;
+        if (!this.isWalkableForPlayer(targetId)) {
+            this.playFeel('invalid');
+            this.showFeel(this.isVoidCell(targetId) ? '这里是缺口，先铺补片' : '这个格子不能走', 'warn');
+            return;
+        }
+
+        if (targetId === this.playerPos) {
+            const hadPath = this.plannedPath.length > 0;
+            this.clearPlannedPath();
+            if (hadPath) this.showFeel('路线已清空', 'info');
+            return;
+        }
+
+        const existingIndex = this.plannedPath.indexOf(targetId);
+        if (existingIndex !== -1) {
+            this.plannedPath = this.plannedPath.slice(0, existingIndex + 1);
+            this.playFeel('routeUndo');
+            this.showFeel('路线回退到已选格', 'info');
+            this.syncPlannedPath();
+            return;
+        }
+
+        const origin = this.plannedPath.length > 0
+            ? this.plannedPath[this.plannedPath.length - 1]
+            : this.playerPos;
+
+        if (!this.isAdjacent(origin, targetId)) {
+            if (this.tryAppendSkippedCell(origin, targetId)) return;
+            this.playFeel('invalid');
+            this.showFeel('路线必须连接相邻格', 'warn');
+            return;
+        }
+        if (this.plannedPath.length >= this.playerAP) {
+            this.playFeel('invalid');
+            this.showFeel('本回合行动点已用完', 'warn');
+            return;
+        }
+
+        const viaBridge = this.isBridgeStep(origin, targetId);
+        this.plannedPath.push(targetId);
+        this.playFeel('routeTick');
+        if (viaBridge) {
+            this.showFeel('传送门已接入路线', 'info');
+        }
+        this.syncPlannedPath();
+    }
+
+    tryAppendSkippedCell(origin, targetId) {
+        const remainingAP = this.playerAP - this.plannedPath.length;
+        if (remainingAP < 2) return false;
+
+        const catchUpPath = this.findPath(origin, targetId);
+        if (!catchUpPath || catchUpPath.length !== 3) return false;
+
+        const [, skippedCell, finalCell] = catchUpPath;
+        if (this.plannedPath.includes(skippedCell) || this.plannedPath.includes(finalCell)) {
+            return false;
+        }
+
+        this.plannedPath.push(skippedCell, finalCell);
+        this.playFeel('routeTick');
+        const usedBridge = this.isBridgeStep(origin, skippedCell) || this.isBridgeStep(skippedCell, finalCell);
+        this.showFeel(usedBridge ? '已补上传送后落点' : '已补上中间格', 'info');
+        this.syncPlannedPath();
+        return true;
+    }
+
+    syncPlannedPath() {
+        if (window.renderEngine) {
+            window.renderEngine.drawPlannedPath(this.plannedPath);
+        }
+        this.updateActionButtons();
+        this.drawMinimap();
+    }
+
     executePlannedPath() {
         if (this.plannedPath.length === 0 || this.playerAP <= 0) return;
-        
-        const steps = this.plannedPath.length;
+        const finalCell = this.plannedPath[this.plannedPath.length - 1];
+        if (this.isActivePatchCell(finalCell)) {
+            this.playFeel('invalid');
+            this.showFeel('补片只能踩过去，不能停在上面', 'warn', true);
+            return;
+        }
+
+        if (this.maybeRefuseRoute()) {
+            return;
+        }
+
+        this.pushHistory('move');
+        this.playFeel('execute');
+        this.showFeel(`发送路线：${this.plannedPath.length} 格`, 'good');
+        const pathToExecute = [...this.plannedPath];
+        const steps = pathToExecute.length;
+        this.recordEvent('route', {
+            from: this.playerPos,
+            path: [...pathToExecute],
+            steps
+        });
         this.playerAP -= steps;
-        
-        // 角色位移动画与坐标更新
+        this.plannedPath = [];
+        this.lastInputCell = null;
+        this.updateActionButtons();
+
         let delay = 0;
-        this.plannedPath.forEach((cellId) => {
+        pathToExecute.forEach(cellId => {
             setTimeout(() => {
+                const fromCell = this.playerPos;
                 this.playerLastPos = this.playerPos;
                 this.playerPos = cellId;
-                
-                // 收集芯片检测
-                this.checkChipCollection();
-                // 碰撞检测
+                if (this.activePatchCells.has(fromCell)) {
+                    this.activePatchCells.delete(fromCell);
+                    this.recordEvent('patchBroken', { at: fromCell, afterStepTo: cellId });
+                    this.playFeel('patchBreak');
+                    if (window.renderEngine) {
+                        window.renderEngine.spawnCellPulse(fromCell, '#8bdcff', 1.35);
+                        window.renderEngine.spawnEntities3D();
+                    }
+                    this.showFeel('补片碎了，后路断开', 'warn');
+                }
+                const usedBridge = this.isBridgeStep(fromCell, cellId);
+                this.recordEvent('playerMove', {
+                    from: fromCell,
+                    to: cellId,
+                    remainingAP: this.playerAP,
+                    usedBridge
+                });
+                this.playFeel(usedBridge ? 'bridgeStep' : 'playerStep');
+                this.checkKeyCollection();
                 this.checkCollisions();
-                
-                // 同步 3D 模型
+
                 if (window.renderEngine) {
                     window.renderEngine.movePlayer(cellId);
+                    window.renderEngine.drawPlannedPath([]);
                 }
                 this.updateUI();
             }, delay);
-            delay += 250; // 每格移动 0.25 秒
+            delay += 250;
         });
-        
-        this.plannedPath = [];
-        this.updateActionButtons();
-        
-        // 延迟触发 AI 回合
+
         setTimeout(() => {
             if (this.playerAP === 0 && this.gameState === 'playing') {
                 this.triggerAITurn();
@@ -435,593 +1005,1747 @@ class GameEngine {
         }, delay + 100);
     }
 
-    // 6. 旋转魔方操作
+    maybeRefuseRoute() {
+        const trust = Number.isFinite(this.trust) ? this.trust : 80;
+        const refusalChance = Math.max(0, Math.min(0.45, (100 - trust) / 180));
+        if (Math.random() >= refusalChance) return false;
+
+        this.pushHistory('refusal');
+        const origin = this.playerPos;
+        const options = this.getNeighbors(origin)
+            .filter(cellId => this.isWalkableForPlayer(cellId) && !this.ais.some(ai => ai.pos === cellId));
+        const shouldWander = options.length > 0 && Math.random() < 0.5;
+        const target = shouldWander
+            ? options[Math.floor(Math.random() * options.length)]
+            : origin;
+
+        this.playerAP = Math.max(0, this.playerAP - 1);
+        this.plannedPath = [];
+        this.lastInputCell = null;
+        if (target !== origin) {
+            this.playerLastPos = origin;
+            this.playerPos = target;
+            if (window.renderEngine) {
+                window.renderEngine.drawPlannedPath([]);
+                window.renderEngine.movePlayer(target);
+                window.renderEngine.spawnCellPulse(target, '#ffb700', 1.1);
+            }
+        } else if (window.renderEngine) {
+            window.renderEngine.drawPlannedPath([]);
+            window.renderEngine.spawnCellPulse(origin, '#ffb700', 0.85);
+        }
+
+        this.adjustTrust(-3, 'routeRefusal');
+        this.recordEvent('routeRefused', {
+            from: origin,
+            to: target,
+            wandered: target !== origin,
+            trust: this.trust
+        });
+        this.playFeel('invalid');
+        this.showFeel(target === origin
+            ? 'E-7 犹豫了，路线被取消'
+            : 'E-7 没照线走，局面偏移了',
+            'warn',
+            true);
+        this.checkKeyCollection();
+        this.checkCollisions();
+        this.updateUI();
+        if (this.playerAP === 0 && this.gameState === 'playing') {
+            this.triggerAITurn();
+        }
+        return true;
+    }
+
     rotateLayer(axis, layerIdx, direction) {
         if (this.gameState !== 'playing') return;
-        if (this.playerAP < 2) {
-            alert("旋转魔方需要消耗 2 AP！");
+        if (!this.rotationEnabled) {
+            this.playFeel('invalid');
+            this.showFeel('本关暂未引入旋转', 'warn', true);
             return;
         }
-        if (this.rotationCharge <= 0) {
-            alert("旋转能量不足，需等待充能！");
+        if (this.playerAP < 1) {
+            this.playFeel('invalid');
+            this.showFeel('Twist 需要 1 AP', 'warn', true);
             return;
         }
-        
-        this.playerAP -= 2;
-        this.rotationCharge -= 1;
+
+        this.pushHistory('rotate');
+        this.playFeel('rotateStart');
+        this.showFeel(`旋转 ${axis} 轴第 ${layerIdx + 1} 层`, 'info');
+        this.recordEvent('rotate', {
+            axis,
+            layer: layerIdx,
+            direction,
+            playerBefore: this.playerPos,
+            keyBefore: this.keyPos,
+            exitBefore: this.exitPos,
+            trackerBefore: this.trackerCell
+        });
+        this.playerAP -= 1;
+        this.rotationsUsed += 1;
         this.plannedPath = [];
-        
+        this.lastInputCell = null;
+
         const perm = this.rotationPermutations[axis][layerIdx][direction];
-        
-        // 同步 3D 动画
-        if (window.renderEngine) {
-            // 播放魔方扭动特效，传入轴、层索引、旋转方向，以及更新映射表的 callback
-            window.renderEngine.playRotateAnimation(axis, layerIdx, direction, () => {
-                // 动画结束，应用置换表重写所有棋子与道具的逻辑位置
-                this.applyPermutation(perm);
-                this.checkChipCollection();
-                this.checkCollisions();
-                this.updateUI();
-                
-                // 触发 AI 回合
-                if (this.playerAP === 0 && this.gameState === 'playing') {
-                    this.triggerAITurn();
-                }
-            });
-        } else {
-            // 无渲染器时的直接结算
+        const settle = () => {
             this.applyPermutation(perm);
-            this.checkChipCollection();
+            const rotateEvent = this.eventLog[this.eventLog.length - 1];
+            if (rotateEvent && rotateEvent.type === 'rotate') {
+                rotateEvent.playerAfter = this.playerPos;
+                rotateEvent.keyAfter = this.keyPos;
+                rotateEvent.exitAfter = this.exitPos;
+                rotateEvent.trackerAfter = this.trackerCell;
+            }
+            this.checkKeyCollection();
             this.checkCollisions();
             this.updateUI();
+            this.playFeel('rotateLock');
+            this.showFeel('空间已锁定', 'info');
+            if (window.renderEngine && this.voidCells.size > 0) {
+                window.renderEngine.buildCube3D();
+                window.renderEngine.spawnEntities3D();
+            }
+
             if (this.playerAP === 0 && this.gameState === 'playing') {
                 this.triggerAITurn();
             }
+        };
+
+        if (window.renderEngine) {
+            window.renderEngine.drawPlannedPath([]);
+            window.renderEngine.playRotateAnimation(axis, layerIdx, direction, settle);
+        } else {
+            settle();
         }
     }
 
-    // 应用置换表
     applyPermutation(perm) {
-        // 玩家位置更新
         this.playerLastPos = this.playerPos;
         this.playerPos = perm[this.playerPos];
-        
-        // AI 位置更新
+
         this.ais.forEach(ai => {
             ai.pos = perm[ai.pos];
+            if (ai.guardPost !== null && ai.guardPost !== undefined) {
+                ai.guardPost = perm[ai.guardPost];
+            }
         });
-        
-        // 芯片位置更新
-        this.chips = this.chips.map(chipId => perm[chipId]);
-        
-        // 出口位置更新
+
+        if (!this.hasKey && this.keyPos !== null) {
+            this.keyPos = perm[this.keyPos];
+        }
         if (this.exitPos !== null) {
             this.exitPos = perm[this.exitPos];
         }
+        if (this.trackerCell !== null && this.trackerCell !== undefined) {
+            this.trackerCell = perm[this.trackerCell];
+        }
+        this.bridges = this.bridges.map(link => ({
+            a: perm[link.a],
+            b: perm[link.b]
+        }));
+        this.voidCells = new Set([...this.voidCells].map(cellId => perm[cellId]));
+        this.activePatchCells = new Set([...this.activePatchCells].map(cellId => perm[cellId]));
+        if (this.beaconCell !== null && this.beaconCell !== undefined) {
+            this.beaconCell = perm[this.beaconCell];
+        }
     }
 
-    // 7. 多智能 AI 决策与行为树 (AI Turn Execution)
     triggerAITurn() {
         if (this.gameState !== 'playing') return;
-        
-        // 隐藏绿色规划路径线
+
         if (window.renderEngine) {
             window.renderEngine.drawPlannedPath([]);
         }
-        
-        // 执行所有 AI 行动 (每个 AI 拥有 2 AP 移动力)
+
         let aiPromise = Promise.resolve();
-        
+
         this.ais.forEach(ai => {
-            aiPromise = aiPromise.then(() => {
-                return new Promise((resolve) => {
-                    let steps = 2; // 移动力 2 格
-                    let moveDelay = 0;
-                    
-                    const takeSingleStep = () => {
-                        if (steps <= 0 || this.gameState !== 'playing') {
-                            resolve();
-                            return;
-                        }
-                        
-                        const nextCell = this.computeAIMovement(ai);
-                        if (nextCell !== null && nextCell !== ai.pos) {
-                            ai.pos = nextCell;
-                            
-                            // 同步渲染
-                            if (window.renderEngine) {
-                                window.renderEngine.moveAI(ai.id, nextCell);
-                            }
-                            
-                            this.checkCollisions();
-                            this.updateUI();
-                            
-                            steps--;
-                            setTimeout(takeSingleStep, 250); // 每步平滑走 0.25 秒
+            aiPromise = aiPromise.then(() => new Promise(resolve => {
+                let steps = this.getAIStepBudget(ai);
+                const totalSteps = steps;
+                let stepIndex = 0;
+
+                const takeSingleStep = () => {
+                    if (steps <= 0 || this.gameState !== 'playing') {
+                        resolve();
+                        return;
+                    }
+
+                    const fromCell = ai.pos;
+                    const distanceBefore = this.distanceBetween(fromCell, this.playerPos);
+                    const nextCell = this.computeAIMovement(ai);
+                    if (nextCell !== null && nextCell !== ai.pos) {
+                        ai.pos = nextCell;
+                        stepIndex++;
+                        this.recordEvent('aiMove', {
+                            aiId: ai.id,
+                            aiType: ai.type,
+                            aiState: ai.state,
+                            from: fromCell,
+                            to: nextCell,
+                            stepIndex,
+                            stepBudget: totalSteps,
+                            distanceBefore,
+                            distanceAfter: this.distanceBetween(nextCell, this.playerPos),
+                            target: this.getAIPreviewTarget({ ...ai })
+                        });
+                        if (ai.type === 'guardian' && ai.state === 'rage') {
+                            this.playFeel('guardianRage');
+                        } else if (ai.type === 'guardian' && ai.state === 'lure') {
+                            this.playFeel('guardianLure');
                         } else {
-                            // AI 无处可走或在原地
-                            resolve();
+                            this.playFeel('enemyStep');
                         }
-                    };
-                    
-                    takeSingleStep();
-                });
-            });
+                        if (window.renderEngine) {
+                            window.renderEngine.moveAI(ai.id, nextCell);
+                            window.renderEngine.spawnCellPulse(nextCell, ai.color || '#ff0055', 0.75);
+                        }
+                        if (this.beaconCell !== null && nextCell === this.beaconCell) {
+                            this.recordEvent('beaconTriggered', { at: this.beaconCell, aiId: ai.id, aiType: ai.type });
+                            this.playFeel('beaconTrigger');
+                            this.beaconCell = null;
+                            this.beaconTTL = 0;
+                            this.showFeel('诱饵被吃掉了', 'warn');
+                            if (window.renderEngine) window.renderEngine.spawnEntities3D();
+                        }
+                        this.checkCollisions();
+                        this.updateUI();
+                        steps--;
+                        setTimeout(takeSingleStep, 250);
+                    } else {
+                        resolve();
+                    }
+                };
+
+                takeSingleStep();
+            }));
         });
-        
-        // 所有 AI 走完，切换回玩家回合
+
         aiPromise.then(() => {
             if (this.gameState === 'playing') {
+                if (this.beaconCell !== null && this.beaconTTL > 0) {
+                    this.beaconTTL -= 1;
+                    if (this.beaconTTL <= 0) {
+                        this.recordEvent('beaconExpired', { at: this.beaconCell });
+                        this.beaconCell = null;
+                        if (window.renderEngine) window.renderEngine.spawnEntities3D();
+                    }
+                }
                 this.turn++;
                 this.playerAP = this.maxAP;
-                
-                // 旋转能充能计数
-                if (this.turn % 3 === 1) {
-                    this.rotationCharge = Math.min(this.maxRotationCharge, this.rotationCharge + 1);
-                }
-                
                 this.updateUI();
             }
         });
     }
 
-    // 核心 AI 决策逻辑
     computeAIMovement(ai) {
-        const playerCell = this.cells[this.playerPos];
-        const aiCell = this.cells[ai.pos];
-        
-        // 1. Guardian (守护者)：平面警觉机制
+        const target = this.getAITarget(ai);
+        const path = this.findPath(ai.pos, target, { actor: 'ai' });
+        if (!path || path.length <= 1) return ai.pos;
+
+        const nextCell = path[1];
+        return this.isForbiddenForAI(ai, nextCell) ? ai.pos : nextCell;
+    }
+
+    getAIStepBudget(ai) {
         if (ai.type === 'guardian') {
-            const targetChipId = this.chips[ai.patrolTargetChipIndex];
-            
-            // 如果玩家进入守护者所在的同一个平面
-            if (playerCell.face === aiCell.face) {
-                ai.state = 'alert'; // 警觉追击
-            } else {
-                ai.state = 'patrol'; // 安全巡逻
-            }
-            
-            if (ai.state === 'alert') {
-                // 向玩家走最短路径
-                const path = this.findPath(ai.pos, this.playerPos);
-                return (path && path.length > 1) ? path[1] : ai.pos;
-            } else {
-                // 守护芯片：走向芯片或在芯片周围巡逻
-                if (targetChipId !== undefined) {
-                    if (ai.pos === targetChipId) {
-                        // 已经在芯片上，随机选一个本平面上的邻居闲逛
-                        const nbs = this.cells[ai.pos].neighbors;
-                        const validNbs = [];
-                        for (const dir in nbs) {
-                            const nbId = nbs[dir];
-                            // 限制守护者在同一平面巡逻
-                            if (nbId !== null && this.cells[nbId].face === aiCell.face) {
-                                validNbs.push(nbId);
-                            }
-                        }
-                        return validNbs.length > 0 ? validNbs[Math.floor(Math.random() * validNbs.length)] : ai.pos;
-                    } else {
-                        // 寻找回家的路
-                        const path = this.findPath(ai.pos, targetChipId);
-                        return (path && path.length > 1) ? path[1] : ai.pos;
-                    }
+            return this.hasKey ? 2 : 1;
+        }
+        return 2;
+    }
+
+    getAITarget(ai) {
+        if (this.beaconCell !== null && this.beaconTTL > 0 && this.isWalkableForAI(this.beaconCell)) {
+            ai.state = ai.type === 'guardian' ? 'lure' : 'bait';
+            return this.beaconCell;
+        }
+
+        if (ai.type === 'guardian') {
+            if (this.hasKey) {
+                if (ai.aggro === 'guardDoor') {
+                    ai.state = 'gate';
+                    return this.exitPos ?? this.playerPos;
                 }
+                ai.state = 'rage';
+                return this.playerPos;
+            }
+
+            if (this.keyPos === null) {
+                ai.state = 'guard';
                 return ai.pos;
             }
-        }
-        
-        // 2. Ambusher (伏击者)：前瞻路径拦截
-        if (ai.type === 'ambusher') {
-            let targetPos = this.playerPos;
-            
-            // 预测玩家上一动的方向
-            if (this.playerPos !== this.playerLastPos) {
-                let lastDir = null;
-                const lastNbs = this.cells[this.playerLastPos].neighbors;
-                for (const d in lastNbs) {
-                    if (lastNbs[d] === this.playerPos) {
-                        lastDir = parseInt(d);
-                        break;
-                    }
-                }
-                
-                if (lastDir !== null) {
-                    // 向前延展 2 格
-                    let predCell = this.cells[this.playerPos];
-                    for (let i = 0; i < 2; i++) {
-                        const nextId = predCell.neighbors[lastDir];
-                        if (nextId !== null) {
-                            predCell = this.cells[nextId];
-                        }
-                    }
-                    targetPos = predCell.id;
-                }
+
+            const lastEvent = this.eventLog[this.eventLog.length - 1];
+            const keyMovedByRotation = lastEvent?.type === 'rotate' &&
+                lastEvent.keyBefore !== null &&
+                lastEvent.keyAfter !== null &&
+                lastEvent.keyBefore !== lastEvent.keyAfter;
+            if (keyMovedByRotation) {
+                ai.state = 'seekKey';
+                return this.keyPos;
             }
-            
-            const path = this.findPath(ai.pos, targetPos);
-            return (path && path.length > 1) ? path[1] : ai.pos;
+
+            const playerFace = this.cells[this.playerPos].face;
+            const keyFace = this.cells[this.keyPos].face;
+            if (playerFace === keyFace) {
+                ai.state = 'lure';
+                return this.playerPos;
+            }
+
+            ai.state = 'guard';
+            return this.keyPos;
         }
-        
-        // 3. Chaser (追猎者)：最短路线 BFS 逼近
-        if (ai.type === 'chaser') {
-            const path = this.findPath(ai.pos, this.playerPos);
-            return (path && path.length > 1) ? path[1] : ai.pos;
+
+        if (ai.type === 'ambusher' && this.plannedPath.length > 0) {
+            return this.plannedPath[this.plannedPath.length - 1];
         }
-        
-        return ai.pos;
+
+        ai.state = 'alert';
+        return this.playerPos;
     }
 
-    // 8. 规则判定
-    checkChipCollection() {
-        const idx = this.chips.indexOf(this.playerPos);
-        if (idx !== -1) {
-            this.chips.splice(idx, 1);
-            
-            // 声音或视觉提示
+    isForbiddenForAI(ai, cellId) {
+        if (cellId === null || cellId === undefined) return true;
+        if (!this.isWalkableForAI(cellId)) return true;
+        if (!this.hasKey && this.keyPos !== null && cellId === this.keyPos) return true;
+        if (this.exitPos !== null && cellId === this.exitPos) return true;
+        return false;
+    }
+
+    previewAIMovement(ai, steps = null) {
+        const ghost = { ...ai };
+        const path = [];
+        const previewSteps = steps ?? this.getAIStepBudget(ai);
+
+        for (let i = 0; i < previewSteps; i++) {
+            const target = this.getAIPreviewTarget(ghost);
+            const nextPath = this.findPath(ghost.pos, target, { actor: 'ai' });
+            const next = (nextPath && nextPath.length > 1) ? nextPath[1] : ghost.pos;
+            if (this.isForbiddenForAI(ghost, next)) break;
+            if (next === ghost.pos) break;
+            ghost.pos = next;
+            path.push(next);
+        }
+
+        return path;
+    }
+
+    getAIPreviewTarget(ai) {
+        if (this.beaconCell !== null && this.beaconTTL > 0 && this.isWalkableForAI(this.beaconCell)) {
+            return this.beaconCell;
+        }
+
+        if (ai.type === 'guardian') {
+            if (this.hasKey) {
+                return ai.aggro === 'guardDoor'
+                    ? this.exitPos ?? this.playerPos
+                    : this.playerPos;
+            }
+            if (this.keyPos === null) return ai.pos;
+            if (this.cells[this.playerPos].face === this.cells[this.keyPos].face) {
+                return this.playerPos;
+            }
+            return this.keyPos;
+        }
+        if (ai.type === 'ambusher' && this.plannedPath.length > 0) {
+            return this.plannedPath[this.plannedPath.length - 1];
+        }
+        return this.playerPos;
+    }
+
+    getThreatCells() {
+        const threatCells = new Set();
+        this.ais.forEach(ai => {
+            this.previewAIMovement(ai).forEach(cellId => threatCells.add(cellId));
+        });
+        return threatCells;
+    }
+
+    getRouteOrigin() {
+        return this.plannedPath.length > 0
+            ? this.plannedPath[this.plannedPath.length - 1]
+            : this.playerPos;
+    }
+
+    getNextStepCandidates() {
+        if (this.gameState !== 'playing' || this.playerAP <= 0) return new Set();
+        if (this.plannedPath.length >= this.playerAP) return new Set();
+
+        const origin = this.getRouteOrigin();
+        return new Set(this.getNeighbors(origin));
+    }
+
+    checkKeyCollection() {
+        if (!this.hasKey && this.keyPos !== null && this.playerPos === this.keyPos) {
+            const guardianPressure = this.ais
+                .filter(ai => ai.type === 'guardian')
+                .map(ai => ({
+                    aiId: ai.id,
+                    pos: ai.pos,
+                    distance: this.distanceBetween(ai.pos, this.playerPos),
+                    beforeBudget: 1,
+                    afterBudget: 2
+                }));
+            this.hasKey = true;
+            const collectedKey = this.keyPos;
+            this.keyPos = null;
+            this.recordEvent('keyCollected', {
+                at: collectedKey,
+                guardianPressure
+            });
+            this.playFeel('key');
+            this.showFeel('钥匙已取得，逃生门解锁', 'good', true);
+
             if (window.renderEngine) {
-                window.renderEngine.collectChipEffect(this.playerPos);
-            }
-            
-            // 检测是否收集完，激活出口
-            if (this.chips.length === 0 && !this.exitActivated) {
-                this.activateExitPortal();
+                window.renderEngine.collectKeyEffect(collectedKey);
+                window.renderEngine.updateDoorState();
             }
         }
     }
 
-    activateExitPortal() {
-        this.exitActivated = true;
-        // 出口随机在 D 面的某个格子上生成
-        const N = this.N;
-        const dFaceStart = 1 * N * N;
-        const dFaceEnd = 2 * N * N - 1;
-        // 排除被占用的格子
-        const exclude = [this.playerPos, ...this.ais.map(a => a.pos)];
-        const pool = [];
-        for (let i = dFaceStart; i <= dFaceEnd; i++) {
-            if (!exclude.includes(i)) pool.push(i);
-        }
-        this.exitPos = pool.length > 0 ? pool[Math.floor(Math.random() * pool.length)] : dFaceStart;
-        
-        if (window.renderEngine) {
-            window.renderEngine.spawnExitPortal(this.exitPos);
-        }
-    }
-
-    // 碰撞检测
     checkCollisions() {
-        // A. 抓捕检测 (在同一格子)
-        const caught = this.ais.some(ai => ai.pos === this.playerPos);
-        if (caught) {
-            this.triggerGameOver();
+        const caughtBy = this.ais.find(ai => ai.pos === this.playerPos);
+        if (caughtBy) {
+            this.triggerGameOver(caughtBy);
             return;
         }
-        
-        // B. 胜利检测 (抵达已激活的出口)
-        if (this.exitActivated && this.playerPos === this.exitPos) {
+
+        if (this.hasKey && this.playerPos === this.exitPos) {
             this.triggerVictory();
         }
     }
 
-    triggerGameOver() {
+    buildFailureReview(caughtBy = null) {
+        const recent = this.eventLog.slice(-14);
+        const reversed = [...recent].reverse();
+        const caughtCell = this.playerPos;
+        const caughtName = caughtBy ? this.getAIName(caughtBy.type) : '威胁源';
+        const lastAIMove = caughtBy
+            ? reversed.find(event => event.type === 'aiMove' && event.aiId === caughtBy.id && event.to === caughtCell)
+            : null;
+        const lastPlayerMove = reversed.find(event => event.type === 'playerMove');
+        const lastKey = reversed.find(event => event.type === 'keyCollected');
+        const lastRotate = reversed.find(event => event.type === 'rotate');
+        const points = [];
+
+        if (lastPlayerMove) {
+            points.push(`你最后把逃脱者从 ${this.describeCell(lastPlayerMove.from)} 带到 ${this.describeCell(lastPlayerMove.to)}。`);
+        }
+
+        if (lastKey && caughtBy?.type === 'guardian') {
+            const guardianInfo = (lastKey.guardianPressure || []).find(item => item.aiId === caughtBy.id)
+                || (lastKey.guardianPressure || [])[0];
+            if (guardianInfo) {
+                points.push(`钥匙拿到时，守钥者在 ${this.describeCell(guardianInfo.pos)}，离你 ${guardianInfo.distance} 格；拿钥匙后它每次能走 ${guardianInfo.afterBudget} 格。`);
+            } else {
+                points.push('钥匙拿到后，守钥者进入狂暴追击，每次行动会变成 2 格。');
+            }
+        }
+
+        if (lastAIMove) {
+            const before = lastAIMove.distanceBefore ?? '?';
+            const after = lastAIMove.distanceAfter ?? '?';
+            points.push(`${caughtName}这回合第 ${lastAIMove.stepIndex}/${lastAIMove.stepBudget} 步，从 ${this.describeCell(lastAIMove.from)} 走到 ${this.describeCell(lastAIMove.to)}，距离从 ${before} 格压到 ${after} 格。`);
+        } else if (caughtBy) {
+            points.push(`${caughtName}已经在 ${this.describeCell(caughtBy.pos)}；你移动或旋转后和它撞到同一格。`);
+        }
+
+        if (lastRotate) {
+            points.push(`最近一次旋转是 ${lastRotate.axis} 轴第 ${lastRotate.layer + 1} 层 ${lastRotate.direction}，旋转后门、钥匙和敌人的相对位置都重新结算。`);
+        }
+
+        if (points.length === 0) {
+            points.push('这次记录到的信息不多。先悔棋一步，观察敌人预告格怎么变化。');
+        }
+
+        let coachHeadline = `第 ${this.turn} 回合被 ${caughtName} 抓到。`;
+        let coachNote = '下次先别急着走满 AP，留意敌人这一轮到底能走几格。';
+        let cuteHeadline = `啊哦，第 ${this.turn} 回合被抓包了。`;
+        let cuteNote = '悔一步吧，这局还能抢救一下。';
+
+        if (lastAIMove) {
+            coachHeadline = `${caughtName}不是突然出现的，它这一轮从 ${this.describeCell(lastAIMove.from)} 贴到了 ${this.describeCell(lastAIMove.to)}。`;
+            coachNote = '下次看红色预告时，重点看“它这一轮会走几格”，不要只看自己能不能拿到目标。';
+            cuteHeadline = `不是你手慢，是 ${caughtName} 这步贴得太近了。`;
+            cuteNote = '先把距离留出来，再去拿钥匙或冲门，会稳很多。';
+        }
+
+        if (lastKey && caughtBy?.type === 'guardian') {
+            coachHeadline = '钥匙拿到了，但守钥者离你太近了。';
+            coachNote = '这类局面要先把守钥者拉远，或者先旋转拆位，再吃钥匙撤。';
+            cuteHeadline = '钥匙是香的，但守钥者也醒了。';
+            cuteNote = '下次先遛它一下，再回头拿钥匙。';
+        }
+
+        return {
+            coachHeadline,
+            cuteHeadline,
+            points,
+            coachNote,
+            cuteNote
+        };
+    }
+
+    escapeHtml(value) {
+        return String(value)
+            .replaceAll('&', '&amp;')
+            .replaceAll('<', '&lt;')
+            .replaceAll('>', '&gt;')
+            .replaceAll('"', '&quot;')
+            .replaceAll("'", '&#039;');
+    }
+
+    renderFailureAnalysis(tone = 'coach') {
+        const analysisEl = document.getElementById('failure-analysis');
+        if (!analysisEl || !this.lastFailure?.review) return;
+
+        const review = this.lastFailure.review;
+        const isCute = tone === 'cute';
+        const headline = isCute ? review.cuteHeadline : review.coachHeadline;
+        const note = isCute ? review.cuteNote : review.coachNote;
+        const title = isCute ? '可爱陪练复盘' : '残局复盘';
+        const points = review.points
+            .map(point => `<li>${this.escapeHtml(point)}</li>`)
+            .join('');
+
+        analysisEl.innerHTML = `
+            <h3>${this.escapeHtml(title)}</h3>
+            <p>${this.escapeHtml(headline)}</p>
+            <ul>${points}</ul>
+            <p class="review-note">${this.escapeHtml(note)}</p>
+        `;
+    }
+
+    triggerGameOver(caughtBy = null) {
         this.gameState = 'gameover';
+        this.playFeel('failure');
+        this.showFeel('被威胁源捕获', 'danger', true);
+        if (window.renderEngine) {
+            window.renderEngine.spawnCellPulse(this.playerPos, '#ff0055', 1.4);
+        }
+        const caughtName = caughtBy
+            ? `AI #${caughtBy.id + 1} [${this.getAIName(caughtBy.type)}]`
+            : '未知威胁源';
+        const caughtState = caughtBy
+            ? this.getAIStateLabel(caughtBy.state)
+            : '捕获';
+        const caughtCell = this.describeCell(this.playerPos);
+        const review = this.buildFailureReview(caughtBy);
+
+        this.lastFailure = {
+            turn: this.turn,
+            hasKey: this.hasKey,
+            caughtBy: caughtName,
+            caughtState,
+            cell: caughtCell,
+            review
+        };
+        this.adjustTrust(-5, 'gameOver');
+        this.recordEvent('gameOver', {
+            caughtBy: caughtName,
+            caughtState,
+            caughtCell: this.playerPos
+        });
+
         document.getElementById('failure-summary').innerHTML = `
             <div><span>生存回合:</span><span class="s-val">${this.turn}</span></div>
-            <div><span>芯片收集:</span><span class="s-val">${3 - this.chips.length} / 3</span></div>
+            <div><span>钥匙状态:</span><span class="s-val">${this.hasKey ? '已取得' : '未取得'}</span></div>
+            <div><span>捕获者:</span><span class="s-val">${caughtName}</span></div>
+            <div><span>捕获位置:</span><span class="s-val">${caughtCell}</span></div>
+            <div><span>敌人状态:</span><span class="s-val">${caughtState}</span></div>
         `;
-        document.getElementById('gameover-overlay').classList.add('active');
+        const analysisEl = document.getElementById('failure-analysis');
+        const toggleBtn = document.getElementById('btn-toggle-analysis');
+        if (analysisEl) analysisEl.classList.add('is-hidden');
+        if (toggleBtn) toggleBtn.innerText = '查看残局复盘';
+        const tone = document.getElementById('analysis-tone')?.value || 'coach';
+        this.renderFailureAnalysis(tone);
+        const undoBtn = document.getElementById('btn-gameover-undo');
+        if (undoBtn) undoBtn.disabled = !this.canUndo();
+        const catchSticker = document.getElementById('catch-sticker');
+        if (catchSticker) {
+            catchSticker.innerText = caughtBy?.type === 'guardian'
+                ? '锁'
+                : (caughtBy?.type === 'ambusher' ? '×' : '!');
+        }
+        const overlay = document.getElementById('gameover-overlay');
+        if (overlay) {
+            overlay.classList.remove('jump-alert');
+            void overlay.offsetWidth;
+            overlay.classList.add('active', 'jump-alert');
+            setTimeout(() => overlay.classList.remove('jump-alert'), 700);
+        }
+        this.updateCompanionTerminal();
     }
 
     triggerVictory() {
         this.gameState = 'win';
+        this.playFeel('victory');
+        this.showFeel('逃生成功', 'good', true);
+        const isActFinale = Boolean(this.currentLevel?.actFinale);
+        this.recordEvent('victory', {
+            actFinale: isActFinale,
+            levelTitle: this.currentLevel?.title,
+            rotationsUsed: this.rotationsUsed
+        });
+        const victoryMessage = document.getElementById('victory-message');
+        const victoryTitle = document.querySelector('#victory-overlay .glitch-text');
+        if (victoryTitle) {
+            const title = isActFinale ? 'SIGNAL EXPANDED' : 'MISSION ACCOMPLISHED';
+            victoryTitle.innerText = title;
+            victoryTitle.dataset.text = title;
+        }
+        if (victoryMessage) {
+            victoryMessage.innerText = isActFinale
+                ? '门开了。坏消息：外面还有一个更大的立方体。'
+                : '钥匙已取得，逃生门已开启，意识体安全撤离！';
+        }
+        document.getElementById('act-ending-comic')?.classList.toggle('is-hidden', !isActFinale);
+        const victoryButton = document.querySelector('#victory-overlay .btn-restart');
+        if (victoryButton) {
+            victoryButton.innerText = isActFinale ? '进入第二幕' : '再接再厉';
+        }
         document.getElementById('victory-summary').innerHTML = `
             <div><span>通关回合:</span><span class="s-val">${this.turn}</span></div>
-            <div><span>剩余 AP:</span><span class="s-val">${this.playerAP}</span></div>
+            <div><span>使用旋转:</span><span class="s-val">${this.rotationsUsed}</span></div>
+            <div><span>信任值:</span><span class="s-val">${this.adjustTrust(2, 'victory')}</span></div>
         `;
         document.getElementById('victory-overlay').classList.add('active');
+        this.updateCompanionTerminal();
     }
 
-    // 9. UI 信息绑定
+    updateCompanionTerminal() {
+        if (typeof window !== 'undefined' && window.commsController?.syncFromGame) {
+            window.commsController.syncFromGame(this);
+            return;
+        }
+        const statusEl = document.getElementById('companion-status');
+        const bubbleEl = document.getElementById('companion-bubble');
+        const commsLiveEl = document.getElementById('comms-live-line');
+        const commsContextEl = document.getElementById('comms-context-line');
+        if (!statusEl && !bubbleEl && !commsContextEl) return;
+
+        let status = '信号稳定';
+        let bubble = '我在。手机别收太久。';
+        let liveLine = '我还在。你别突然消失。';
+
+        if (this.gameState === 'gameover') {
+            status = '信号抖了一下';
+            bubble = '刚才那段可以假装没发生。';
+            liveLine = '刚才那段我们可以假装没发生。';
+        } else if (this.gameState === 'win') {
+            status = '门已开启';
+            bubble = this.currentLevel?.actFinale ? '出口还带下一层，挺礼貌。' : '这次算你带路成功。';
+            liveLine = this.currentLevel?.actFinale
+                ? '出口的意思原来是下一层入口。行，挺有礼貌。'
+                : '门开了。我承认，这一步还行。';
+        } else if (this.toolMode === 'patch') {
+            status = '补片待铺';
+            bubble = '可以补洞，但别让我停在上面。';
+            liveLine = '可以补洞，但别让我停在上面。我对试用版地板没有信仰。';
+        } else if (this.toolMode === 'beacon') {
+            status = '诱饵待投';
+            bubble = '骗谁？这题我喜欢。';
+            liveLine = '骗谁？这题我喜欢。先声明，我没有说自己很坏。';
+        } else if (this.plannedPath.length > 0) {
+            status = '路线草稿';
+            bubble = '线画好了？我先不发表意见。';
+            liveLine = '线画好了？我先不发表意见，免得显得我很急。';
+        } else if (this.hasKey) {
+            status = '钥匙在手';
+            bubble = '钥匙有了。现在可以稍微慌一下。';
+            liveLine = '钥匙有了。现在可以稍微慌一下，但只准稍微。';
+        } else if (this.ais.some(ai => ai.state === 'rage')) {
+            status = '对面急了';
+            bubble = '它急了。不是我说的。';
+            liveLine = '它急了。不是我说的，是它自己跑两格的。';
+        } else if (this.ais.length > 0) {
+            status = '有人在追';
+            bubble = '先看红格，别看我。';
+            liveLine = '先看红格，别看我。我现在也不太想被看见。';
+        } else if (this.turn === 0) {
+            status = '等待指令';
+            bubble = '盯——';
+            liveLine = '盯——';
+        }
+
+        if (statusEl) statusEl.innerText = status;
+        if (bubbleEl) bubbleEl.innerText = bubble;
+        if (commsLiveEl && this.gameState !== 'playing') {
+            commsLiveEl.innerText = liveLine;
+        }
+        if (commsContextEl && this.currentLevel) {
+            commsContextEl.innerText = `${this.currentLevel.title} · ${this.currentLevel.chapter}。需要聊天就点通讯；要活命就在 3D 魔方上画稳。`;
+        }
+    }
+
     updateUI() {
+        const levelTitle = document.getElementById('current-level-title');
+        const levelGoal = document.getElementById('current-level-goal');
+        const routeTip = document.getElementById('route-tip');
+        const tutorialSticker = document.getElementById('tutorial-sticker');
+        const tutorialCue = document.getElementById('tutorial-cue');
+        const tutorial = this.currentLevel?.tutorial || {};
+        if (levelTitle && this.currentLevel) {
+            levelTitle.innerText = `${this.currentLevel.title} · ${this.currentLevel.chapter}`;
+        }
+        if (levelGoal && this.currentLevel) {
+            levelGoal.innerText = this.getCurrentGoalText();
+        }
+        if (tutorialSticker) {
+            tutorialSticker.innerText = tutorial.icon || '➜';
+        }
+        if (tutorialCue) {
+            tutorialCue.innerText = tutorial.cue || '看图行动';
+        }
+        if (routeTip) {
+            routeTip.innerText = this.getCurrentRouteTip();
+        }
+
         document.getElementById('turn-count').innerText = this.turn;
         document.getElementById('ap-display').innerText = `${this.playerAP} / ${this.maxAP}`;
-        
-        const apPercent = (this.playerAP / this.maxAP) * 100;
-        document.getElementById('ap-bar-fill').style.width = `${apPercent}%`;
-        
-        document.getElementById('rotation-charge').innerText = `${this.rotationCharge} / ${this.maxRotationCharge}`;
-        
-        // 更新任务目标
-        const chipText = document.getElementById('obj-chips-text');
-        const chipDot = document.getElementById('obj-chips-dot');
+        document.getElementById('ap-bar-fill').style.width = `${(this.playerAP / this.maxAP) * 100}%`;
+        document.getElementById('rotation-charge').innerText = '1 AP';
+        document.getElementById('trust-display') && (document.getElementById('trust-display').innerText = this.trust);
+        document.getElementById('console-trust-display') && (document.getElementById('console-trust-display').innerText = this.trust);
+        document.getElementById('console-rotation-display') && (document.getElementById('console-rotation-display').innerText = this.rotationsUsed);
+        document.getElementById('console-turn-display') && (document.getElementById('console-turn-display').innerText = this.turn);
+        document.getElementById('console-ap-display') && (document.getElementById('console-ap-display').innerText = `${this.playerAP} / ${this.maxAP}`);
+        document.getElementById('esc-level-title') && (document.getElementById('esc-level-title').innerText = this.currentLevel?.title || '当前残局');
+        document.getElementById('esc-level-desc') && (document.getElementById('esc-level-desc').innerText = this.currentLevel?.concept || this.getCurrentGoalText());
+
+        const hasRotation = this.rotationEnabled;
+        const hasThreats = this.ais.length > 0;
+        const hasTracker = this.trackingEnabled;
+        const hasTools = this.patchCharges > 0 || this.beaconCharges > 0 || this.activePatchCells.size > 0 || this.beaconCell !== null;
+        document.getElementById('rotation-status')?.classList.toggle('is-hidden', !hasRotation);
+        document.getElementById('rotation-budget-hint')?.classList.toggle('is-hidden', !hasRotation);
+        document.getElementById('rotation-section')?.classList.toggle('is-hidden', !hasRotation);
+        document.getElementById('rotation-preview-chip')?.classList.toggle('is-hidden', !hasRotation);
+        document.getElementById('tracker-section')?.classList.toggle('is-hidden', !hasTracker);
+        document.getElementById('tool-section')?.classList.toggle('is-hidden', !hasTools);
+        document.getElementById('patch-count') && (document.getElementById('patch-count').innerText = this.patchCharges);
+        document.getElementById('beacon-count') && (document.getElementById('beacon-count').innerText = this.beaconCharges);
+        document.querySelectorAll('[data-tool-mode]').forEach(btn => {
+            const mode = btn.dataset.toolMode;
+            btn.classList.toggle('active', this.toolMode === mode);
+            if (mode === 'patch') btn.disabled = this.patchCharges <= 0;
+            if (mode === 'beacon') btn.disabled = this.beaconCharges <= 0;
+            if (mode === 'route') btn.disabled = false;
+        });
+        const axisEl = document.getElementById('rotate-axis');
+        const layerEl = document.getElementById('rotate-layer');
+        const rotationPreviewChip = document.getElementById('rotation-preview-chip');
+        if (rotationPreviewChip && axisEl && layerEl) {
+            const layerText = layerEl.selectedOptions?.[0]?.textContent?.replace(/\s+/g, ' ') || `第 ${Number(layerEl.value || 0) + 1} 层`;
+            rotationPreviewChip.innerText = `${axisEl.value || 'X'} 轴 · ${layerText} · ↻ / ↺`;
+        }
+        const trackerStatusChip = document.getElementById('tracker-status-chip');
+        const trackerToggleBtn = document.getElementById('btn-toggle-tracker');
+        const trackerClearBtn = document.getElementById('btn-clear-tracker');
+        if (trackerStatusChip) {
+            trackerStatusChip.innerText = this.trackerCell !== null && this.trackerCell !== undefined
+                ? `标记 ${this.describeCell(this.trackerCell)}`
+                : (this.trackerMode ? '点 3D 格标记' : '未标记');
+            trackerStatusChip.classList.toggle('is-active', this.trackerCell !== null && this.trackerCell !== undefined);
+            trackerStatusChip.classList.toggle('is-picking', this.trackerMode);
+        }
+        if (trackerToggleBtn) {
+            trackerToggleBtn.innerText = this.trackerMode ? '取消标记' : '放置标记';
+            trackerToggleBtn.classList.toggle('is-active', this.trackerMode);
+        }
+        if (trackerClearBtn) {
+            trackerClearBtn.disabled = this.trackerCell === null || this.trackerCell === undefined;
+        }
+        document.getElementById('btn-end-turn')?.classList.toggle('is-hidden', !hasThreats);
+        document.getElementById('threat-panel')?.classList.toggle('is-hidden', !hasThreats);
+
+        const keyText = document.getElementById('obj-key-text');
+        const keyDot = document.getElementById('obj-key-dot');
         const exitText = document.getElementById('obj-exit-text');
         const exitDot = document.getElementById('obj-exit-dot');
-        
-        const totalChips = 3;
-        const gathered = totalChips - this.chips.length;
-        chipText.innerText = `数据芯片收集: ${gathered} / ${totalChips}`;
-        
-        if (gathered === totalChips) {
-            chipText.classList.add('text-neon-blue');
-            chipDot.className = 'obj-dot active-blue';
-            
-            exitText.innerText = "前往数据导出港 (已激活)";
-            exitText.classList.add('text-neon-green');
-            exitDot.className = 'obj-dot active-green';
-        } else {
-            chipText.classList.remove('text-neon-blue');
-            chipDot.className = 'obj-dot';
-            exitText.innerText = "前往数据导出港 (未激活)";
-            exitText.classList.remove('text-neon-green');
-            exitDot.className = 'obj-dot';
+
+        if (keyText && keyDot) {
+            keyText.innerText = this.hasKey ? '钥匙状态: 已取得' : '钥匙状态: 未取得';
+            keyText.classList.toggle('text-neon-yellow', !this.hasKey);
+            keyText.classList.toggle('text-neon-green', this.hasKey);
+            keyDot.className = this.hasKey ? 'obj-dot active-green' : 'obj-dot active-yellow';
         }
-        
-        // 更新 AI 列表状态
+
+        if (exitText && exitDot) {
+            exitText.innerText = this.hasKey ? '逃生门: 已解锁' : '逃生门: 需要钥匙';
+            exitText.classList.toggle('text-neon-green', this.hasKey);
+            exitDot.className = this.hasKey ? 'obj-dot active-green' : 'obj-dot';
+        }
+
         const aiListEl = document.getElementById('ai-status-list');
         aiListEl.innerHTML = '';
+        this.ais.forEach(ai => this.getAITarget(ai));
+        if (window.audioFeedback) {
+            const hasRage = this.ais.some(ai => ai.state === 'rage');
+            const hasThreat = this.ais.some(ai => ai.state === 'alert' || ai.state === 'lure' || ai.state === 'gate');
+            window.audioFeedback.setTension(this.gameState === 'playing'
+                ? (hasRage ? 'rage' : (hasThreat ? 'danger' : 'calm'))
+                : 'calm');
+        }
         this.ais.forEach(ai => {
             const row = document.createElement('div');
             row.className = `ai-status-row ${ai.type}`;
-            
+
             const nameSpan = document.createElement('span');
-            nameSpan.innerText = `AI #${ai.id} [${ai.type.toUpperCase()}]`;
-            
-            const stateSpan = document.createElement('span');
-            stateSpan.className = `ai-state ${ai.state === 'alert' ? 'alert' : 'patrol'}`;
-            stateSpan.innerText = ai.state === 'alert' ? '🔴 ALERT (追踪)' : '🟡 PATROL (巡逻)';
-            
+            nameSpan.innerText = `AI #${ai.id + 1} [${this.getAIName(ai.type)}]`;
+
+            const intentSpan = document.createElement('span');
+            const stateClass = ai.state === 'guard' || ai.state === 'gate'
+                ? 'patrol'
+                : (ai.state === 'rage' ? 'rage' : (ai.state === 'lure' ? 'lure' : 'alert'));
+            intentSpan.className = `ai-state ${stateClass}`;
+            const preview = this.previewAIMovement(ai, 1)[0];
+            const stateLabel = this.getAIStateLabel(ai.state);
+            intentSpan.innerText = preview !== undefined
+                ? `${stateLabel}: ${this.describeCell(preview)}`
+                : `${stateLabel}: 原地`;
+
             row.appendChild(nameSpan);
-            row.appendChild(stateSpan);
+            row.appendChild(intentSpan);
             aiListEl.appendChild(row);
         });
-        
-        this.updateActionButtons();
-        
-        // 同步绘制 2D 十字展开雷达
-        this.drawMinimap();
 
-        // 刷新魔方旋转层高亮
-        if (window.renderEngine && window.renderEngine.highlightLayer) {
+        if (window.renderEngine && window.renderEngine.updateDoorState) {
+            window.renderEngine.updateDoorState();
+        }
+
+        this.updateActionButtons();
+        this.drawMinimap();
+        this.updateCompanionTerminal();
+
+        if (window.renderEngine && !hasRotation && window.renderEngine.clearLayerHighlight) {
+            window.renderEngine.clearLayerHighlight();
+        } else if (window.renderEngine && window.renderEngine.highlightLayer) {
             const axisEl = document.getElementById('rotate-axis');
             const layerEl = document.getElementById('rotate-layer');
-            if (axisEl && layerEl && layerEl.value !== "") {
-                window.renderEngine.highlightLayer(axisEl.value, parseInt(layerEl.value));
+            if (axisEl && layerEl && layerEl.value !== '') {
+                window.renderEngine.highlightLayer(axisEl.value, parseInt(layerEl.value, 10));
             }
         }
+    }
+
+    getCurrentGoalText() {
+        if (this.gameState === 'win') return '已逃离。可以回到选关继续下一组残局。';
+        if (this.gameState === 'gameover') return '这一步被抓了。可以悔棋，或者展开残局复盘看距离怎么被压近。';
+        const tutorialGoal = this.currentLevel?.tutorial?.goal;
+        if (tutorialGoal) return tutorialGoal;
+        if (!this.hasKey && this.keyPos !== null) {
+            return `先去 ${this.describeCell(this.keyPos)} 取钥匙，再撤到 ${this.describeCell(this.exitPos)}。`;
+        }
+        return `钥匙已到手，撤到 ${this.describeCell(this.exitPos)}。`;
+    }
+
+    getCurrentRouteTip() {
+        const tutorialTip = this.currentLevel?.tutorial?.tip;
+        if (this.toolMode === 'patch') {
+            return '点黑色缺口铺补片。E-7 可以踩过去一次，但不能停在上面。';
+        }
+        if (this.toolMode === 'beacon') {
+            return '点任意空地放诱饵。敌人会按正常路线被吸引过去。';
+        }
+        if (this.trackerMode) {
+            return '标记模式：点一格标记。蓝圈仍是下一步可走格。';
+        }
+        if (this.plannedPath.length > 0) {
+            const end = this.plannedPath[this.plannedPath.length - 1];
+            return `路线终点：${this.describeCell(end)}。确认前可以继续拖，也可以点已选格回退。`;
+        }
+        if (this.trackerCell !== null && this.trackerCell !== undefined) {
+            return `标记在 ${this.describeCell(this.trackerCell)}。它只帮你记格，不会自动走路。`;
+        }
+        if (tutorialTip) return tutorialTip;
+        if (this.rotationEnabled && this.playerAP >= 2) {
+            return '3D 表面负责走路；按 Shift 进入 Twist 模式，拖拽表面拧动当前层。';
+        }
+        if (this.ais.length > 0) {
+            return '蓝色是下一步可走格，红色是敌人本轮会压到的位置。先看红，再画线。';
+        }
+        return '按住 3D 魔方表面拖过相邻格，手机里会生成路线指令。';
+    }
+
+    getAIName(type) {
+        if (type === 'guardian') return '守钥者';
+        if (type === 'ambusher') return '伏击者';
+        return '追击者';
+    }
+
+    getAIStateLabel(state) {
+        if (state === 'guard') return '守路';
+        if (state === 'lure') return '引诱追击';
+        if (state === 'rage') return '狂暴追击';
+        if (state === 'gate') return '守门';
+        if (state === 'seekKey') return '找钥匙';
+        if (state === 'bait') return '被诱导';
+        if (state === 'alert') return '追击';
+        return '待机';
+    }
+
+    describeCell(cellId) {
+        const cell = this.cells[cellId];
+        return `${this.faceLabels[cell.face]}${cell.row + 1}-${cell.col + 1}`;
     }
 
     updateActionButtons() {
         const confirmBtn = document.getElementById('btn-confirm-path');
-        confirmBtn.disabled = (this.plannedPath.length === 0 || this.playerAP <= 0);
-        if (this.plannedPath.length > 0) {
-            confirmBtn.innerText = `执行移动 (${this.plannedPath.length} 步 / 扣除 ${this.plannedPath.length} AP)`;
-        } else {
-            confirmBtn.innerText = `执行规划路径`;
+        const undoBtn = document.getElementById('btn-undo');
+        if (!confirmBtn) return;
+
+        const finalCell = this.plannedPath[this.plannedPath.length - 1];
+        const endsOnPatch = this.plannedPath.length > 0 && this.isActivePatchCell(finalCell);
+        confirmBtn.disabled = this.plannedPath.length === 0 || this.playerAP <= 0 || endsOnPatch;
+        confirmBtn.innerText = this.plannedPath.length > 0
+            ? (endsOnPatch ? '别停补片' : `发送 ${this.plannedPath.length}AP`)
+            : '发送路线';
+        const previewEl = document.getElementById('route-command-preview');
+        if (previewEl) {
+            const commandCells = [this.playerPos, ...this.plannedPath]
+                .map(cellId => this.describeCell(cellId));
+            previewEl.innerText = this.plannedPath.length > 0
+                ? `走向：${commandCells.join(' -> ')}`
+                : '走向：未规划';
+        }
+
+        if (undoBtn) {
+            undoBtn.disabled = !this.canUndo();
+        }
+
+        const gameoverUndoBtn = document.getElementById('btn-gameover-undo');
+        if (gameoverUndoBtn) {
+            gameoverUndoBtn.disabled = !this.canUndo();
         }
     }
 
-    // 10. 绘制 2D 相对 5 面局部雷达图 Canvas
     drawMinimap() {
         const canvas = document.getElementById('minimap-canvas');
         if (!canvas) return;
-        
+
         const ctx = canvas.getContext('2d');
         ctx.clearRect(0, 0, canvas.width, canvas.height);
-        
+
         const N = this.N;
-        const cellWidth = Math.floor((canvas.width - 20) / (3 * N)); // 适配画布大小
-        const startOffset = 10;
-        
-        // 构造 3N x 3N 的局域网格映射
-        const grid = Array(3 * N).fill(null).map(() => Array(3 * N).fill(null));
-        this.minimapGrid = grid; // 缓存供点击事件查询
-        
-        const f_center = this.cells[this.playerPos].face;
-        
-        // 1. 中心面 (行 N~2N-1, 列 N~2N-1)
-        for (let r = 0; r < N; r++) {
-            for (let c = 0; c < N; c++) {
-                grid[N + r][N + c] = f_center * N * N + r * N + c;
-            }
-        }
-        
-        const getOppositeDir = (d) => {
-            if (d === this.DIR.UP) return this.DIR.DOWN;
-            if (d === this.DIR.DOWN) return this.DIR.UP;
-            if (d === this.DIR.LEFT) return this.DIR.RIGHT;
-            if (d === this.DIR.RIGHT) return this.DIR.LEFT;
-            return null;
-        };
-        
-        // 2. 顶面 (向上跨越)
-        const topBoundary = [];
-        for (let c = 0; c < N; c++) {
-            topBoundary.push(grid[N][N + c]);
-        }
-        const topAdj = topBoundary.map(id => this.cells[id].neighbors[this.DIR.UP]);
-        if (topAdj[0] !== null) {
-            for (let c = 0; c < N; c++) {
-                grid[N - 1][N + c] = topAdj[c];
-            }
-            let topBackDir = null;
-            const topAdjCell = this.cells[topAdj[0]];
-            for (const d in topAdjCell.neighbors) {
-                if (topAdjCell.neighbors[d] === topBoundary[0]) {
-                    topBackDir = parseInt(d);
-                    break;
+        const cols = 4 * N;
+        const rows = 3 * N;
+        const padding = 18;
+        const cellSize = Math.floor(Math.min(
+            (canvas.width - padding * 2) / cols,
+            (canvas.height - padding * 2) / rows
+        ));
+        const offsetX = Math.floor((canvas.width - cols * cellSize) / 2);
+        const offsetY = Math.floor((canvas.height - rows * cellSize) / 2);
+
+        const grid = Array(rows).fill(null).map(() => Array(cols).fill(null));
+        this.minimapGrid = grid;
+        this.minimapMetrics = { cols, rows, cellSize, offsetX, offsetY };
+
+        Object.entries(this.netLayout).forEach(([faceKey, origin]) => {
+            const face = parseInt(faceKey, 10);
+            for (let r = 0; r < N; r++) {
+                for (let c = 0; c < N; c++) {
+                    grid[origin.y * N + r][origin.x * N + c] = this.cellId(face, r, c);
                 }
-            }
-            const topOutDir = getOppositeDir(topBackDir);
-            for (let c = 0; c < N; c++) {
-                let curr = topAdj[c];
-                for (let r = N - 2; r >= 0; r--) {
-                    if (curr !== null) {
-                        curr = this.cells[curr].neighbors[topOutDir];
-                    }
-                    grid[r][N + c] = curr;
-                }
-            }
-        }
-        
-        // 3. 底面 (向下跨越)
-        const btmBoundary = [];
-        for (let c = 0; c < N; c++) {
-            btmBoundary.push(grid[2 * N - 1][N + c]);
-        }
-        const btmAdj = btmBoundary.map(id => this.cells[id].neighbors[this.DIR.DOWN]);
-        if (btmAdj[0] !== null) {
-            for (let c = 0; c < N; c++) {
-                grid[2 * N][N + c] = btmAdj[c];
-            }
-            let btmBackDir = null;
-            const btmAdjCell = this.cells[btmAdj[0]];
-            for (const d in btmAdjCell.neighbors) {
-                if (btmAdjCell.neighbors[d] === btmBoundary[0]) {
-                    btmBackDir = parseInt(d);
-                    break;
-                }
-            }
-            const btmOutDir = getOppositeDir(btmBackDir);
-            for (let c = 0; c < N; c++) {
-                let curr = btmAdj[c];
-                for (let r = 2 * N + 1; r < 3 * N; r++) {
-                    if (curr !== null) {
-                        curr = this.cells[curr].neighbors[btmOutDir];
-                    }
-                    grid[r][N + c] = curr;
-                }
-            }
-        }
-        
-        // 4. 左面 (向左跨越)
-        const leftBoundary = [];
-        // Logic for filling surrounding faces (simplified)
-        const dirs = [this.DIR.UP, this.DIR.DOWN, this.DIR.LEFT, this.DIR.RIGHT];
-        dirs.forEach(d => {
-            const boundary = [];
-            for (let i = 0; i < N; i++) {
-                if (d === this.DIR.UP) boundary.push(grid[N][N + i]);
-                else if (d === this.DIR.DOWN) boundary.push(grid[2 * N - 1][N + i]);
-                else if (d === this.DIR.LEFT) boundary.push(grid[N + i][N]);
-                else if (d === this.DIR.RIGHT) boundary.push(grid[N + i][2 * N - 1]);
-            }
-            
-            const adj = boundary.map(id => this.cells[id].neighbors[d]);
-            if (adj[0] !== null) {
-                // Simplified filling of adjacent faces
-                adj.forEach((id, i) => {
-                    if (d === this.DIR.UP) grid[N - 1][N + i] = id;
-                    else if (d === this.DIR.DOWN) grid[2 * N][N + i] = id;
-                    else if (d === this.DIR.LEFT) grid[N + i][N - 1] = id;
-                    else if (d === this.DIR.RIGHT) grid[N + i][2 * N] = id;
-                });
             }
         });
-        
-        const labels = { 0: 'U', 1: 'D', 2: 'L', 3: 'R', 4: 'F', 5: 'B' };
-        
-        for (let y = 0; y < 3 * N; y++) {
-            for (let x = 0; x < 3 * N; x++) {
+
+        const threatCells = this.getThreatCells();
+        const nextStepCells = this.getNextStepCandidates();
+        const pathCells = new Set(this.plannedPath);
+        const plannedEndpoint = this.plannedPath.length > 0
+            ? this.plannedPath[this.plannedPath.length - 1]
+            : this.playerPos;
+
+        Object.entries(this.netLayout).forEach(([faceKey, origin]) => {
+            const face = parseInt(faceKey, 10);
+            const x = offsetX + origin.x * N * cellSize;
+            const y = offsetY + origin.y * N * cellSize;
+
+            const faceGradient = ctx.createLinearGradient(x, y, x + N * cellSize, y + N * cellSize);
+            faceGradient.addColorStop(0, this.hexToRgba(this.faceColors[face], 0.22));
+            faceGradient.addColorStop(1, this.hexToRgba(this.faceColors[face], 0.08));
+            ctx.fillStyle = faceGradient;
+            ctx.strokeStyle = this.hexToRgba(this.faceColors[face], 0.82);
+            ctx.lineWidth = 2.4;
+            ctx.fillRect(x, y, N * cellSize, N * cellSize);
+            ctx.strokeRect(x + 0.5, y + 0.5, N * cellSize - 1, N * cellSize - 1);
+
+            ctx.fillStyle = this.hexToRgba(this.faceColors[face], 0.9);
+            ctx.font = 'bold 11px Orbitron, sans-serif';
+            ctx.textAlign = 'left';
+            ctx.textBaseline = 'top';
+            ctx.fillText(`${this.faceMarks[face]} ${this.faceLabels[face]} ${this.faceNames[face]}`, x + 4, y + 4);
+        });
+
+        for (let y = 0; y < rows; y++) {
+            for (let x = 0; x < cols; x++) {
                 const id = grid[y][x];
                 if (id === null) continue;
-                
-                const drawX = startOffset + x * cellWidth;
-                const drawY = startOffset + y * cellWidth;
-                
-                ctx.fillStyle = 'rgba(0, 240, 255, 0.04)';
-                ctx.strokeStyle = 'rgba(0, 240, 255, 0.15)';
-                ctx.lineWidth = 1;
-                
-                if (y >= N && y < 2 * N && x >= N && x < 2 * N) {
-                    ctx.fillStyle = 'rgba(0, 240, 255, 0.09)';
-                    ctx.strokeStyle = 'rgba(0, 240, 255, 0.4)';
-                }
-                
-                if (this.plannedPath.includes(id)) {
-                    ctx.fillStyle = 'rgba(0, 255, 136, 0.25)';
-                    ctx.strokeStyle = 'var(--neon-green)';
-                }
-                
-                ctx.fillRect(drawX, drawY, cellWidth - 1, cellWidth - 1);
-                ctx.strokeRect(drawX, drawY, cellWidth - 1, cellWidth - 1);
-                
+
+                const drawX = offsetX + x * cellSize;
+                const drawY = offsetY + y * cellSize;
                 const cell = this.cells[id];
-                if (cell.row === Math.floor(N / 2) && cell.col === Math.floor(N / 2)) {
-                    ctx.fillStyle = 'rgba(255, 255, 255, 0.15)';
-                    ctx.font = 'bold 10px Orbitron';
-                    ctx.textAlign = 'center';
-                    ctx.textBaseline = 'middle';
-                    ctx.fillText(labels[cell.face], drawX + cellWidth / 2, drawY + cellWidth / 2);
-                }
-                
-                if (id === this.playerPos) {
-                    ctx.fillStyle = 'var(--neon-green)';
-                    ctx.beginPath();
-                    ctx.arc(drawX + cellWidth / 2, drawY + cellWidth / 2, 7, 0, Math.PI * 2);
-                    ctx.fill();
-                    ctx.strokeStyle = '#fff';
+                const isVoid = this.isVoidCell(id);
+                const isPatch = this.isActivePatchCell(id);
+
+                ctx.fillStyle = this.hexToRgba(this.faceColors[cell.face], 0.09);
+                ctx.strokeStyle = this.hexToRgba(this.faceColors[cell.face], 0.2);
+                ctx.lineWidth = 1;
+
+                if (isVoid && !isPatch) {
+                    ctx.fillStyle = 'rgba(2, 4, 8, 0.94)';
+                    ctx.strokeStyle = 'rgba(139, 220, 255, 0.32)';
                     ctx.lineWidth = 1.5;
+                } else if (isPatch) {
+                    ctx.fillStyle = 'rgba(139, 220, 255, 0.24)';
+                    ctx.strokeStyle = '#8bdcff';
+                    ctx.lineWidth = 1.8;
+                }
+
+                if (nextStepCells.has(id)) {
+                    ctx.fillStyle = 'rgba(0, 240, 255, 0.18)';
+                    ctx.strokeStyle = '#00f0ff';
+                    ctx.lineWidth = 1.5;
+                }
+                if (threatCells.has(id)) {
+                    ctx.fillStyle = 'rgba(255, 0, 85, 0.22)';
+                    ctx.strokeStyle = 'rgba(255, 0, 85, 0.5)';
+                }
+                if (pathCells.has(id)) {
+                    ctx.fillStyle = 'rgba(0, 255, 136, 0.28)';
+                    ctx.strokeStyle = '#00ff88';
+                }
+                if (id === plannedEndpoint && this.plannedPath.length > 0) {
+                    ctx.strokeStyle = '#ffffff';
+                    ctx.lineWidth = 2;
+                }
+
+                ctx.fillRect(drawX, drawY, cellSize - 1, cellSize - 1);
+                ctx.strokeRect(drawX + 0.5, drawY + 0.5, cellSize - 1, cellSize - 1);
+                if (isVoid && !isPatch) {
+                    this.drawVoidCellOnMap(ctx, drawX, drawY, cellSize);
+                } else if (isPatch) {
+                    this.drawPatchCellOnMap(ctx, drawX, drawY, cellSize);
+                }
+                if (!isVoid && cell.row === Math.floor(N / 2) && cell.col === Math.floor(N / 2)) {
+                    this.drawMinimapCellPattern(ctx, cell.face, drawX, drawY, cellSize, true);
+                }
+
+                if (nextStepCells.has(id) && !pathCells.has(id)) {
+                    ctx.strokeStyle = '#00f0ff';
+                    ctx.lineWidth = 2;
+                    ctx.beginPath();
+                    ctx.arc(drawX + cellSize / 2, drawY + cellSize / 2, Math.max(4, cellSize * 0.25), 0, Math.PI * 2);
                     ctx.stroke();
                 }
-                
-                this.ais.forEach(ai => {
-                    if (id === ai.pos) {
-                        ctx.fillStyle = ai.color;
-                        ctx.fillRect(drawX + cellWidth / 2 - 5, drawY + cellWidth / 2 - 5, 10, 10);
-                        ctx.strokeStyle = '#fff';
-                        ctx.lineWidth = 1;
-                        ctx.strokeRect(drawX + cellWidth / 2 - 5, drawY + cellWidth / 2 - 5, 10, 10);
-                    }
-                });
-                
-                if (this.chips.includes(id)) {
-                    ctx.fillStyle = 'var(--neon-blue)';
-                    ctx.beginPath();
-                    ctx.moveTo(drawX + cellWidth / 2, drawY + 4);
-                    ctx.lineTo(drawX + cellWidth - 4, drawY + cellWidth / 2);
-                    ctx.lineTo(drawX + cellWidth / 2, drawY + cellWidth - 4);
-                    ctx.lineTo(drawX + 4, drawY + cellWidth / 2);
-                    ctx.closePath();
-                    ctx.fill();
-                }
-                
-                if (this.exitActivated && id === this.exitPos) {
-                    ctx.strokeStyle = 'var(--neon-green)';
-                    ctx.lineWidth = 2;
-                    ctx.strokeRect(drawX + 3, drawY + 3, cellWidth - 7, cellWidth - 7);
-                    ctx.fillStyle = 'rgba(0, 255, 136, 0.4)';
-                    ctx.fillRect(drawX + 3, drawY + 3, cellWidth - 7, cellWidth - 7);
-                }
+
+                ctx.fillStyle = 'rgba(255, 255, 255, 0.22)';
+                ctx.font = '8px Inter, sans-serif';
+                ctx.textAlign = 'right';
+                ctx.textBaseline = 'bottom';
+                ctx.fillText(`${cell.row + 1}${cell.col + 1}`, drawX + cellSize - 3, drawY + cellSize - 2);
             }
         }
-        
-        ctx.strokeStyle = 'rgba(255, 255, 255, 0.25)';
+
+        this.drawPlannedPathOnMap(ctx, cellSize, offsetX, offsetY);
+        this.drawBridgeLinks(ctx, cellSize, offsetX, offsetY);
+        this.drawToolTargets(ctx, cellSize, offsetX, offsetY);
+        this.drawTutorialCues(ctx, cellSize, offsetX, offsetY);
+        this.drawTrackerMarker(ctx, cellSize, offsetX, offsetY);
+        this.drawMapEntities(ctx, cellSize, offsetX, offsetY);
+    }
+
+    drawVoidCellOnMap(ctx, x, y, size) {
+        ctx.save();
+        ctx.strokeStyle = 'rgba(139, 220, 255, 0.62)';
+        ctx.lineWidth = 1.6;
+        ctx.shadowColor = '#8bdcff';
+        ctx.shadowBlur = 7;
+        ctx.beginPath();
+        ctx.moveTo(x + size * 0.22, y + size * 0.18);
+        ctx.lineTo(x + size * 0.8, y + size * 0.78);
+        ctx.moveTo(x + size * 0.78, y + size * 0.18);
+        ctx.lineTo(x + size * 0.18, y + size * 0.82);
+        ctx.stroke();
+        ctx.setLineDash([3, 3]);
+        ctx.strokeRect(x + size * 0.18, y + size * 0.18, size * 0.64, size * 0.64);
+        ctx.restore();
+    }
+
+    drawPatchCellOnMap(ctx, x, y, size) {
+        ctx.save();
+        ctx.fillStyle = 'rgba(139, 220, 255, 0.35)';
+        ctx.strokeStyle = '#8bdcff';
         ctx.lineWidth = 2;
-        ctx.strokeRect(startOffset + N * cellWidth - 0.5, startOffset + N * cellWidth - 0.5, N * cellWidth, N * cellWidth);
+        ctx.shadowColor = '#8bdcff';
+        ctx.shadowBlur = 8;
+        ctx.beginPath();
+        ctx.moveTo(x + size * 0.22, y + size * 0.28);
+        ctx.lineTo(x + size * 0.72, y + size * 0.18);
+        ctx.lineTo(x + size * 0.82, y + size * 0.72);
+        ctx.lineTo(x + size * 0.32, y + size * 0.84);
+        ctx.closePath();
+        ctx.fill();
+        ctx.stroke();
+        ctx.restore();
+    }
+
+    drawToolTargets(ctx, cellSize, offsetX, offsetY) {
+        if (this.toolMode === 'patch' && this.patchCharges > 0) {
+            this.voidCells.forEach(cellId => {
+                if (!this.isActivePatchCell(cellId)) {
+                    this.drawTargetRing(ctx, cellId, '#8bdcff', cellSize, offsetX, offsetY);
+                    this.drawMapSticker(ctx, cellId, '+', '#8bdcff', cellSize, offsetX, offsetY);
+                }
+            });
+        }
+
+        if (this.toolMode === 'beacon' && this.beaconCharges > 0) {
+            this.cells.forEach(cell => {
+                if (this.isLegalBeaconTarget(cell.id)) {
+                    const center = this.getMinimapCellCenter(cell.id, cellSize, offsetX, offsetY);
+                    if (!center) return;
+                    ctx.save();
+                    ctx.strokeStyle = 'rgba(255, 183, 0, 0.52)';
+                    ctx.lineWidth = 1;
+                    ctx.beginPath();
+                    ctx.arc(center.x, center.y, Math.max(4, cellSize * 0.18), 0, Math.PI * 2);
+                    ctx.stroke();
+                    ctx.restore();
+                }
+            });
+        }
+
+        if (this.beaconCell !== null) {
+            this.drawTargetRing(ctx, this.beaconCell, '#ffb700', cellSize, offsetX, offsetY);
+            this.drawMapSticker(ctx, this.beaconCell, '诱', '#ffb700', cellSize, offsetX, offsetY);
+        }
+    }
+
+    drawMinimapCellPattern(ctx, face, x, y, size, badge = false) {
+        const cx = x + size / 2;
+        const cy = y + size / 2;
+        const r = Math.max(3.5, size * (badge ? 0.28 : 0.16));
+
+        ctx.save();
+        ctx.strokeStyle = badge ? 'rgba(255,255,255,0.82)' : 'rgba(255,255,255,0.42)';
+        ctx.fillStyle = badge ? 'rgba(255,255,255,0.72)' : 'rgba(255,255,255,0.42)';
+        ctx.lineWidth = badge ? 2.4 : 1.4;
+        ctx.lineCap = 'round';
+        ctx.lineJoin = 'round';
+
+        if (face === 0) {
+            ctx.beginPath();
+            ctx.moveTo(cx - r * 1.25, cy + r * 0.65);
+            ctx.lineTo(cx, cy - r * 1.05);
+            ctx.lineTo(cx + r * 1.25, cy + r * 0.65);
+            ctx.stroke();
+        } else if (face === 1) {
+            ctx.beginPath();
+            ctx.moveTo(cx, cy - r);
+            ctx.lineTo(cx + r, cy);
+            ctx.lineTo(cx, cy + r);
+            ctx.lineTo(cx - r, cy);
+            ctx.closePath();
+            ctx.stroke();
+        } else if (face === 2) {
+            [-r * 0.85, 0, r * 0.85].forEach((offset, index) => {
+                ctx.lineWidth = badge && index === 1 ? 3.6 : (badge ? 2.2 : 1.4);
+                ctx.beginPath();
+                ctx.moveTo(cx + offset, cy - r);
+                ctx.lineTo(cx + offset, cy + r);
+                ctx.stroke();
+            });
+        } else if (face === 3) {
+            ctx.lineWidth = badge ? 3.6 : 1.4;
+            ctx.beginPath();
+            ctx.moveTo(cx - r, cy - r);
+            ctx.lineTo(cx + r, cy + r);
+            ctx.moveTo(cx + r, cy - r);
+            ctx.lineTo(cx - r, cy + r);
+            ctx.stroke();
+        } else if (face === 4) {
+            ctx.beginPath();
+            ctx.arc(cx, cy, r, 0, Math.PI * 2);
+            ctx.stroke();
+            ctx.beginPath();
+            ctx.arc(cx, cy, r * 0.32, 0, Math.PI * 2);
+            ctx.fill();
+        } else {
+            ctx.lineWidth = badge ? 2.4 : 1.4;
+            ctx.beginPath();
+            ctx.moveTo(cx - r * 1.1, cy);
+            ctx.quadraticCurveTo(cx - r * 0.55, cy - r, cx, cy);
+            ctx.quadraticCurveTo(cx + r * 0.55, cy + r, cx + r * 1.1, cy);
+            ctx.stroke();
+        }
+
+        ctx.restore();
+    }
+
+    drawPlannedPathOnMap(ctx, cellSize, offsetX, offsetY) {
+        if (this.plannedPath.length === 0) return;
+
+        const points = [this.playerPos, ...this.plannedPath]
+            .map(id => this.getMinimapCellCenter(id, cellSize, offsetX, offsetY))
+            .filter(Boolean);
+
+        if (points.length < 2) return;
+
+        ctx.strokeStyle = '#00ff88';
+        ctx.lineWidth = 3;
+        ctx.lineCap = 'round';
+        ctx.lineJoin = 'round';
+        ctx.beginPath();
+        ctx.moveTo(points[0].x, points[0].y);
+        for (let i = 1; i < points.length; i++) {
+            ctx.lineTo(points[i].x, points[i].y);
+        }
+        ctx.stroke();
+    }
+
+    drawBridgeLinks(ctx, cellSize, offsetX, offsetY) {
+        if (!this.bridges.length) return;
+
+        this.bridges.forEach((link, index) => {
+            const a = this.getMinimapCellCenter(link.a, cellSize, offsetX, offsetY);
+            const b = this.getMinimapCellCenter(link.b, cellSize, offsetX, offsetY);
+            if (!a || !b) return;
+
+            ctx.save();
+            const entryColor = '#35e6ff';
+            const exitColor = '#ffb700';
+            const gradient = ctx.createLinearGradient(a.x, a.y, b.x, b.y);
+            gradient.addColorStop(0, entryColor);
+            gradient.addColorStop(1, exitColor);
+
+            ctx.strokeStyle = gradient;
+            ctx.fillStyle = 'rgba(53, 230, 255, 0.14)';
+            ctx.shadowColor = entryColor;
+            ctx.shadowBlur = 12;
+            ctx.lineWidth = 2.6;
+            ctx.setLineDash([8, 5]);
+            ctx.beginPath();
+            ctx.moveTo(a.x, a.y);
+            ctx.lineTo(b.x, b.y);
+            ctx.stroke();
+            ctx.setLineDash([]);
+
+            [
+                { point: a, color: entryColor, label: 'A' },
+                { point: b, color: exitColor, label: 'B' }
+            ].forEach(({ point, color, label }) => {
+                const r = Math.max(8, cellSize * 0.42);
+                ctx.strokeStyle = color;
+                ctx.fillStyle = color === entryColor
+                    ? 'rgba(53, 230, 255, 0.16)'
+                    : 'rgba(255, 183, 0, 0.16)';
+                ctx.shadowColor = color;
+                ctx.beginPath();
+                ctx.arc(point.x, point.y, r, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.stroke();
+                ctx.fillStyle = color;
+                ctx.font = `900 ${Math.max(10, cellSize * 0.5)}px Orbitron, sans-serif`;
+                ctx.textAlign = 'center';
+                ctx.textBaseline = 'middle';
+                ctx.fillText(label, point.x, point.y + 1);
+            });
+
+            this.drawFloatingSticker(ctx, (a.x + b.x) / 2, (a.y + b.y) / 2, '门', entryColor, cellSize);
+            ctx.restore();
+        });
+    }
+
+    drawTutorialCues(ctx, cellSize, offsetX, offsetY) {
+        const tutorial = this.currentLevel?.tutorial;
+        if (!tutorial || this.gameState !== 'playing') return;
+
+        const visual = tutorial.visual;
+        const guardian = this.ais.find(ai => ai.type === 'guardian');
+
+        if (visual === 'dragExit') {
+            this.drawMapArrow(ctx, this.playerPos, this.exitPos, '#00ff88', '拖', cellSize, offsetX, offsetY);
+            this.drawTargetRing(ctx, this.exitPos, '#00ff88', cellSize, offsetX, offsetY);
+        } else if (visual === 'keyDoor') {
+            this.drawTargetRing(ctx, this.keyPos, '#ffb700', cellSize, offsetX, offsetY);
+            this.drawTargetRing(ctx, this.exitPos, this.hasKey ? '#00ff88' : '#ffb700', cellSize, offsetX, offsetY);
+            if (!this.hasKey) {
+                this.drawMapArrow(ctx, this.keyPos, this.exitPos, '#ffb700', '→', cellSize, offsetX, offsetY);
+            }
+        } else if (visual === 'threat') {
+            this.ais.forEach(ai => this.drawThreatPreviewPath(ctx, ai, cellSize, offsetX, offsetY, '!'));
+        } else if (visual === 'rotateExit') {
+            this.drawRotationLayerHint(ctx, cellSize, offsetX, offsetY);
+            this.drawTargetRing(ctx, this.exitPos, '#00ff88', cellSize, offsetX, offsetY);
+            this.drawMapSticker(ctx, this.exitPos, '⟳', '#00ff88', cellSize, offsetX, offsetY);
+        } else if (visual === 'rotateKey') {
+            this.drawRotationLayerHint(ctx, cellSize, offsetX, offsetY);
+            this.drawTargetRing(ctx, this.keyPos, '#ffb700', cellSize, offsetX, offsetY);
+            this.drawMapSticker(ctx, this.keyPos, '⟳', '#ffb700', cellSize, offsetX, offsetY);
+        } else if (visual === 'guardianLure') {
+            if (guardian) {
+                this.drawTargetRing(ctx, guardian.pos, '#ffb700', cellSize, offsetX, offsetY);
+                this.drawMapSticker(ctx, guardian.pos, '!', '#ffb700', cellSize, offsetX, offsetY);
+            }
+            this.drawTargetRing(ctx, this.keyPos, '#ffb700', cellSize, offsetX, offsetY);
+        } else if (visual === 'guardianSplit') {
+            this.drawRotationLayerHint(ctx, cellSize, offsetX, offsetY);
+            if (guardian) {
+                this.drawTargetRing(ctx, guardian.pos, '#ffb700', cellSize, offsetX, offsetY);
+                this.drawMapSticker(ctx, guardian.pos, '⇄', '#ffb700', cellSize, offsetX, offsetY);
+            }
+            this.drawTargetRing(ctx, this.keyPos, '#ffb700', cellSize, offsetX, offsetY);
+        } else if (visual === 'guardianRage') {
+            if (guardian) {
+                this.drawThreatPreviewPath(ctx, guardian, cellSize, offsetX, offsetY, '2');
+                this.drawMapSticker(ctx, guardian.pos, '2', '#ff0055', cellSize, offsetX, offsetY);
+            }
+            if (!this.hasKey) {
+                this.drawTargetRing(ctx, this.keyPos, '#ffb700', cellSize, offsetX, offsetY);
+            }
+        } else if (visual === 'tracker') {
+            const target = this.trackerCell ?? this.keyPos ?? this.exitPos;
+            this.drawRotationLayerHint(ctx, cellSize, offsetX, offsetY);
+            this.drawTargetRing(ctx, target, '#8bdcff', cellSize, offsetX, offsetY);
+            this.drawMapSticker(ctx, target, '◎', '#8bdcff', cellSize, offsetX, offsetY);
+            if ((this.trackerCell === null || this.trackerCell === undefined) && this.keyPos !== null) {
+                this.drawMapArrow(ctx, this.playerPos, this.keyPos, '#8bdcff', '标', cellSize, offsetX, offsetY);
+            }
+        } else if (visual === 'rotateThreat') {
+            this.drawRotationLayerHint(ctx, cellSize, offsetX, offsetY);
+            this.ais.forEach(ai => this.drawThreatPreviewPath(ctx, ai, cellSize, offsetX, offsetY, '!'));
+            this.drawTargetRing(ctx, this.keyPos, '#ffb700', cellSize, offsetX, offsetY);
+            this.drawTargetRing(ctx, this.exitPos, this.hasKey ? '#00ff88' : '#ffb700', cellSize, offsetX, offsetY);
+        } else if (visual === 'bridge' || visual === 'bridgeThreat') {
+            if (visual === 'bridgeThreat') {
+                this.ais.forEach(ai => this.drawThreatPreviewPath(ctx, ai, cellSize, offsetX, offsetY, '!'));
+            }
+            const firstBridge = this.bridges[0];
+            if (firstBridge) {
+                this.drawTargetRing(ctx, firstBridge.a, '#c6ff5c', cellSize, offsetX, offsetY);
+                this.drawTargetRing(ctx, firstBridge.b, '#c6ff5c', cellSize, offsetX, offsetY);
+                this.drawMapArrow(ctx, firstBridge.a, firstBridge.b, '#35e6ff', '门', cellSize, offsetX, offsetY);
+            }
+            this.drawTargetRing(ctx, this.keyPos, '#ffb700', cellSize, offsetX, offsetY);
+            this.drawTargetRing(ctx, this.exitPos, this.hasKey ? '#00ff88' : '#ffb700', cellSize, offsetX, offsetY);
+        } else if (visual === 'void' || visual === 'voidRotate' || visual === 'voidGuardian' || visual === 'voidExam') {
+            if (visual === 'voidRotate' || visual === 'voidExam') this.drawRotationLayerHint(ctx, cellSize, offsetX, offsetY);
+            this.voidCells.forEach(cellId => {
+                this.drawTargetRing(ctx, cellId, '#8bdcff', cellSize, offsetX, offsetY);
+                this.drawMapSticker(ctx, cellId, '裂', '#8bdcff', cellSize, offsetX, offsetY);
+            });
+            this.ais.forEach(ai => this.drawThreatPreviewPath(ctx, ai, cellSize, offsetX, offsetY, '!'));
+            this.drawTargetRing(ctx, this.keyPos, '#ffb700', cellSize, offsetX, offsetY);
+            this.drawTargetRing(ctx, this.exitPos, this.hasKey ? '#00ff88' : '#ffb700', cellSize, offsetX, offsetY);
+        } else if (visual === 'patch') {
+            this.voidCells.forEach(cellId => {
+                this.drawTargetRing(ctx, cellId, '#8bdcff', cellSize, offsetX, offsetY);
+                this.drawMapSticker(ctx, cellId, '+', '#8bdcff', cellSize, offsetX, offsetY);
+            });
+            this.ais.forEach(ai => this.drawThreatPreviewPath(ctx, ai, cellSize, offsetX, offsetY, '!'));
+            this.drawTargetRing(ctx, this.keyPos, '#ffb700', cellSize, offsetX, offsetY);
+            this.drawTargetRing(ctx, this.exitPos, this.hasKey ? '#00ff88' : '#ffb700', cellSize, offsetX, offsetY);
+        } else if (visual === 'beacon') {
+            if (guardian) {
+                this.drawThreatPreviewPath(ctx, guardian, cellSize, offsetX, offsetY, '!');
+                this.drawTargetRing(ctx, guardian.pos, '#ffb700', cellSize, offsetX, offsetY);
+            }
+            this.drawTargetRing(ctx, this.keyPos, '#ffb700', cellSize, offsetX, offsetY);
+            this.drawTargetRing(ctx, this.exitPos, this.hasKey ? '#00ff88' : '#ffb700', cellSize, offsetX, offsetY);
+        }
+    }
+
+    drawTrackerMarker(ctx, cellSize, offsetX, offsetY) {
+        if (!this.trackingEnabled) return;
+
+        const target = this.trackerCell;
+        if (target === null || target === undefined) {
+            if (!this.trackerMode) return;
+            const origin = this.keyPos ?? this.exitPos;
+            this.drawTargetRing(ctx, origin, '#8bdcff', cellSize, offsetX, offsetY);
+            this.drawMapSticker(ctx, origin, '◎', '#8bdcff', cellSize, offsetX, offsetY);
+            return;
+        }
+
+        const center = this.getMinimapCellCenter(target, cellSize, offsetX, offsetY);
+        if (!center) return;
+
+        const r = Math.max(10, cellSize * 0.58);
+        ctx.save();
+        ctx.strokeStyle = '#8bdcff';
+        ctx.fillStyle = 'rgba(139, 220, 255, 0.12)';
+        ctx.shadowColor = '#8bdcff';
+        ctx.shadowBlur = 12;
+        ctx.lineWidth = 2.4;
+        ctx.beginPath();
+        ctx.arc(center.x, center.y, r, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.stroke();
+
+        ctx.globalAlpha = 0.9;
+        ctx.setLineDash([4, 4]);
+        ctx.beginPath();
+        ctx.arc(center.x, center.y, r + 5, 0, Math.PI * 2);
+        ctx.stroke();
+        ctx.setLineDash([]);
+
+        ctx.fillStyle = '#8bdcff';
+        ctx.font = `900 ${Math.max(11, cellSize * 0.55)}px Orbitron, sans-serif`;
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText('◎', center.x, center.y + 1);
+        ctx.restore();
+    }
+
+    drawTargetRing(ctx, cellId, color, cellSize, offsetX, offsetY) {
+        if (cellId === null || cellId === undefined) return;
+        const center = this.getMinimapCellCenter(cellId, cellSize, offsetX, offsetY);
+        if (!center) return;
+
+        const r = Math.max(9, cellSize * 0.52);
+        ctx.save();
+        ctx.strokeStyle = color;
+        ctx.lineWidth = 2.4;
+        ctx.shadowColor = color;
+        ctx.shadowBlur = 10;
+        ctx.beginPath();
+        ctx.arc(center.x, center.y, r, 0, Math.PI * 2);
+        ctx.stroke();
+        ctx.lineWidth = 1;
+        ctx.globalAlpha = 0.48;
+        ctx.beginPath();
+        ctx.arc(center.x, center.y, r + 4, 0, Math.PI * 2);
+        ctx.stroke();
+        ctx.restore();
+    }
+
+    drawMapArrow(ctx, fromCell, toCell, color, label, cellSize, offsetX, offsetY) {
+        if (fromCell === null || fromCell === undefined || toCell === null || toCell === undefined) return;
+        const from = this.getMinimapCellCenter(fromCell, cellSize, offsetX, offsetY);
+        const to = this.getMinimapCellCenter(toCell, cellSize, offsetX, offsetY);
+        if (!from || !to) return;
+
+        const angle = Math.atan2(to.y - from.y, to.x - from.x);
+        const startPad = Math.max(8, cellSize * 0.45);
+        const endPad = Math.max(10, cellSize * 0.55);
+        const sx = from.x + Math.cos(angle) * startPad;
+        const sy = from.y + Math.sin(angle) * startPad;
+        const ex = to.x - Math.cos(angle) * endPad;
+        const ey = to.y - Math.sin(angle) * endPad;
+        const head = Math.max(6, cellSize * 0.32);
+
+        ctx.save();
+        ctx.strokeStyle = color;
+        ctx.fillStyle = color;
+        ctx.lineWidth = 2.4;
+        ctx.shadowColor = color;
+        ctx.shadowBlur = 9;
+        ctx.setLineDash([7, 5]);
+        ctx.beginPath();
+        ctx.moveTo(sx, sy);
+        ctx.lineTo(ex, ey);
+        ctx.stroke();
+        ctx.setLineDash([]);
+        ctx.beginPath();
+        ctx.moveTo(ex, ey);
+        ctx.lineTo(ex - Math.cos(angle - 0.55) * head, ey - Math.sin(angle - 0.55) * head);
+        ctx.lineTo(ex - Math.cos(angle + 0.55) * head, ey - Math.sin(angle + 0.55) * head);
+        ctx.closePath();
+        ctx.fill();
+        ctx.restore();
+
+        if (label) {
+            this.drawFloatingSticker(ctx, (from.x + to.x) / 2, (from.y + to.y) / 2, label, color, cellSize);
+        }
+    }
+
+    drawThreatPreviewPath(ctx, ai, cellSize, offsetX, offsetY, label = '!') {
+        const preview = this.previewAIMovement(ai);
+        if (!preview.length) {
+            this.drawMapSticker(ctx, ai.pos, label, ai.color || '#ff0055', cellSize, offsetX, offsetY);
+            return;
+        }
+
+        const points = [ai.pos, ...preview]
+            .map(id => this.getMinimapCellCenter(id, cellSize, offsetX, offsetY))
+            .filter(Boolean);
+        if (points.length < 2) return;
+
+        ctx.save();
+        ctx.strokeStyle = ai.type === 'guardian' && this.hasKey ? '#ff0055' : (ai.color || '#ff0055');
+        ctx.lineWidth = 2.4;
+        ctx.shadowColor = ctx.strokeStyle;
+        ctx.shadowBlur = 8;
+        ctx.setLineDash([4, 4]);
+        ctx.beginPath();
+        ctx.moveTo(points[0].x, points[0].y);
+        for (let i = 1; i < points.length; i++) {
+            ctx.lineTo(points[i].x, points[i].y);
+        }
+        ctx.stroke();
+        ctx.restore();
+
+        const last = preview[preview.length - 1];
+        this.drawMapSticker(ctx, last, label, ai.color || '#ff0055', cellSize, offsetX, offsetY);
+    }
+
+    drawRotationLayerHint(ctx, cellSize, offsetX, offsetY) {
+        const axisEl = document.getElementById('rotate-axis');
+        const layerEl = document.getElementById('rotate-layer');
+        if (!axisEl || !layerEl || layerEl.value === '') return;
+
+        const axis = axisEl.value || 'X';
+        const layer = parseInt(layerEl.value, 10);
+        if (!Number.isFinite(layer)) return;
+
+        ctx.save();
+        ctx.fillStyle = 'rgba(255, 183, 0, 0.16)';
+        ctx.strokeStyle = 'rgba(255, 183, 0, 0.62)';
+        ctx.lineWidth = 1.6;
+        this.cells.forEach(cell => {
+            if (this.getCellLayerIndex(cell.id, axis) !== layer) return;
+            const center = this.getMinimapCellCenter(cell.id, cellSize, offsetX, offsetY);
+            if (!center) return;
+            const x = center.x - cellSize / 2 + 1;
+            const y = center.y - cellSize / 2 + 1;
+            ctx.fillRect(x, y, cellSize - 2, cellSize - 2);
+            ctx.strokeRect(x, y, cellSize - 2, cellSize - 2);
+        });
+        ctx.restore();
+    }
+
+    getCellLayerIndex(cellId, axis) {
+        const cell = this.cells[cellId];
+        if (!cell) return -1;
+        const value = cell.pos[String(axis).toLowerCase()];
+        const ratio = (value + 1) / 2;
+        return Math.min(this.N - 1, Math.max(0, Math.round(ratio * (this.N - 1))));
+    }
+
+    drawMapSticker(ctx, cellId, text, color, cellSize, offsetX, offsetY) {
+        const center = this.getMinimapCellCenter(cellId, cellSize, offsetX, offsetY);
+        if (!center) return;
+        this.drawFloatingSticker(ctx, center.x + cellSize * 0.34, center.y - cellSize * 0.36, text, color, cellSize);
+    }
+
+    drawFloatingSticker(ctx, x, y, text, color, cellSize) {
+        const size = Math.max(15, cellSize * 0.72);
+        ctx.save();
+        ctx.shadowColor = color;
+        ctx.shadowBlur = 10;
+        ctx.fillStyle = 'rgba(5, 8, 14, 0.92)';
+        ctx.strokeStyle = color;
+        ctx.lineWidth = 1.8;
+        ctx.beginPath();
+        if (ctx.roundRect) {
+            ctx.roundRect(x - size / 2, y - size / 2, size, size, 5);
+        } else {
+            ctx.rect(x - size / 2, y - size / 2, size, size);
+        }
+        ctx.fill();
+        ctx.stroke();
+        ctx.fillStyle = color;
+        ctx.font = `900 ${Math.max(10, size * 0.58)}px Orbitron, sans-serif`;
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText(text, x, y + 1);
+        ctx.restore();
+    }
+
+    drawMapEntities(ctx, cellSize, offsetX, offsetY) {
+        const drawToken = (cellId, type, color, variant = null) => {
+            if (cellId === null || cellId === undefined) return;
+            const center = this.getMinimapCellCenter(cellId, cellSize, offsetX, offsetY);
+            if (!center) return;
+
+            const r = Math.max(6, Math.min(9, cellSize * 0.32));
+            ctx.save();
+            ctx.shadowColor = color;
+            ctx.shadowBlur = 7;
+            ctx.lineJoin = 'round';
+            ctx.lineCap = 'round';
+
+            if (type === 'player') {
+                ctx.fillStyle = 'rgba(5, 8, 14, 0.9)';
+                ctx.strokeStyle = color;
+                ctx.lineWidth = 2;
+                ctx.beginPath();
+                ctx.arc(center.x, center.y, r, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.stroke();
+
+                ctx.strokeStyle = color;
+                ctx.lineWidth = 2.5;
+                ctx.beginPath();
+                ctx.moveTo(center.x - r * 0.72, center.y + r * 0.45);
+                ctx.lineTo(center.x, center.y - r * 0.72);
+                ctx.lineTo(center.x + r * 0.72, center.y + r * 0.45);
+                ctx.stroke();
+                ctx.beginPath();
+                ctx.moveTo(center.x, center.y - r * 0.55);
+                ctx.lineTo(center.x, center.y + r * 0.72);
+                ctx.stroke();
+            } else if (type === 'key') {
+                ctx.fillStyle = color;
+                ctx.strokeStyle = '#fff0a8';
+                ctx.lineWidth = 1.5;
+                ctx.beginPath();
+                ctx.moveTo(center.x, center.y - r);
+                ctx.lineTo(center.x + r, center.y);
+                ctx.lineTo(center.x, center.y + r);
+                ctx.lineTo(center.x - r, center.y);
+                ctx.closePath();
+                ctx.fill();
+                ctx.stroke();
+
+                ctx.strokeStyle = '#08090f';
+                ctx.lineWidth = 2;
+                ctx.beginPath();
+                ctx.moveTo(center.x - r * 0.35, center.y);
+                ctx.lineTo(center.x + r * 0.45, center.y);
+                ctx.moveTo(center.x + r * 0.2, center.y);
+                ctx.lineTo(center.x + r * 0.2, center.y + r * 0.35);
+                ctx.stroke();
+            } else if (type === 'exit') {
+                ctx.strokeStyle = color;
+                ctx.lineWidth = 3;
+                ctx.strokeRect(center.x - r, center.y - r, r * 2, r * 2);
+                ctx.fillStyle = this.hasKey ? 'rgba(0,255,136,0.18)' : 'rgba(255,183,0,0.15)';
+                ctx.fillRect(center.x - r + 1, center.y - r + 1, r * 2 - 2, r * 2 - 2);
+                ctx.beginPath();
+                ctx.moveTo(center.x - r * 0.45, center.y + r * 0.45);
+                ctx.lineTo(center.x + r * 0.45, center.y - r * 0.45);
+                ctx.stroke();
+            } else {
+                ctx.fillStyle = 'rgba(5, 8, 14, 0.92)';
+                ctx.strokeStyle = color;
+                ctx.lineWidth = 2;
+                ctx.beginPath();
+                ctx.arc(center.x, center.y, r, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.stroke();
+
+                if (variant === 'guardian') {
+                    ctx.strokeStyle = color;
+                    ctx.lineWidth = 2.2;
+                    ctx.beginPath();
+                    ctx.arc(center.x, center.y - r * 0.18, r * 0.42, Math.PI, 0);
+                    ctx.stroke();
+                    ctx.fillStyle = color;
+                    ctx.fillRect(center.x - r * 0.5, center.y - r * 0.05, r, r * 0.68);
+                    ctx.fillStyle = '#08090f';
+                    ctx.beginPath();
+                    ctx.arc(center.x, center.y + r * 0.18, r * 0.15, 0, Math.PI * 2);
+                    ctx.fill();
+                } else if (variant === 'ambusher') {
+                    ctx.strokeStyle = color;
+                    ctx.lineWidth = 2;
+                    ctx.beginPath();
+                    ctx.arc(center.x, center.y, r * 0.5, 0, Math.PI * 2);
+                    ctx.stroke();
+                    ctx.beginPath();
+                    ctx.moveTo(center.x - r * 0.72, center.y);
+                    ctx.lineTo(center.x + r * 0.72, center.y);
+                    ctx.moveTo(center.x, center.y - r * 0.72);
+                    ctx.lineTo(center.x, center.y + r * 0.72);
+                    ctx.stroke();
+                } else {
+                    ctx.fillStyle = color;
+                    ctx.beginPath();
+                    ctx.moveTo(center.x, center.y - r * 0.85);
+                    ctx.lineTo(center.x + r * 0.78, center.y + r * 0.78);
+                    ctx.lineTo(center.x, center.y + r * 0.35);
+                    ctx.lineTo(center.x - r * 0.78, center.y + r * 0.78);
+                    ctx.closePath();
+                    ctx.fill();
+                    ctx.fillStyle = '#ffffff';
+                    ctx.beginPath();
+                    ctx.arc(center.x, center.y - r * 0.08, r * 0.18, 0, Math.PI * 2);
+                    ctx.fill();
+                }
+            }
+
+            ctx.restore();
+        };
+
+        drawToken(this.exitPos, 'exit', this.hasKey ? '#00ff88' : '#ffb700');
+        if (!this.hasKey) drawToken(this.keyPos, 'key', '#ffb700');
+        this.ais.forEach(ai => drawToken(ai.pos, 'ai', ai.color, ai.type));
+        drawToken(this.playerPos, 'player', '#00ff88');
+    }
+
+    getMinimapCellCenter(cellId, cellSize, offsetX, offsetY) {
+        const cell = this.cells[cellId];
+        const layout = this.netLayout[cell.face];
+        if (!layout) return null;
+
+        return {
+            x: offsetX + (layout.x * this.N + cell.col) * cellSize + cellSize / 2,
+            y: offsetY + (layout.y * this.N + cell.row) * cellSize + cellSize / 2
+        };
+    }
+
+    getCellFromMinimapEvent(event) {
+        if (!this.minimapGrid || !this.minimapMetrics) return null;
+
+        const canvas = document.getElementById('minimap-canvas');
+        const rect = canvas.getBoundingClientRect();
+        const scaleX = canvas.width / rect.width;
+        const scaleY = canvas.height / rect.height;
+        const mouseX = (event.clientX - rect.left) * scaleX;
+        const mouseY = (event.clientY - rect.top) * scaleY;
+        const { cellSize, offsetX, offsetY, cols, rows } = this.minimapMetrics;
+
+        const gridX = Math.floor((mouseX - offsetX) / cellSize);
+        const gridY = Math.floor((mouseY - offsetY) / cellSize);
+
+        if (gridX >= 0 && gridX < cols && gridY >= 0 && gridY < rows) {
+            return this.minimapGrid[gridY][gridX];
+        }
+
+        return null;
+    }
+
+    handleMinimapPointer(event, isNewStroke = false) {
+        if (isNewStroke) {
+            this.lastInputCell = null;
+        }
+
+        const cellId = this.getCellFromMinimapEvent(event);
+        if (cellId === null || cellId === this.lastInputCell) return;
+
+        if (this.trackerMode) {
+            if (isNewStroke) this.setTrackerCell(cellId);
+            this.lastInputCell = cellId;
+            return;
+        }
+
+        if (this.toolMode === 'patch' || this.toolMode === 'beacon') {
+            if (isNewStroke) this.handleBoardCellClick(cellId);
+            this.lastInputCell = cellId;
+            return;
+        }
+
+        this.appendPathCell(cellId);
+        this.lastInputCell = cellId;
     }
 
     handleMinimapClick(event) {
-        if (!this.minimapGrid) return;
-        const canvas = document.getElementById('minimap-canvas');
-        const rect = canvas.getBoundingClientRect();
-        const mouseX = event.clientX - rect.left;
-        const mouseY = event.clientY - rect.top;
-        
-        const N = this.N;
-        const cellWidth = Math.floor((canvas.width - 20) / (3 * N));
-        const startOffset = 10;
-        
-        const gridX = Math.floor((mouseX - startOffset) / cellWidth);
-        const gridY = Math.floor((mouseY - startOffset) / cellWidth);
-        
-        if (gridX >= 0 && gridX < 3 * N && gridY >= 0 && gridY < 3 * N) {
-            const cellId = this.minimapGrid[gridY][gridX];
-            if (cellId !== null) {
-                this.planPathTo(cellId);
-            }
-        }
+        this.handleMinimapPointer(event, true);
+    }
+
+    hexToRgba(hex, alpha) {
+        const cleanHex = hex.replace('#', '');
+        const r = parseInt(cleanHex.slice(0, 2), 16);
+        const g = parseInt(cleanHex.slice(2, 4), 16);
+        const b = parseInt(cleanHex.slice(4, 6), 16);
+        return `rgba(${r}, ${g}, ${b}, ${alpha})`;
     }
 }
 
-// 绑定到 window 暴露给 render.js
 window.GameEngine = GameEngine;
