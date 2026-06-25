@@ -46,8 +46,8 @@
             aria: { zh: '认真回应', en: 'Focused reply' },
             tone: 'steady',
             response: {
-                zh: '行。你先别乱画，我先别摔下去。我们都成熟一点。',
-                en: 'Fine. You draw carefully, I avoid falling off reality. Mature teamwork.'
+                zh: '行。你先别乱点，我先别摔下去。我们都成熟一点。',
+                en: 'Fine. You click carefully, I avoid falling off reality. Mature teamwork.'
             }
         },
         worry: {
@@ -139,7 +139,7 @@
                 {
                     no: '03',
                     title: { zh: '别指挥我。', en: 'Do not order me around.' },
-                    text: '那条发光线是你画的？我不认识你，也不打算随便跟着陌生人走。'
+                    text: '那个发亮的格子是你点的？我不认识你，也不打算随便跟着陌生人走。'
                 },
                 {
                     no: '04',
@@ -160,7 +160,7 @@
                     '我刚才还在床上。灯没关，手机在响，然后床像被谁折起来了。',
                     '现在我站在一个会发光的方块上。很好，物理也开始摆烂。',
                     '你是谁？为什么我的手机能收到你的信号？',
-                    '那条线是你画的？先别自信。我还没决定要不要听一个陌生人的。'
+                    '那个格子是你点亮的？先别自信。我还没决定要不要听一个陌生人的。'
                 ],
                 replies: [
                     {
@@ -176,7 +176,7 @@
             l01Route: {
                 title: { zh: 'L01 / 线', en: 'L01 / The Line' },
                 status: { zh: '最低信任', en: 'Minimum trust' },
-                bubble: { zh: '这条线是你画的？', en: 'Did you draw that line?' },
+                bubble: { zh: '这是你点亮的？', en: 'Did you light that tile?' },
                 lines: [
                     '等下，我脚边真的出现了一条线。',
                     '我还是不信你。但这地方更不值得信。',
@@ -396,7 +396,7 @@
                         face: K.tease,
                         aria: '刺激，这才像终极大考。',
                         tone: 'tease',
-                        response: '对你是刺激，对我可是生死时速。手别抖，画线！'
+                        response: '对你是刺激，对我可是生死时速。手别抖，点稳！'
                     }
                 ]
             },
@@ -866,7 +866,7 @@
                 lines: [
                     '诱饵不能让所有敌人都去散步。',
                     '它只能骗走最关键的一只。',
-                    '剩下的，靠你画线。靠我不尖叫。都很重要。'
+                    '剩下的，靠你点稳。靠我不尖叫。都很重要。'
                 ],
                 replies: [commonReplies.steady, commonReplies.worry, commonReplies.tease]
             },

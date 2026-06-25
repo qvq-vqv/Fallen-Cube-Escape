@@ -104,7 +104,7 @@
             <div class="setup-section">
                 <h3 data-i18n="setup.rules">3. 游戏机制简介</h3>
                 <div class="rule-chip-grid">
-                    <span><b>➜</b> <i data-i18n="rules.route">画线走路</i></span>
+                    <span><b>➜</b> <i data-i18n="rules.route">点击移动</i></span>
                     <span><b>◇</b> <i data-i18n="rules.key">钥匙→出口</i></span>
                     <span><b>!</b> <i data-i18n="rules.threat">红格会到</i></span>
                     <span><b>⟳</b> <i data-i18n="rules.rotate">旋转整层</i></span>
@@ -148,13 +148,13 @@
         <div id="canvas-container">
             <!-- 3D Canvas 将插入此处 -->
             <div id="canvas-overlay-ui">
-                <div id="route-tip" class="help-tooltip">在 3D 魔方表面拖拽画路线；按 Shift 进入 Twist 拧层模式。</div>
+                <div id="route-tip" class="help-tooltip">点击 Dawn 周围的格子移动；按 Shift 进入 Twist 拧层模式。</div>
                 <aside id="tutorial-helper-card" class="tutorial-helper-card" aria-live="polite">
                     <button id="tutorial-helper-close" class="tutorial-helper-close" type="button" aria-label="关闭提示">×</button>
                     <span id="tutorial-helper-icon" class="tutorial-helper-icon">➜</span>
                     <div>
-                        <strong id="tutorial-helper-title">画出逃生线</strong>
-                        <p id="tutorial-helper-body">点相邻格规划路线，发送后 Dawn 会照着走。</p>
+                        <strong id="tutorial-helper-title">直接点下一格</strong>
+                        <p id="tutorial-helper-body">点 Dawn 周围发亮的格子，她会立刻走过去。</p>
                     </div>
                 </aside>
             </div>
@@ -189,7 +189,7 @@
                 <button id="btn-end-turn" class="btn btn-risk phone-secondary" data-i18n="phone.skip">跳过</button>
 
                 <div id="tool-section" class="phone-tool-row is-hidden" aria-label="场上工具">
-                    <button id="btn-tool-route" class="tool-mode-btn active" type="button" data-tool-mode="route" data-i18n="tool.route">画路</button>
+                    <button id="btn-tool-route" class="tool-mode-btn active" type="button" data-tool-mode="route" data-i18n="tool.route">移动</button>
                     <button id="btn-tool-patch" class="tool-mode-btn" type="button" data-tool-mode="patch"><span data-i18n="tool.patch">补片</span> <b id="patch-count">0</b></button>
                     <button id="btn-tool-beacon" class="tool-mode-btn" type="button" data-tool-mode="beacon"><span data-i18n="tool.beacon">诱饵</span> <b id="beacon-count">0</b></button>
                     <button id="btn-tool-break" class="tool-mode-btn" type="button" data-tool-mode="break"><span data-i18n="tool.break">碎解</span> <b id="break-count">0</b></button>
@@ -220,7 +220,7 @@
 
             <section class="terminal-panel active" data-terminal-panel="comms">
                 <h2 class="neon-title-blue" data-i18n="comms.title">主角通讯</h2>
-                <p class="section-desc" data-i18n="comms.desc">3D 表面画出的路线会先变成手机指令，发送后 Dawn 才执行。</p>
+                <p class="section-desc" data-i18n="comms.desc">直接点 Dawn 周围的相邻格。手机只负责吵你和记录现场。</p>
                 <div class="comms-log">
                     <div class="comms-scene-head">
                         <span id="comms-scene-title" data-i18n="comms.scene">通讯接入</span>
@@ -336,7 +336,7 @@
             <div class="settings-keybinds">
                 <h3 data-i18n="settings.keybinds">自定义键位</h3>
                 <div class="keybind-grid">
-                    <label><span data-i18n="settings.key.route">移动/画路</span><button class="keybind-button" type="button" data-keybind-action="route">1</button></label>
+                    <label><span data-i18n="settings.key.route">移动/点格</span><button class="keybind-button" type="button" data-keybind-action="route">1</button></label>
                     <label><span data-i18n="settings.key.patch">部署补片</span><button class="keybind-button" type="button" data-keybind-action="patch">2</button></label>
                     <label><span data-i18n="settings.key.beacon">部署信标</span><button class="keybind-button" type="button" data-keybind-action="beacon">3</button></label>
                     <label><span data-i18n="settings.key.break">碎解</span><button class="keybind-button" type="button" data-keybind-action="break">4</button></label>
@@ -404,13 +404,13 @@
     </div>
 
     <!-- 载入脚本 -->
-    <script src="locales.js?v=20260625-i18n-v1"></script>
+    <script src="locales.js?v=20260626-m67-v1"></script>
     <script src="audio.js?v=20260609-phone-v1"></script>
-    <script src="levels.js?v=20260609-content-v1"></script>
-    <script src="game.js?v=20260626-m6-v1"></script>
-    <script src="render.js?v=20260626-m6-v1"></script>
-    <script src="dialogue.js?v=20260609-phone-v1"></script>
-    <script src="story.js?v=20260626-m6-v1"></script>
-    <script src="main.js?v=20260626-m6-v1"></script>
+    <script src="levels.js?v=20260626-m67-v1"></script>
+    <script src="game.js?v=20260626-m67-v1"></script>
+    <script src="render.js?v=20260626-m67-v1"></script>
+    <script src="dialogue.js?v=20260626-m67-v1"></script>
+    <script src="story.js?v=20260626-m67-v1"></script>
+    <script src="main.js?v=20260626-m67-v1"></script>
 </body>
 </html>

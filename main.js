@@ -233,7 +233,7 @@ document.addEventListener('DOMContentLoaded', () => {
         {
             id: 'outsideOperator',
             title: '外侧的人',
-            body: '你能画路、拧空间、悔棋。她看不见你的世界，只知道你会不会把线画稳。'
+            body: '你能点格、拧空间、悔棋。她看不见你的世界，只知道你下一步会不会乱来。'
         },
         {
             id: 'guardian',
@@ -293,6 +293,7 @@ document.addEventListener('DOMContentLoaded', () => {
     document.addEventListener('pointerdown', wakeAudio, { once: true });
 
     function closePrologue() {
+        clearPrologueTimers();
         prologueOverlay?.classList.remove('active');
         landingOverlay?.classList.add('active');
         setupOverlay.classList.remove('active');
@@ -308,7 +309,7 @@ document.addEventListener('DOMContentLoaded', () => {
             { who: 'sys', text: '未知坐标: CUBE_SURFACE / 呼吸信号: 1' },
             { who: 'dawn', text: '……喂？谁在我手机里？' },
             { who: 'dawn', text: '我刚刚还在床上。现在床没了，地面也很可疑。' },
-            { who: 'dawn', text: '那条线是你画的？先说好，我不随便跟陌生信号走。' },
+            { who: 'dawn', text: '那个发亮的格子是你点的？先说好，我不随便跟陌生信号走。' },
             { who: 'dawn', text: '……但我想回家。所以你最好真的会带路。' }
         ],
         en: [
@@ -316,14 +317,14 @@ document.addEventListener('DOMContentLoaded', () => {
             { who: 'sys', text: 'Unknown coordinate: CUBE_SURFACE / heartbeat: 1' },
             { who: 'dawn', text: '...Hello? Who is inside my phone?' },
             { who: 'dawn', text: 'I was in bed five seconds ago. The bed is gone. The floor is also suspicious.' },
-            { who: 'dawn', text: 'Did you draw that line? Great. I do not follow strange signals for free.' },
+            { who: 'dawn', text: 'Did you light up that tile? Great. I do not follow strange signals for free.' },
             { who: 'dawn', text: '...But I want to go home. So you had better know where you are pointing.' }
         ]
     };
 
     const prologueReplyText = {
         zh: {
-            steady: '行。你先证明你不是会画线的灾难现场。',
+            steady: '行。你先证明你不是那种越救越乱的热心人。',
             warm: '别用那种表情。好吧，有人看着也比没人强。',
             tease: '试营业？你们外侧的人都这么欠吗。算了，先救我。'
         },
@@ -333,6 +334,25 @@ document.addEventListener('DOMContentLoaded', () => {
             tease: 'Trial run? Are all outside people this annoying? Whatever. Rescue first.'
         }
     };
+    const prologueTimers = new Set();
+    let prologueRenderedLines = [];
+
+    function clearPrologueTimers() {
+        prologueTimers.forEach(timer => {
+            window.clearTimeout(timer);
+            window.clearInterval(timer);
+        });
+        prologueTimers.clear();
+    }
+
+    function schedulePrologue(fn, delay) {
+        const timer = window.setTimeout(() => {
+            prologueTimers.delete(timer);
+            fn();
+        }, delay);
+        prologueTimers.add(timer);
+        return timer;
+    }
 
     function getProloguePrefix(who) {
         if (who === 'sys') return '> ';
@@ -340,8 +360,11 @@ document.addEventListener('DOMContentLoaded', () => {
         return 'Dawn: ';
     }
 
-    function appendPrologueLine(line) {
+    function appendPrologueLine(line, options = {}) {
         if (!prologueFeed) return;
+        if (options.remember !== false) {
+            prologueRenderedLines.push({ ...line });
+        }
         const row = document.createElement('p');
         row.className = `prologue-line ${line.who}`;
         const prefix = getProloguePrefix(line.who);
@@ -349,6 +372,10 @@ document.addEventListener('DOMContentLoaded', () => {
         row.textContent = prefix;
         prologueFeed.appendChild(row);
         prologueFeed.scrollTo?.({ top: prologueFeed.scrollHeight, behavior: 'smooth' });
+        if (options.instant) {
+            row.textContent = `${prefix}${text}`;
+            return;
+        }
         let index = 0;
         const timer = window.setInterval(() => {
             index += 1;
@@ -356,26 +383,55 @@ document.addEventListener('DOMContentLoaded', () => {
             prologueFeed.scrollTo?.({ top: prologueFeed.scrollHeight, behavior: 'smooth' });
             if (index >= text.length) {
                 window.clearInterval(timer);
+                prologueTimers.delete(timer);
             }
         }, line.who === 'sys' ? 12 : 18);
+        prologueTimers.add(timer);
     }
 
     function runPrologueSequence() {
         if (!prologueFeed) return;
+        clearPrologueTimers();
+        prologueRenderedLines = [];
         prologueFeed.innerHTML = '';
         prologueReplies?.classList.add('is-disabled');
         btnPrologueStart?.classList.add('is-hidden');
         const lines = prologueScripts[window.currentLang === 'en' ? 'en' : 'zh'];
         lines.forEach((line, index) => {
-            setTimeout(() => appendPrologueLine(line), 280 + index * 620);
+            schedulePrologue(() => appendPrologueLine({ ...line, scriptIndex: index }), 280 + index * 620);
         });
-        setTimeout(() => prologueReplies?.classList.remove('is-disabled'), 520 + lines.length * 620);
+        schedulePrologue(() => prologueReplies?.classList.remove('is-disabled'), 520 + lines.length * 620);
+    }
+
+    function translateStoredPrologueLine(line) {
+        const lang = window.currentLang === 'en' ? 'en' : 'zh';
+        if (Number.isInteger(line.scriptIndex)) {
+            return { ...prologueScripts[lang][line.scriptIndex], scriptIndex: line.scriptIndex };
+        }
+        if (line.replyTone) {
+            if (line.who === 'you') {
+                return { ...line, text: window.t?.(`prologue.reply.${line.replyTone}`) || line.replyTone };
+            }
+            if (line.who === 'dawn') {
+                return { ...line, text: prologueReplyText[lang][line.replyTone] || prologueReplyText[lang].steady };
+            }
+        }
+        return line;
+    }
+
+    function rerenderPrologueLanguageInPlace() {
+        if (!prologueFeed) return;
+        clearPrologueTimers();
+        const rendered = prologueRenderedLines.map(translateStoredPrologueLine);
+        prologueRenderedLines = [];
+        prologueFeed.innerHTML = '';
+        rendered.forEach(line => appendPrologueLine(line, { instant: true }));
     }
 
     function handlePrologueReply(tone) {
         const lang = window.currentLang === 'en' ? 'en' : 'zh';
-        appendPrologueLine({ who: 'you', text: window.t?.(`prologue.reply.${tone}`) || tone });
-        appendPrologueLine({ who: 'dawn', text: prologueReplyText[lang][tone] || prologueReplyText[lang].steady });
+        appendPrologueLine({ who: 'you', replyTone: tone, text: window.t?.(`prologue.reply.${tone}`) || tone });
+        appendPrologueLine({ who: 'dawn', replyTone: tone, text: prologueReplyText[lang][tone] || prologueReplyText[lang].steady });
         prologueReplies?.classList.add('is-disabled');
         btnPrologueStart?.classList.remove('is-hidden');
     }
@@ -432,6 +488,12 @@ document.addEventListener('DOMContentLoaded', () => {
             .replaceAll('>', '&gt;')
             .replaceAll('"', '&quot;')
             .replaceAll("'", '&#039;');
+    }
+
+    function setCompanionBubble(text, tone = 'info') {
+        const line = textOf(text) || '';
+        if (companionBubble) companionBubble.textContent = line;
+        render.setPlayerSpeechBubble?.(line, tone);
     }
 
     function pickKaomoji(tone, fallbackFace) {
@@ -554,7 +616,7 @@ document.addEventListener('DOMContentLoaded', () => {
         if (commsSceneTitle) commsSceneTitle.textContent = textOf(scene.title) || window.t?.('comms.scene') || '通讯';
         if (commsBondLabel) commsBondLabel.textContent = getBondLabel();
         if (companionStatus) companionStatus.textContent = textOf(scene.status) || window.t?.('comms.signalStable') || '信号稳定';
-        if (companionBubble) companionBubble.textContent = textOf(scene.bubble) || textOf(scene.lines?.[0]) || window.t?.('comms.live') || '我在。';
+        setCompanionBubble(textOf(scene.bubble) || textOf(scene.lines?.[0]) || window.t?.('comms.live') || '我在。');
         if (commsContextLine) {
             commsContextLine.textContent = storyModule?.getContextLine?.(scene, commsState, game)
                 || (game.currentLevel
@@ -612,9 +674,7 @@ document.addEventListener('DOMContentLoaded', () => {
             commsLiveLine.className = 'comms-line protagonist';
             commsLiveLine.textContent = textOf(reply.response);
         }
-        if (companionBubble) {
-            companionBubble.textContent = textOf(reply.bubble) || textOf(reply.response);
-        }
+        setCompanionBubble(textOf(reply.bubble) || textOf(reply.response), reply.tone === 'warm' ? 'info' : (reply.tone === 'tease' ? 'warn' : 'info'));
             if (commsContextLine) {
                 commsContextLine.textContent = game.currentLevel
                 ? `${textOf(game.currentLevel.title)}：${window.t?.('comms.recordedRoute') || '通讯已记录。路线直接在 3D 魔方上画。'}`
@@ -641,7 +701,7 @@ document.addEventListener('DOMContentLoaded', () => {
         if (companionStatus) companionStatus.textContent = detail.type === 'gameOver'
             ? '信号抖动'
             : (detail.type === 'victory' ? '短暂安全' : '现场反应');
-        if (companionBubble) companionBubble.textContent = line;
+        setCompanionBubble(line, detail.type === 'gameOver' ? 'danger' : (detail.type === 'victory' ? 'info' : 'warn'));
         markUnread('comms');
     }
 
@@ -650,13 +710,11 @@ document.addEventListener('DOMContentLoaded', () => {
             const scene = dialogueScript.scenes[commsState.activeSceneId];
             if (!scene || commsState.lastReply) return;
             if (companionStatus) companionStatus.textContent = textOf(scene.status) || window.t?.('comms.signalStable') || '信号稳定';
-            if (companionBubble) {
-                companionBubble.textContent = storyModule?.getAmbientBubble?.({
-                    scene,
-                    state: commsState,
-                    game: currentGame
-                }) || textOf(scene.bubble) || window.t?.('comms.live') || '我在。';
-            }
+            setCompanionBubble(storyModule?.getAmbientBubble?.({
+                scene,
+                state: commsState,
+                game: currentGame
+            }) || textOf(scene.bubble) || window.t?.('comms.live') || '我在。');
             if (commsContextLine) {
                 commsContextLine.textContent = storyModule?.getContextLine?.(scene, commsState, currentGame)
                     || (currentGame?.currentLevel
@@ -1092,9 +1150,9 @@ document.addEventListener('DOMContentLoaded', () => {
         playerLine.textContent = routeCommandPreview.textContent.replace(/^走向：/, '路线：');
         commsStoryLines.appendChild(playerLine);
         commsStoryLines.scrollTo?.({ top: commsStoryLines.scrollHeight, behavior: 'smooth' });
-        if (companionBubble) companionBubble.textContent = game.trust < 55
+        setCompanionBubble(game.trust < 55
             ? '我会看。但我不保证每次都乖乖照做。'
-            : '行，我照这条线走。你最好是对的。';
+            : '行，我照这条线走。你最好是对的。', game.trust < 55 ? 'warn' : 'info');
     }
 
     function appendCommandBubble(text) {
@@ -1211,7 +1269,7 @@ document.addEventListener('DOMContentLoaded', () => {
     window.addEventListener('languageChanged', () => {
         applyLanguage();
         if (prologueOverlay?.classList.contains('active')) {
-            runPrologueSequence();
+            rerenderPrologueLanguageInPlace();
         }
         if (commsState.activeSceneId) {
             renderCommsScene(commsState.activeSceneId, { force: true });
@@ -1424,6 +1482,9 @@ document.addEventListener('DOMContentLoaded', () => {
         const levelId = card?.dataset.levelId;
         if (levelId) localStorage.setItem(`dawnCubeTutorialDismissed:${levelId}`, 'true');
         card?.classList.add('is-hidden');
+        if (game.realtimeMode && !settingsOverlay?.classList.contains('active') && !escConsole?.classList.contains('active')) {
+            game.setRealtimePaused?.(false);
+        }
     });
     document.addEventListener('keydown', event => {
         if (listeningKeybindAction) {

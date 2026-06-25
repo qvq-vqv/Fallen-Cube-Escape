@@ -166,7 +166,7 @@
         route: [
             '看见线了。我走。先声明，不代表我完全信你。',
             '两步以内，对吧？你最好数清楚，我现在没空替你数学补课。',
-            '行，我按你画的走。错了我会很有意见。'
+            '行，我按你点的走。错了我会很有意见。'
         ],
         playerMove: [
             '踩稳了。',
@@ -325,7 +325,7 @@
         const level = game.currentLevel;
         const tone = getDominantTone(state);
         const suffix = tone === 'tease'
-            ? '她嘴上嫌弃，但会继续看你画线。'
+            ? '她嘴上嫌弃，但会继续盯着你的下一步。'
             : (tone === 'warm' ? '她会记住你刚才的担心。' : '通讯稳定，先处理残局。');
         return `${textOf(level.title)} · ${textOf(level.chapter)}。${suffix}`;
     }

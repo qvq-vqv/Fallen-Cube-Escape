@@ -860,7 +860,7 @@ class GameEngine {
             return;
         }
         this.toolMode = nextMode;
-        const labels = { route: '画路线', patch: '选择缺口放补片', beacon: '选择格子放诱饵', break: '选择格子碎解' };
+        const labels = { route: '点击下一格', patch: '选择缺口放补片', beacon: '选择格子放诱饵', break: '选择格子碎解' };
         this.showFeel(labels[nextMode], nextMode === 'route' ? 'info' : 'good');
         this.updateUI();
     }
@@ -2127,6 +2127,9 @@ class GameEngine {
 
         if (statusEl) statusEl.innerText = status;
         if (bubbleEl) bubbleEl.innerText = bubble;
+        if (typeof window !== 'undefined' && window.renderEngine?.setPlayerSpeechBubble) {
+            window.renderEngine.setPlayerSpeechBubble(bubble, this.gameState === 'gameover' ? 'danger' : 'info');
+        }
         if (commsLiveEl && this.gameState !== 'playing') {
             commsLiveEl.innerText = liveLine;
         }
@@ -2138,11 +2141,11 @@ class GameEngine {
     getTutorialHelperCopy() {
         const levelId = this.currentLevel?.id || `L${String(this.currentLevelIndex + 1).padStart(2, '0')}`;
         const copies = {
-            L01: ['画出逃生线', '点相邻格规划路线，发送后 Dawn 会照着走。'],
+            L01: ['直接点下一格', '点 Dawn 周围发亮的格子，她会立刻走过去。别连点太猛，她会卡壳。'],
             L02: ['钥匙先于出口', '先踩钥匙，再进门。门亮绿才算能回家。'],
             L03: ['红格不是装饰', '红色威胁格代表下一轮会被贴近，别把 Dawn 送进去。'],
             L04: ['空间折叠', 'Shift 进入 Twist，拖一层魔方，让目标换到能走的位置。'],
-            L05: ['钥匙也会动', '钥匙会跟着层旋转。先拧局，再画路。'],
+            L05: ['钥匙也会动', '钥匙会跟着层旋转。先拧局，再点格。'],
             L07: ['主动碎解', '碎解敌人的必经格，切断追捕路线。不要拆自己的脚下。'],
             L13: ['更大的外壳', '4x4 不是更远而已，它给道具和敌人更多绕法。'],
             L21: ['临时补片', '补片只能踩一次。走过后碎掉，也能帮你甩掉追击。'],
@@ -2175,7 +2178,11 @@ class GameEngine {
         if (titleEl) titleEl.innerText = copy.title;
         if (bodyEl) bodyEl.innerText = copy.body;
         card.dataset.levelId = copy.levelId;
-        card.classList.toggle('is-hidden', dismissed || this.gameState !== 'playing');
+        const shouldShow = !dismissed && this.gameState === 'playing';
+        card.classList.toggle('is-hidden', !shouldShow);
+        if (this.realtimeMode && shouldShow) {
+            this.setRealtimePaused(true);
+        }
     }
 
     updateUI() {
@@ -2392,7 +2399,7 @@ class GameEngine {
             return '3D 表面负责走路；按 Shift 进入 Twist 模式，拖拽表面拧动当前层。';
         }
         if (this.ais.length > 0) {
-            return '蓝色是下一步可走格，红色是敌人本轮会压到的位置。先看红，再画线。';
+            return '蓝色是下一步可走格，红色是敌人本轮会压到的位置。先看红，再点格。';
         }
         return '按住 3D 魔方表面拖过相邻格，手机里会生成路线指令。';
     }

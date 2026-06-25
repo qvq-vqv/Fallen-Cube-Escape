@@ -68,6 +68,9 @@ class RenderEngine {
         this.threatPreviewMeshes = {};
         this.twistRingMeshes = [];
         this.hoveredTwistRing = null;
+        this.playerSpeechBubble = null;
+        this.lastSpeechBubbleText = '';
+        this.lastSpeechBubbleTone = 'info';
     }
 
     // 初始化 3D 场景
@@ -1874,6 +1877,9 @@ class RenderEngine {
         const playerLight = new THREE.PointLight(0x00ff88, 1, 3);
         this.playerMesh.add(playerLight);
         this.attachRealtimeTimerVisual(this.playerMesh, '#8bdcff', 'GO', 'player');
+        if (this.lastSpeechBubbleText) {
+            this.setPlayerSpeechBubble(this.lastSpeechBubbleText, this.lastSpeechBubbleTone);
+        }
         this.scene.add(this.playerMesh);
         
         // 2. AI 敌人
@@ -2670,6 +2676,101 @@ class RenderEngine {
         const aiMesh = this.aiMeshes?.[aiId];
         if (!this.playerMesh || !aiMesh) return Infinity;
         return this.playerMesh.position.distanceTo(aiMesh.position);
+    }
+
+    setPlayerSpeechBubble(text, tone = 'info') {
+        this.lastSpeechBubbleText = text || '';
+        this.lastSpeechBubbleTone = tone || 'info';
+        if (!this.playerMesh || !this.lastSpeechBubbleText) return;
+        if (!this.playerSpeechBubble) {
+            this.playerSpeechBubble = this.createSpeechBubbleSprite();
+            this.playerSpeechBubble.position.set(0, 0.86, 0);
+            this.playerSpeechBubble.scale.set(2.35, 0.72, 1);
+            this.playerMesh.add(this.playerSpeechBubble);
+        } else if (this.playerSpeechBubble.parent !== this.playerMesh) {
+            this.playerMesh.add(this.playerSpeechBubble);
+        }
+        this.drawSpeechBubble(this.playerSpeechBubble, this.lastSpeechBubbleText, this.lastSpeechBubbleTone);
+    }
+
+    createSpeechBubbleSprite() {
+        const canvas = document.createElement('canvas');
+        canvas.width = 512;
+        canvas.height = 160;
+        const texture = new THREE.CanvasTexture(canvas);
+        texture.minFilter = THREE.LinearFilter;
+        const material = new THREE.SpriteMaterial({
+            map: texture,
+            transparent: true,
+            depthWrite: false,
+            opacity: 0.96
+        });
+        const sprite = new THREE.Sprite(material);
+        sprite.userData.speechCanvas = canvas;
+        sprite.userData.speechTexture = texture;
+        return sprite;
+    }
+
+    drawSpeechBubble(sprite, text, tone = 'info') {
+        if (!sprite || (sprite.userData.speechText === text && sprite.userData.speechTone === tone)) return;
+        const canvas = sprite.userData.speechCanvas;
+        const texture = sprite.userData.speechTexture;
+        const ctx = canvas?.getContext?.('2d');
+        if (!ctx) return;
+        const accent = tone === 'danger' ? '#ff4d7d' : (tone === 'warn' ? '#ffdd66' : '#8bdcff');
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        ctx.fillStyle = 'rgba(4, 9, 16, 0.78)';
+        ctx.strokeStyle = accent;
+        ctx.lineWidth = 4;
+        ctx.shadowColor = accent;
+        ctx.shadowBlur = 18;
+        this.roundRect(ctx, 22, 18, 468, 104, 28);
+        ctx.fill();
+        ctx.stroke();
+        ctx.shadowBlur = 0;
+        ctx.beginPath();
+        ctx.moveTo(250, 120);
+        ctx.lineTo(278, 120);
+        ctx.lineTo(258, 144);
+        ctx.closePath();
+        ctx.fillStyle = 'rgba(4, 9, 16, 0.78)';
+        ctx.fill();
+        ctx.stroke();
+
+        ctx.font = '700 30px "Noto Sans SC", Inter, system-ui, sans-serif';
+        ctx.fillStyle = '#e8fbff';
+        ctx.textBaseline = 'top';
+        const lines = this.wrapCanvasText(ctx, text, 420, 2);
+        lines.forEach((line, index) => {
+            ctx.fillText(line, 48, 40 + index * 38);
+        });
+        texture.needsUpdate = true;
+        sprite.userData.speechText = text;
+        sprite.userData.speechTone = tone;
+    }
+
+    wrapCanvasText(ctx, text, maxWidth, maxLines = 2) {
+        const source = String(text || '').replace(/\s+/g, ' ').trim();
+        if (!source) return [''];
+        const chars = [...source];
+        const lines = [];
+        let line = '';
+        chars.forEach(char => {
+            const next = `${line}${char}`;
+            if (ctx.measureText(next).width > maxWidth && line) {
+                lines.push(line);
+                line = char;
+            } else {
+                line = next;
+            }
+        });
+        if (line) lines.push(line);
+        if (lines.length > maxLines) {
+            const clipped = lines.slice(0, maxLines);
+            clipped[maxLines - 1] = `${clipped[maxLines - 1].slice(0, 15)}...`;
+            return clipped;
+        }
+        return lines;
     }
 
     spawnCellPulse(cellId, color = '#00f0ff', intensity = 1) {

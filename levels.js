@@ -94,13 +94,13 @@
             return normalizeLevels([
                 {
                     title: { zh: 'L01 逃生线', en: 'L01 Escape Line' },
-                    chapter: { zh: '读图与画路', en: 'Reading the Board' },
-                    concept: { zh: '钥匙已经在手里。先别研究宇宙真相，把线画到门口，让 Dawn 活着确认门是不是门。', en: 'You already have the key. Draw the clean line to the exit and let Dawn test whether this place respects doors.' },
+                    chapter: { zh: '读图与点格', en: 'Reading the Board' },
+                    concept: { zh: '钥匙已经在手里。先别研究宇宙真相，直接点相邻格把 Dawn 带到门口。', en: 'You already have the key. Do not solve the universe yet. Click neighboring tiles and get Dawn to the exit.' },
                     tutorial: {
                         icon: '➜',
-                        cue: { zh: '拖到门', en: 'Drag to exit' },
+                        cue: { zh: '点到门', en: 'Click to exit' },
                         goal: { zh: '从绿色棋子拖到出口。', en: 'Guide Dawn from the green piece to the exit.' },
-                        tip: { zh: '画线→执行', en: 'Draw, then send' },
+                        tip: { zh: '点击相邻格', en: 'Click adjacent tiles' },
                         visual: 'dragExit'
                     },
                     bestTurns: 1,
@@ -141,7 +141,7 @@
                         icon: '!',
                         cue: { zh: '红格会追上', en: 'Red catches' },
                         goal: { zh: '避开红色预告格。', en: 'Avoid the red preview cells.' },
-                        tip: { zh: '先看红，再画线', en: 'Read red first' },
+                        tip: { zh: '先看红，再点格', en: 'Read red first' },
                         visual: 'threat'
                     },
                     bestTurns: 4,

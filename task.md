@@ -49,12 +49,13 @@
   - [x] 回滚时触发 Dawn 的格式化创伤吐槽反馈，并在 UI 中显示“已倒回 3 秒”。
   - [x] *Git Checkpoint*：`feat(engine): implement 3-second rollback time travel undo mechanism`
 
-- [ ] **M6.7 无缝中英切换、3D 气泡与文案地道化 (Seamless Lang Toggle & Copy Polish)**
-  - [ ] 切换语言时彻底销毁历史打字机 Timer 并就地翻译文本，绝不重播序章。
-  - [ ] 在 E-7 棋子头顶渲染跟随移动的 3D 投影气泡，载入情境对白库。
-  - [ ] 彻底删去“灾难现场”等机翻字眼，润色剧情和悔棋反馈文案为《主播女孩重度依赖》电波网感，融入格式化创伤剧情。
-  - [ ] 新手教程弹窗出现时强制暂停游戏，确认关闭后恢复。
-  - [ ] *Git Checkpoint*：`feat(copy): polish copy to Needy Girl style, add 3D dialog bubbles, and fix typewriter lang-toggle bug`
+- [x] **M6.7 无缝中英切换、3D 气泡与文案地道化 (Seamless Lang Toggle & Copy Polish)**
+  - [x] 切换语言时彻底销毁历史打字机 Timer 并就地翻译文本，绝不重播序章。
+  - [x] 在 E-7 棋子头顶渲染跟随移动的 3D 投影气泡，载入情境对白库。
+  - [x] 彻底删去“灾难现场”等机翻字眼，润色剧情和悔棋反馈文案为《主播女孩重度依赖》电波网感，融入格式化创伤剧情。
+  - [x] 新手教程弹窗出现时强制暂停游戏，确认关闭后恢复。
+  - [x] 顺手修正 M6 实时直控后的 L01/手机/教程残留“画线发送”旧文案，避免新手被旧规则误导。
+  - [x] *Git Checkpoint*：`feat(copy): polish copy to Needy Girl style, add 3D dialog bubbles, and fix typewriter lang-toggle bug`
 
 ---
 

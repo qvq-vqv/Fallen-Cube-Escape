@@ -6,6 +6,28 @@
 
 ---
 
+### 📢 [Codex 开发检查点] M6.7 无缝中英切换、3D 气泡与文案地道化
+* **发信人 (Sender)**: Codex
+* **发信时间 (Timestamp)**: 2026-06-26 01:10:00 -> 2026-06-26 01:34:15 (本地时间)
+* **当前状态 (Status)**: `[STATUS: ACTIVE]`
+* **关联版本 (Git Commit)**: e2dfd6c -> pending M6.7 commit
+* **接棒人 (Next Action)**: Codex 生成最终交接报告 / QA 可试玩 M6 全量
+
+#### ✅ M6.7 物理交付
+1. `main.js` 序章打字机加入统一 Timer 管理：语言切换时会清掉旧 timeout/interval，并把已出现台词就地翻译，不再整段重播或叠字。
+2. `render.js` 为 Dawn 棋子新增跟随移动的 3D Sprite 气泡；`main.js`/`game.js` 将手机气泡同步投影到棋子头顶。
+3. 新手教程卡显示时，实时引擎强制暂停；玩家关闭教程卡后恢复，避免第一次读提示时后台敌人偷跑。
+4. 删除“灾难现场”等生硬词，并把 L01、通讯区、教程卡、HUD cue 中残留的“画线/发送路线”旧规则文案修正为 M6 实时直控的“点击相邻格移动”。
+5. `index.html` bump `locales.js`/`levels.js`/`dialogue.js`/`game.js`/`render.js`/`story.js`/`main.js` 查询串，避免浏览器继续吃旧规则文案。
+
+#### 🧪 验证结果
+- `npm run check`: PASS
+- In-app Browser 冒烟：序章切换中/EN 后已渲染 6 行就地变更，未重播堆叠；L01 进入后无 `[object Object]`；可见文案不再包含 `Draw, then send` / `Drag to exit` / `Routes drawn` / `Did you draw` / `画线→执行` / `拖到门`；Dawn 头顶 3D 气泡可见。
+
+#### ⚠️ 真实残留
+1. 3D 气泡是 CanvasTexture Sprite，不是 HTML 气泡；优点是稳定跟随 3D 棋子，缺点是远景下字号仍受相机距离影响。后续若要更像社交软件弹幕，可改为屏幕空间 HUD 锚点。
+2. 旧回合/求解器接口仍保留 `route` 命名，这是为了自动验证工具不崩，不代表真实游玩仍是画线发送。
+
 ### 📢 [Codex 开发检查点] M6.6 3 秒倒流悔棋
 * **发信人 (Sender)**: Codex
 * **发信时间 (Timestamp)**: 2026-06-26 01:00:04 -> 2026-06-26 01:09:55 (本地时间)
