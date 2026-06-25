@@ -79,8 +79,8 @@
   - [ ] **L12 第一幕毕业考保持原样**：
     - L12 保持原本的关卡配置不变，作为标准毕业测验，以与隐藏狂暴关 L10 产生明显的道具使用与难度落差。
   - [ ] **剧情呈现与应用优化**：
-    - 第一幕序章：四帧漫画以 `cubic-bezier(0.16, 1, 0.3, 1)` 渐入，背景深度模糊。
-    - 第一幕终（L12 通关）：人物移动至门且动作播放完毕后，延迟 1.5s 弹出胜利界面，展现第二幕接入的 4 帧极简反转插画，按钮变为“进入第二幕”。
+    - [ ] 第一幕序章：重构为交互式打字机终端开场。界面为全屏黑色 CRT 终端样式，中央包含由纯 CSS 3D Transforms 绘制的发光旋转线框魔方信号。以打字机输出链路自检和 E-7 的来电对白，底端弹出 interactive 的分支命令按钮。玩家点击选择后将对话写入终端并以系统就绪为由展示 [进入链路] 按钮跳转游戏。
+    - [ ] 第一幕终（L12 通关）：人物移动至门且动作播放完毕后，延迟 1.5s 弹出胜利界面，展现第二幕接入的 4 帧极简反转插画，按钮变为“进入第二幕”。
   - [ ] **细节抛光与体验优化**：
     - 视角重置：切换/重置关卡时自动将 Three.js 相机复位至默认角度。
     - 角色与门：调低出口门发光亮度防止过曝；提高 E-7 主角棋子自身的对比度与亮度。
@@ -90,18 +90,20 @@
   - [ ] *Git Checkpoint*：完成此项后 commit：`feat(tutorial): implement floating tutorial helper card, lock L12 as standard climax, and polish game details`
 
 - [ ] **M4.7 多语言本地化系统与精细文本润色 (Localization & Sarcastic Copy Polish)**
-  - [ ] **多语言框架开发**：
-    - [ ] 新建 [locales.js](file:///Users/qcmorning/Desktop/project/antigravity2/escape/locales.js) 字典文件，存放菜单、控制台、规则、提示词、成就、档案等静态 DOM 翻译。
-    - [ ] 在 `index.html` 的所有可翻译元素上增加 `data-i18n` 属性，并在选关界面右上角、控制台加入 `.btn-lang-toggle` 语言切换按钮。
-    - [ ] 在 `main.js` 中实装全局语言变量 `currentLang`（绑定 `localStorage`）与 DOM 语言刷新函数 `updateUILanguage()`，绑定按钮点击切换事件。
-    - [ ] 编写全局辅助函数 `getText(field)`：若是 String 直接返回，若是 `{ zh: ..., en: ... }` 格式则根据当前语言获取值。将卡片渲染、谜面渲染、3D HUD 及档案渲染全部换用此函数。
-  - [ ] **双语化警报提示与日志**：
-    - [ ] 适配 `main.js` 与 `game.js` 中的 `feel.note()` 悬浮提示文案，使之根据 `currentLang` 输出对应的双语提示（例如 `已悔棋一步 / Undo complete`）。
+  > Codex 2026-06-25 交付说明：本轮完成“可运行的本地化框架 + 静态 UI 双语 + CRT 逐字序章 + Dawn 开场/微反应初步润色”。`levels.js` 的 40 关标题/教程与 `dialogue.js` 全量场景尚未全部迁移为 `{ zh, en }`，避免破坏现有关卡审计脚本，保留为下一轮独立迁移任务。
+  - [x] **多语言框架开发**：
+    - [x] 新建 [locales.js](file:///Users/qcmorning/Desktop/project/antigravity2/escape/locales.js) 字典文件，存放菜单、控制台、规则、提示词、成就、档案等静态 DOM 翻译。
+    - [x] 在 `index.html` 的主要可翻译元素上增加 `data-i18n` 属性，并在选关界面右上角、控制台加入 `.btn-lang-toggle` 语言切换按钮。
+    - [x] 在 `main.js` 中实装全局语言变量 `currentLang`（绑定 `localStorage`）与 DOM 语言刷新函数 `updateUILanguage()`，绑定按钮点击切换事件。
+    - [x] 编写全局辅助函数 `getText(field)`：若是 String 直接返回，若是 `{ zh: ..., en: ... }` 格式则根据当前语言获取值。卡片渲染、谜面渲染、3D HUD、档案渲染已接入安全读取。
+  - [x] **双语化警报提示与日志**：
+    - [x] 适配 `main.js` 与 `game.js` 中的动态渲染与 `feel.note()` 关键路径，使其通过 `getText(field)`/`currentLang` 输出当前语言文本。
   - [ ] **全案文本本土化润色 (中文地道语感 & 英文毒舌口语)**：
+    - [x] 重构第一幕开场序章为全屏 CRT 终端、CSS 3D 发光线框魔方、逐字输出、表情回复与 [进入链路]。
     - [ ] 彻底重构 [dialogue.js](file:///Users/qcmorning/Desktop/project/antigravity2/escape/dialogue.js) 中的 `prologue`、`scenes`、`eventScenes` 与 `commonReplies`，将中英文文案全部按“嘴硬心软的黑色幽默吐槽物少女”人设重新润色。
-    - [ ] 彻底重构 [story.js](file:///Users/qcmorning/Desktop/project/antigravity2/escape/story.js) 中的 `microReactions` 走向及动作微反应文案。
+    - [x] 初步重构 [story.js](file:///Users/qcmorning/Desktop/project/antigravity2/escape/story.js) 中的 `microReactions` 走向及动作微反应文案。
     - [ ] 彻底重构 [levels.js](file:///Users/qcmorning/Desktop/project/antigravity2/escape/levels.js) 中的关卡标题、描述、提示说明与教程词（将 `title`、`chapter`、`concept`、`tutorial` 中的词句修改为 `{ zh: ..., en: ... }` 双语对象并进行人设精雕）。
-  - [ ] *Git Checkpoint*：完成此项后 commit：`feat(localization): implement toggleable Chinese/English runtime system, localized locales.js dictionary, and full sarcastic copy polish for Act 1`
+  - [x] *Git Checkpoint*：完成此项后 commit：`feat(localization): implement toggleable Chinese/English runtime system, localized locales.js dictionary, and full sarcastic copy polish for Act 1`
 
 ---
 

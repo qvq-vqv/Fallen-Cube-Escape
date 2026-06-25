@@ -21,46 +21,41 @@
 
     <!-- 第一幕通讯序章 -->
     <div id="prologue-overlay" class="overlay story-overlay active">
-        <div class="glass-panel comic-panel">
-            <div class="comic-kicker">第一幕 / 坠入</div>
-            <h1 class="glitch-text" data-text="E-7 醒了">E-7 醒了</h1>
-            <div class="comic-strip">
-                <article class="comic-frame">
-                    <span class="comic-no">01</span>
-                    <p>……</p>
-                    <small>我刚才在床上。灯还没关，手机在响。然后床像折纸一样塌下去了。</small>
-                </article>
-                <article class="comic-frame">
-                    <span class="comic-no">02</span>
-                    <p>等一下。</p>
-                    <small>你是谁？为什么我手机上有你的信号？你能看见我？</small>
-                </article>
-                <article class="comic-frame danger-frame">
-                    <span class="comic-no">03</span>
-                    <p>别指挥我。</p>
-                    <small>那条发光线是你画的？我不认识你，也不打算随便跟着陌生人走。</small>
-                </article>
-                <article class="comic-frame">
-                    <span class="comic-no">04</span>
-                    <p>……但我想回家。</p>
-                    <small>如果你真能带路，先证明你不会害死我。画短一点。</small>
-                </article>
+        <div class="crt-prologue">
+            <div class="crt-scanlines" aria-hidden="true"></div>
+            <div class="crt-stage" aria-hidden="true">
+                <div class="wire-cube">
+                    <i></i><i></i><i></i><i></i>
+                    <i></i><i></i><i></i><i></i>
+                    <span></span>
+                </div>
             </div>
-            <div class="story-actions">
-                <button id="btn-prologue-start" class="btn btn-primary btn-large" aria-label="认真接入">(｀・ω・´)</button>
-                <button id="btn-prologue-skip" class="btn btn-secondary btn-large" aria-label="有点慌但继续">(・_・;)</button>
-            </div>
+            <section class="crt-terminal" aria-live="polite">
+                <div class="crt-topline">
+                    <span>DAWN_LINK://SELF_CHECK</span>
+                    <button class="btn-lang-toggle" type="button" data-lang-toggle>中 / EN</button>
+                </div>
+                <div id="prologue-feed" class="prologue-feed"></div>
+                <div id="prologue-replies" class="prologue-replies">
+                    <button class="terminal-choice" type="button" data-prologue-reply="steady">(｀・ω・´)</button>
+                    <button class="terminal-choice" type="button" data-prologue-reply="warm">(´･ω･`)</button>
+                    <button class="terminal-choice" type="button" data-prologue-reply="tease">(¬‿¬)</button>
+                </div>
+                <button id="btn-prologue-start" class="btn btn-primary btn-large is-hidden" data-i18n="prologue.enter">进入链路</button>
+                <button id="btn-prologue-skip" class="btn btn-secondary btn-large">SKIP</button>
+            </section>
         </div>
     </div>
 
     <!-- 开局配置面板 Overlay -->
     <div id="setup-overlay" class="overlay active">
         <div class="glass-panel setup-panel">
-            <h1 class="glitch-text" data-text="黎明魔方">黎明魔方</h1>
-            <p class="subtitle">E-7: Cube Pursuit · 带她回家 Prototype</p>
+            <button class="btn-lang-toggle setup-lang" type="button" data-lang-toggle>中 / EN</button>
+            <h1 class="glitch-text" data-text="黎明魔方" data-i18n="setup.title">黎明魔方</h1>
+            <p class="subtitle" data-i18n="setup.subtitle">Dawn: Escape from Cubes · 带她回家 Prototype</p>
             
             <div class="setup-section">
-                <h3>1. 残局册</h3>
+                <h3 data-i18n="setup.levelBook">1. 残局册</h3>
                 <div class="act-page-tabs" id="act-page-tabs" role="tablist" aria-label="章节页">
                     <button class="act-page-tab active" type="button" data-act-page="1" aria-selected="true">第一幕</button>
                     <button class="act-page-tab is-hidden" type="button" data-act-page="2" aria-selected="false">第二幕</button>
@@ -74,23 +69,23 @@
             </div>
 
             <div class="setup-section selected-level-panel" id="selected-level-panel">
-                <h3>2. 本局谜面</h3>
+                <h3 data-i18n="setup.levelBrief">2. 本局谜面</h3>
                 <div id="level-brief" class="level-brief">
-                    选择一个残局开始。
+                    <span data-i18n="setup.choose">选择一个残局开始。</span>
                 </div>
             </div>
 
             <div class="setup-section">
-                <h3>3. 游戏机制简介</h3>
+                <h3 data-i18n="setup.rules">3. 游戏机制简介</h3>
                 <div class="rule-chip-grid">
-                    <span><b>➜</b> 画线走路</span>
-                    <span><b>◇</b> 钥匙→出口</span>
-                    <span><b>!</b> 红格会到</span>
-                    <span><b>⟳</b> 旋转整层</span>
+                    <span><b>➜</b> <i data-i18n="rules.route">画线走路</i></span>
+                    <span><b>◇</b> <i data-i18n="rules.key">钥匙→出口</i></span>
+                    <span><b>!</b> <i data-i18n="rules.threat">红格会到</i></span>
+                    <span><b>⟳</b> <i data-i18n="rules.rotate">旋转整层</i></span>
                 </div>
             </div>
 
-            <button id="start-game-btn" class="btn btn-primary btn-large">进入残局</button>
+            <button id="start-game-btn" class="btn btn-primary btn-large" data-i18n="setup.start">进入残局</button>
         </div>
     </div>
 
@@ -113,9 +108,9 @@
                 </div>
             </div>
             <div class="top-hud-stats">
-                <div><span>回合</span><strong id="turn-count" class="text-neon-blue">1</strong></div>
+                <div><span data-i18n="hud.turn">回合</span><strong id="turn-count" class="text-neon-blue">1</strong></div>
                 <div><span>AP</span><strong id="ap-display" class="text-neon-green">2 / 2</strong></div>
-                <div><span>Trust</span><strong id="trust-display" class="text-neon-yellow">80</strong></div>
+                <div><span data-i18n="hud.trust">Trust</span><strong id="trust-display" class="text-neon-yellow">80</strong></div>
             </div>
             <div class="ap-bar-container">
                 <div id="ap-bar-fill" class="ap-bar-fill"></div>
@@ -145,8 +140,8 @@
             <button id="phone-notch" class="phone-notch" type="button" aria-label="收起 E-7 手机">▶</button>
             <div class="terminal-header">
                 <div>
-                    <span class="terminal-kicker">E-7 PHONE</span>
-                    <h2 class="terminal-title">黎明魔方</h2>
+                    <span class="terminal-kicker" data-i18n="phone.kicker">DAWN PHONE</span>
+                    <h2 class="terminal-title" data-i18n="phone.title">黎明魔方</h2>
                 </div>
                 <div class="companion-dock" aria-live="polite">
                     <div class="companion-slot" aria-label="主角通讯位，立绘暂缺"></div>
@@ -158,27 +153,27 @@
             </div>
 
             <div class="terminal-tabs" role="tablist" aria-label="E-7 手机模块">
-                <button class="terminal-tab active" type="button" role="tab" aria-selected="true" data-terminal-tab="comms">通讯<span class="tab-badge is-hidden" data-tab-badge="comms">0</span></button>
-                <button class="terminal-tab" type="button" role="tab" aria-selected="false" data-terminal-tab="archive">档案<span class="tab-badge is-hidden" data-tab-badge="archive">0</span></button>
+                <button class="terminal-tab active" type="button" role="tab" aria-selected="true" data-terminal-tab="comms"><span data-i18n="phone.comms">通讯</span><span class="tab-badge is-hidden" data-tab-badge="comms">0</span></button>
+                <button class="terminal-tab" type="button" role="tab" aria-selected="false" data-terminal-tab="archive"><span data-i18n="phone.archive">档案</span><span class="tab-badge is-hidden" data-tab-badge="archive">0</span></button>
             </div>
 
             <div class="phone-action-dock">
-                <button id="btn-confirm-path" class="btn btn-primary phone-primary" disabled>发送路线</button>
-                <button id="btn-end-turn" class="btn btn-risk phone-secondary">跳过</button>
+                <button id="btn-confirm-path" class="btn btn-primary phone-primary" disabled data-i18n="phone.sendRoute">发送路线</button>
+                <button id="btn-end-turn" class="btn btn-risk phone-secondary" data-i18n="phone.skip">跳过</button>
 
                 <div id="tool-section" class="phone-tool-row is-hidden" aria-label="场上工具">
-                    <button id="btn-tool-route" class="tool-mode-btn active" type="button" data-tool-mode="route">画路</button>
-                    <button id="btn-tool-patch" class="tool-mode-btn" type="button" data-tool-mode="patch">补片 <b id="patch-count">0</b></button>
-                    <button id="btn-tool-beacon" class="tool-mode-btn" type="button" data-tool-mode="beacon">诱饵 <b id="beacon-count">0</b></button>
-                    <button id="btn-tool-break" class="tool-mode-btn" type="button" data-tool-mode="break">碎解 <b id="break-count">0</b></button>
+                    <button id="btn-tool-route" class="tool-mode-btn active" type="button" data-tool-mode="route" data-i18n="tool.route">画路</button>
+                    <button id="btn-tool-patch" class="tool-mode-btn" type="button" data-tool-mode="patch"><span data-i18n="tool.patch">补片</span> <b id="patch-count">0</b></button>
+                    <button id="btn-tool-beacon" class="tool-mode-btn" type="button" data-tool-mode="beacon"><span data-i18n="tool.beacon">诱饵</span> <b id="beacon-count">0</b></button>
+                    <button id="btn-tool-break" class="tool-mode-btn" type="button" data-tool-mode="break"><span data-i18n="tool.break">碎解</span> <b id="break-count">0</b></button>
                 </div>
 
                 <div class="action-section phone-fold-panel" id="rotation-section">
                     <div class="fold-line fold-title-line">
-                        <strong>空间折叠</strong>
-                    <span id="rotation-status" class="rotation-cost-inline"><span>消耗</span><b id="rotation-charge">1 AP</b></span>
+                        <strong data-i18n="fold.title">空间折叠</strong>
+                    <span id="rotation-status" class="rotation-cost-inline"><span data-i18n="fold.cost">消耗</span><b id="rotation-charge">1 AP</b></span>
                         <button class="info-hint" type="button" aria-label="旋转说明">!</button>
-                        <p class="info-tooltip" id="rotation-budget-hint" role="tooltip">旋转会改变钥匙、门和敌人的相对位置；误转可悔棋。</p>
+                        <p class="info-tooltip" id="rotation-budget-hint" role="tooltip" data-i18n="fold.tip">旋转会改变钥匙、门和敌人的相对位置；误转可悔棋。</p>
                     </div>
                     <div class="fold-line fold-controls-line">
                         <select id="rotate-axis" class="cyber-select fold-select" aria-label="轴向">
@@ -197,19 +192,19 @@
             </div>
 
             <section class="terminal-panel active" data-terminal-panel="comms">
-                <h2 class="neon-title-blue">主角通讯</h2>
-                <p class="section-desc">3D 表面画出的路线会先变成手机指令，发送后 E-7 才执行。</p>
+                <h2 class="neon-title-blue" data-i18n="comms.title">主角通讯</h2>
+                <p class="section-desc" data-i18n="comms.desc">3D 表面画出的路线会先变成手机指令，发送后 Dawn 才执行。</p>
                 <div class="comms-log">
                     <div class="comms-scene-head">
-                        <span id="comms-scene-title">通讯接入</span>
-                        <span id="comms-bond-label">同步：未知</span>
+                        <span id="comms-scene-title" data-i18n="comms.scene">通讯接入</span>
+                        <span id="comms-bond-label" data-i18n="comms.bond">同步：未知</span>
                     </div>
                     <div id="comms-story-lines" class="comms-story-lines">
-                        <p class="comms-line protagonist">我还在。你别突然消失。</p>
+                        <p class="comms-line protagonist" data-i18n="comms.live">我还在。你别突然消失。</p>
                     </div>
-                    <p class="comms-line protagonist" id="comms-live-line">我还在。你别突然消失。</p>
-                    <p class="comms-line system" id="comms-context-line">通讯只在安全间隙展开；路线直接在 3D 魔方上画。</p>
-                    <p class="comms-line system route-command-preview" id="route-command-preview">走向：未规划</p>
+                    <p class="comms-line protagonist" id="comms-live-line" data-i18n="comms.live">我还在。你别突然消失。</p>
+                    <p class="comms-line system" id="comms-context-line" data-i18n="comms.context">通讯只在安全间隙展开；路线直接在 3D 魔方上画。</p>
+                    <p class="comms-line system route-command-preview" id="route-command-preview" data-i18n="comms.routeEmpty">走向：未规划</p>
                 </div>
                 <div class="comms-choices" aria-label="通讯选项">
                     <button class="terminal-choice" type="button" data-comms-choice="0" aria-label="认真回应">(｀・ω・´)</button>
@@ -219,14 +214,14 @@
             </section>
 
             <section class="terminal-panel" data-terminal-panel="archive" aria-hidden="true">
-                <h2 class="neon-title-green">逃亡档案</h2>
+                <h2 class="neon-title-green" data-i18n="archive.title">逃亡档案</h2>
                 <div class="archive-stack">
                     <section class="archive-section">
-                        <h3>成就记录</h3>
+                        <h3 data-i18n="archive.achievements">成就记录</h3>
                         <div class="achievement-list" id="achievement-list"></div>
                     </section>
                     <section class="archive-section">
-                        <h3>剧情碎片</h3>
+                        <h3 data-i18n="archive.story">剧情碎片</h3>
                         <div class="archive-list" id="archive-unlock-list"></div>
                     </section>
                 </div>
@@ -237,36 +232,37 @@
     <div id="esc-console" class="esc-console" aria-hidden="true">
         <div class="glass-panel esc-console-panel">
             <section class="esc-console-column">
-                <span class="terminal-kicker">PAUSED CONSOLE</span>
+                <span class="terminal-kicker" data-i18n="console.kicker">PAUSED CONSOLE</span>
                 <h2 id="esc-level-title">当前残局</h2>
                 <p id="esc-level-desc">读取中。</p>
                 <div class="objective-list esc-objectives">
                     <div class="objective-item">
                         <span class="obj-dot active-yellow" id="obj-key-dot"></span>
-                        <span id="obj-key-text">钥匙状态: 未取得</span>
+                        <span id="obj-key-text" data-i18n="console.key">钥匙状态: 未取得</span>
                     </div>
                     <div class="objective-item">
                         <span class="obj-dot" id="obj-exit-dot"></span>
-                        <span id="obj-exit-text">逃生门: 需要钥匙</span>
+                        <span id="obj-exit-text" data-i18n="console.exit">逃生门: 需要钥匙</span>
                     </div>
                 </div>
                 <div class="ai-status-panel" id="threat-panel">
-                    <h3>威胁源追踪</h3>
+                    <h3 data-i18n="console.threats">威胁源追踪</h3>
                     <div id="ai-status-list"></div>
                 </div>
             </section>
             <section class="esc-console-column esc-actions">
-                <span class="terminal-kicker">SURVIVAL DATA</span>
+                <span class="terminal-kicker" data-i18n="console.survival">SURVIVAL DATA</span>
                 <div class="survival-grid">
-                    <div><span>信任值</span><strong id="console-trust-display">80</strong></div>
-                    <div><span>旋转数</span><strong id="console-rotation-display">0</strong></div>
-                    <div><span>本局回合</span><strong id="console-turn-display">1</strong></div>
-                    <div><span>剩余 AP</span><strong id="console-ap-display">2</strong></div>
+                    <div><span data-i18n="hud.trust">信任值</span><strong id="console-trust-display">80</strong></div>
+                    <div><span data-i18n="console.rotation">旋转数</span><strong id="console-rotation-display">0</strong></div>
+                    <div><span data-i18n="console.turn">本局回合</span><strong id="console-turn-display">1</strong></div>
+                    <div><span data-i18n="console.ap">剩余 AP</span><strong id="console-ap-display">2</strong></div>
                 </div>
-                <button id="btn-console-resume" class="btn btn-primary btn-large" type="button">继续游戏</button>
-                <button id="btn-console-reset" class="btn btn-secondary btn-large" type="button">重新开始</button>
-                <button id="btn-console-audio" class="btn btn-secondary btn-large" type="button">声音开关</button>
-                <button id="btn-main-menu" class="btn btn-danger btn-large" type="button">返回菜单</button>
+                <button class="btn-lang-toggle console-lang" type="button" data-lang-toggle>中 / EN</button>
+                <button id="btn-console-resume" class="btn btn-primary btn-large" type="button" data-i18n="console.resume">继续游戏</button>
+                <button id="btn-console-reset" class="btn btn-secondary btn-large" type="button" data-i18n="console.reset">重新开始</button>
+                <button id="btn-console-audio" class="btn btn-secondary btn-large" type="button" data-i18n="console.audio">声音开关</button>
+                <button id="btn-main-menu" class="btn btn-danger btn-large" type="button" data-i18n="console.menu">返回菜单</button>
             </section>
         </div>
     </div>
@@ -275,14 +271,14 @@
     <div id="gameover-overlay" class="overlay">
         <div class="glass-panel end-panel failure">
             <div id="catch-sticker" class="catch-sticker">!</div>
-            <h1 class="glitch-text text-red" data-text="CONNECTION LOST">CONNECTION LOST</h1>
-            <p class="end-msg">你被威胁源捕获，意识体已被强行断开连接...</p>
+            <h1 class="glitch-text text-red" data-text="CONNECTION LOST" data-i18n="gameover.title">CONNECTION LOST</h1>
+            <p class="end-msg" data-i18n="gameover.message">你被威胁源捕获，意识体已被强行断开连接...</p>
             <div class="stats-summary" id="failure-summary"></div>
             <div class="failure-review">
                 <div class="review-toolbar">
-                    <button id="btn-toggle-analysis" class="btn btn-secondary" type="button">查看残局复盘</button>
+                    <button id="btn-toggle-analysis" class="btn btn-secondary" type="button" data-i18n="gameover.review">查看残局复盘</button>
                     <label class="analysis-tone-control">
-                        <span>语气</span>
+                        <span data-i18n="gameover.tone">语气</span>
                         <select id="analysis-tone" class="cyber-select">
                             <option value="coach">最强大脑</option>
                             <option value="cute">可爱陪练</option>
@@ -291,15 +287,15 @@
                 </div>
                 <div id="failure-analysis" class="failure-analysis is-hidden"></div>
             </div>
-            <button id="btn-gameover-undo" class="btn btn-primary btn-large">悔棋一步</button>
-            <button class="btn btn-danger btn-large btn-restart">重构神经连接 (再来一局)</button>
+            <button id="btn-gameover-undo" class="btn btn-primary btn-large" data-i18n="gameover.undo">悔棋一步</button>
+            <button class="btn btn-danger btn-large btn-restart" data-i18n="gameover.restart">重构神经连接 (再来一局)</button>
         </div>
     </div>
 
     <div id="victory-overlay" class="overlay">
         <div class="glass-panel end-panel success">
-            <h1 class="glitch-text text-green" data-text="MISSION ACCOMPLISHED">MISSION ACCOMPLISHED</h1>
-            <p id="victory-message" class="end-msg">钥匙已取得，逃生门已开启，意识体安全撤离！</p>
+            <h1 class="glitch-text text-green" data-text="MISSION ACCOMPLISHED" data-i18n="victory.title">MISSION ACCOMPLISHED</h1>
+            <p id="victory-message" class="end-msg" data-i18n="victory.message">钥匙已取得，逃生门已开启，Dawn 暂时安全。</p>
             <div id="act-ending-comic" class="comic-strip finale-comic is-hidden">
                 <article class="comic-frame">
                     <span class="comic-no">01</span>
@@ -323,11 +319,12 @@
                 </article>
             </div>
             <div class="stats-summary" id="victory-summary"></div>
-            <button class="btn btn-primary btn-large btn-restart">再接再厉</button>
+            <button class="btn btn-primary btn-large btn-restart" data-i18n="victory.next">再接再厉</button>
         </div>
     </div>
 
     <!-- 载入脚本 -->
+    <script src="locales.js?v=20260625-i18n-v1"></script>
     <script src="audio.js?v=20260609-phone-v1"></script>
     <script src="levels.js?v=20260609-content-v1"></script>
     <script src="game.js?v=20260609-phone-v1"></script>

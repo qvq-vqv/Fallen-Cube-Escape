@@ -4,7 +4,7 @@
   "version": "0.0.0",
   "type": "commonjs",
   "scripts": {
-    "check": "node --check game.js main.js render.js levels.js dialogue.js story.js audio.js tools/validate-levels.js tools/audit-level-design.js tools/playtest_bot.js tools/quality-audit.js tools/level-difficulty-report.js tools/browser-smoke.js",
+    "check": "node --check locales.js game.js main.js render.js levels.js dialogue.js story.js audio.js tools/validate-levels.js tools/audit-level-design.js tools/playtest_bot.js tools/quality-audit.js tools/level-difficulty-report.js tools/browser-smoke.js",
     "audit:design": "node tools/audit-level-design.js",
     "audit:levels": "node tools/validate-levels.js",
     "audit:quality": "node tools/quality-audit.js",

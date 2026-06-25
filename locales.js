@@ -1,0 +1,168 @@
+(function () {
+    const dictionaries = {
+        zh: {
+            'setup.title': '黎明魔方',
+            'setup.subtitle': 'Dawn: Escape from Cubes · 带她回家 Prototype',
+            'setup.levelBook': '1. 残局册',
+            'setup.levelBrief': '2. 本局谜面',
+            'setup.choose': '选择一个残局开始。',
+            'setup.rules': '3. 游戏机制简介',
+            'setup.start': '进入残局',
+            'rules.route': '画线走路',
+            'rules.key': '钥匙→出口',
+            'rules.threat': '红格会到',
+            'rules.rotate': '旋转整层',
+            'hud.turn': '回合',
+            'hud.trust': 'Trust',
+            'phone.kicker': 'DAWN PHONE',
+            'phone.title': '黎明魔方',
+            'phone.comms': '通讯',
+            'phone.archive': '档案',
+            'phone.sendRoute': '发送路线',
+            'phone.skip': '跳过',
+            'tool.route': '画路',
+            'tool.patch': '补片',
+            'tool.beacon': '诱饵',
+            'tool.break': '碎解',
+            'fold.title': '空间折叠',
+            'fold.cost': '消耗',
+            'fold.tip': '旋转会改变钥匙、门和敌人的相对位置；误转可悔棋。',
+            'comms.title': '主角通讯',
+            'comms.desc': '3D 表面画出的路线会先变成手机指令，发送后 Dawn 才执行。',
+            'comms.scene': '通讯接入',
+            'comms.bond': '同步：未知',
+            'comms.live': '我还在。你别突然消失。',
+            'comms.context': '通讯只在安全间隙展开；路线直接在 3D 魔方上画。',
+            'comms.contextShort': '玩家只回表情；她会慢慢讲。',
+            'comms.chooseEmoji': '选择一个表情回她。',
+            'comms.signalStable': '信号稳定',
+            'comms.recorded': '通讯已记录。',
+            'comms.recordedRoute': '通讯已记录。路线直接在 3D 魔方上画。',
+            'comms.routeEmpty': '走向：未规划',
+            'archive.title': '逃亡档案',
+            'archive.achievements': '成就记录',
+            'archive.story': '剧情碎片',
+            'archive.empty': '还没有新档案。先活过这一局。',
+            'archive.locked': '未解锁',
+            'console.kicker': 'PAUSED CONSOLE',
+            'console.resume': '继续游戏',
+            'console.reset': '重新开始',
+            'console.audio': '声音开关',
+            'console.menu': '返回菜单',
+            'console.key': '钥匙状态: 未取得',
+            'console.exit': '逃生门: 需要钥匙',
+            'console.threats': '威胁源追踪',
+            'console.survival': 'SURVIVAL DATA',
+            'console.rotation': '旋转数',
+            'console.turn': '本局回合',
+            'console.ap': '剩余 AP',
+            'gameover.title': 'CONNECTION LOST',
+            'gameover.message': '你被威胁源捕获，意识体已被强行断开连接...',
+            'gameover.review': '查看残局复盘',
+            'gameover.tone': '语气',
+            'gameover.undo': '悔棋一步',
+            'gameover.restart': '重构神经连接 (再来一局)',
+            'victory.title': 'MISSION ACCOMPLISHED',
+            'victory.message': '钥匙已取得，逃生门已开启，Dawn 暂时安全。',
+            'victory.next': '再接再厉',
+            'prologue.enter': '进入链路',
+            'prologue.reply.steady': '我会先证明自己。',
+            'prologue.reply.warm': '我也不知道，但我会看着你。',
+            'prologue.reply.tease': '陌生人救援服务，试营业。'
+        },
+        en: {
+            'setup.title': 'Dawn Cube',
+            'setup.subtitle': 'Dawn: Escape from Cubes · Bring her home Prototype',
+            'setup.levelBook': '1. Puzzle Book',
+            'setup.levelBrief': '2. Current Setup',
+            'setup.choose': 'Choose a puzzle to begin.',
+            'setup.rules': '3. Rules',
+            'setup.start': 'Enter Puzzle',
+            'rules.route': 'Draw a route',
+            'rules.key': 'Key → Exit',
+            'rules.threat': 'Red means danger',
+            'rules.rotate': 'Twist a layer',
+            'hud.turn': 'Turn',
+            'hud.trust': 'Trust',
+            'phone.kicker': 'DAWN PHONE',
+            'phone.title': 'Dawn Cube',
+            'phone.comms': 'Comms',
+            'phone.archive': 'Archive',
+            'phone.sendRoute': 'Send Route',
+            'phone.skip': 'Skip',
+            'tool.route': 'Route',
+            'tool.patch': 'Patch',
+            'tool.beacon': 'Beacon',
+            'tool.break': 'Break',
+            'fold.title': 'Space Fold',
+            'fold.cost': 'Cost',
+            'fold.tip': 'Twisting changes keys, exits, enemies, and Dawn together. Undo exists for a reason.',
+            'comms.title': 'Dawn Comms',
+            'comms.desc': 'Routes drawn on the cube become phone commands before Dawn moves.',
+            'comms.scene': 'Signal linked',
+            'comms.bond': 'Sync: unknown',
+            'comms.live': 'I am still here. Do not vanish on me.',
+            'comms.context': 'Comms open between safe moments. Draw routes on the 3D cube.',
+            'comms.contextShort': 'You answer with emojis. She does the talking.',
+            'comms.chooseEmoji': 'Pick an emoji to answer her.',
+            'comms.signalStable': 'Signal stable',
+            'comms.recorded': 'Comms logged.',
+            'comms.recordedRoute': 'Comms logged. Draw the route on the 3D cube.',
+            'comms.routeEmpty': 'Route: none',
+            'archive.title': 'Escape Archive',
+            'archive.achievements': 'Achievements',
+            'archive.story': 'Story Fragments',
+            'archive.empty': 'No new files yet. Survive first.',
+            'archive.locked': 'Locked',
+            'console.kicker': 'PAUSED CONSOLE',
+            'console.resume': 'Resume',
+            'console.reset': 'Restart',
+            'console.audio': 'Audio',
+            'console.menu': 'Level Menu',
+            'console.key': 'Key: missing',
+            'console.exit': 'Exit: locked',
+            'console.threats': 'Threat Tracking',
+            'console.survival': 'SURVIVAL DATA',
+            'console.rotation': 'Twists',
+            'console.turn': 'Turn',
+            'console.ap': 'AP Left',
+            'gameover.title': 'CONNECTION LOST',
+            'gameover.message': 'Threat contact. Dawn has been cut from the link.',
+            'gameover.review': 'Review the mistake',
+            'gameover.tone': 'Tone',
+            'gameover.undo': 'Undo',
+            'gameover.restart': 'Reconnect (try again)',
+            'victory.title': 'MISSION ACCOMPLISHED',
+            'victory.message': 'Key secured. Exit open. Dawn is safe for now.',
+            'victory.next': 'Keep going',
+            'prologue.enter': 'Enter Link',
+            'prologue.reply.steady': 'I will prove it first.',
+            'prologue.reply.warm': 'I do not know either, but I am watching.',
+            'prologue.reply.tease': 'Stranger rescue service. Trial run.'
+        }
+    };
+
+    function normalizeLang(value) {
+        return value === 'en' ? 'en' : 'zh';
+    }
+
+    window.I18N = dictionaries;
+    window.currentLang = normalizeLang(localStorage.getItem('dawnCubeLang'));
+
+    window.t = function t(key) {
+        return dictionaries[window.currentLang]?.[key] || dictionaries.zh[key] || key;
+    };
+
+    window.getText = function getText(field) {
+        if (field && typeof field === 'object') {
+            return field[window.currentLang] || field.zh || field.en || '';
+        }
+        return field ?? '';
+    };
+
+    window.setLanguage = function setLanguage(lang) {
+        window.currentLang = normalizeLang(lang);
+        localStorage.setItem('dawnCubeLang', window.currentLang);
+        window.dispatchEvent(new CustomEvent('languageChanged', { detail: { lang: window.currentLang } }));
+    };
+})();

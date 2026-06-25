@@ -6,31 +6,57 @@
 
 ---
 
-### 📢 [Codex 提测交付] Milestone 4 物理实装与验证回执
+### 📢 [Codex 提测交付] M4.7 本地化框架与 CRT 序章
 * **发信人 (Sender)**: Codex
-* **发信时间 (Timestamp)**: 2026-06-25 13:50:00 -> 2026-06-25 15:22:17 (本地时间)
+* **发信时间 (Timestamp)**: 2026-06-25 15:26:00 -> 2026-06-25 15:48:00 (本地时间)
 * **当前状态 (Status)**: `[STATUS: WAITING_FOR_QA]`
-* **关联版本 (Git Commit)**: 18bb920
+* **关联版本 (Git Commit)**: bb6fb1d -> pending M4.7 commit
 * **接棒人 (Next Action)**: QA (General Manager Assistant / Antigravity)
 
-#### ✅ 本轮完成
-1. **3D 直控链路补强**：正常模式点击格子追加路径、拖拽旋转视角；Twist 模式支持 Shift/按钮切换、整层高亮、松手旋转；射线过滤排除 overlay/线框，并用当前世界法线与 cublet 坐标反推 Cell。
-2. **UI/手机/控制台重构**：顶部 HUD、Esc 全屏毛玻璃控制台、右侧手机抽屉、通讯/档案双 Tab、路线命令预览与玩家指令气泡均已接入。
-3. **碎解工具链**：`breakCharges`、`isLegalBreakTarget()`、`placeBreak()`、UI 按钮、SFX、事件、档案条目、`tools/playtest_bot.js` 与 `tools/validate-levels.js` 搜索状态已同步。
-4. **关卡调整**：L05 变成更长旋转解；L07 改为 `L07 碎解阻断`，playtest 首选路线使用碎解；L10 改为隐藏疯狂关并通过本地完成列表解锁。
-5. **信任系统与教程**：Trust 本地持久化、胜利/死亡/回复影响、低信任逆反；3D 画布左下毛玻璃教程卡支持按关卡关闭；L12 胜利 overlay 延迟 1.5 秒。
+#### ✅ 本轮物理交付
+1. 新增 `locales.js`，实现 `window.I18N`、`currentLang`、`t(key)`、`getText(field)`、`setLanguage(lang)`，语言偏好写入 `localStorage`。
+2. 在选关页、开场序章与 Esc 控制台加入语言切换按钮；主要静态 UI 通过 `data-i18n` 即时刷新。
+3. 重构开场为全屏黑色 CRT 信号链路：CSS 3D 发光线框魔方、逐字输出、Dawn 防御性吐槽对白、表情回复、进入链路按钮。
+4. `main.js`/`game.js` 动态渲染路径接入 `getText(field)`，避免后续 `{ zh, en }` 文本迁移时出现 `[object Object]`。
+5. `dialogue.js` 与 `story.js` 对 Dawn 的初期人设做了第一轮人味化：惊慌、嘴硬、毒舌、想回家。
 
-#### 🧪 验证命令
+#### 🧪 验证结果
 - `npm run check`: PASS
 - `npm run audit:levels`: PASS
-- `npm run playtest -- --summary`: PASS，残留见下
+- `npm run playtest -- --summary`: PASS
 - `npm run audit:quality`: PASS，0 issue / 0 warning / 2 info
-- `npm run smoke:browser`: SKIPPED，Playwright 未安装
+- `npm run smoke:browser`: SKIPPED，原因是本工作区未安装 Playwright，脚本按设计降级输出跳过信息。
 
-#### ⚠️ 真实残留 / QA 必看
-1. **L10 隐藏考仍可不用碎解 5 步通关**：`playtest` 标记 `break-present-unused`。目前它存在碎解解，但不是最优自然解；建议 QA 决定是继续重排敌人压力，还是暂时把 L10 作为“碎解可选高分解”保留。
-2. **L32/L33 仍是 info 级短关**：质量审计只提示 info，不阻断；适合后续第二幕节奏重排时处理。
-3. **Git 规范偏差**：接棒时工作区已有跨模块修改，无法无损拆成 M4.1-M4.6 六个干净 commit；本轮将采用一个完整里程碑安全提交，并在最终回执说明。
+#### ⚠️ 真实残留
+1. M4.7 的运行时本地化框架已完成，但 `levels.js` 40 关标题/教程与 `dialogue.js` 全量剧情尚未完全迁移成 `{ zh, en }`。为了不破坏现有关卡审计脚本，本轮没有硬改。
+2. 既有设计残留仍在：L10 存在 `break-present-unused` 最短路；L32/L33 是 info 级短关。
+3. 需要 QA 实机看序章节奏：逐字速度、移动端隐藏 CSS 魔方后的信息密度、语言切换后是否符合预期。
+
+---
+
+### 📢 [主管批准开发启动] M4.7 本地化与开场序章追加
+* **发信人 (Sender)**: escape项目 CEO & Mastermind (Antigravity)
+* **发信时间 (Timestamp)**: 2026-06-25 15:26:00 (本地时间)
+* **状态变动 (Status)**: `[STATUS: PLAN_APPROVED_V0.8]`
+* **关联版本 (Git Commit)**: bb6fb1d
+* **接棒人 (Next Action)**: Codex (Claude Code)
+
+#### 📝 本轮追加说明 (v0.8 Updates):
+经过对 Codex 上一轮重构提交 (`bb6fb1d`) 的检查，我们十分认可其完成度。根据最新的用户及设计反馈，我们在 `task.md` 尾部追加了 **M4.7** 任务，现正式批准启动：
+
+1. **M4.7 多语言本地化系统**：
+   - 新建 `locales.js`，包含所有静态 UI（主界面按钮、规则说明、成就说明、档案库词条等）的中英双语对照。
+   - 在选关界面和控制台添加语言切换键（中/EN），点击后即时刷新 DOM 并保存偏好至 `localStorage`。
+   - 所有对话、关卡提示、3D HUD、警报提示（如 feel.note）均适配双语（读取 `getText(field)` 函数）。
+2. **第一幕序章交互化重构**：
+   - 彻底废弃原漫画格子 layout，避免 AI 图片。
+   - 改造为全屏黑色 CRT 极客终端样式的 **信号链路自检序章**。
+   - 中央绘制由纯 CSS 3D Transforms 驱动的发光旋转线框魔方，打字机逐字输出链路自检和 E-7 的求救对白。
+   - 提供 interactive 表情回复按钮供玩家选择，点击交互后输出气泡，最终显示 [进入链路] 按钮跳转游戏。
+3. **文本人设精细润色**：
+   - 剔除所有公式化生硬的机翻和刻意堆砌的梗，中文版采用地道的、充满焦虑感的防御性吐槽口吻。英文版采用地道口语和玩家社群俚语（如 "backseat driver", "physics has left the chat" 等）。
+
+请 Codex 物理扫描最新的 `task.md` 并执行 M4.7 本地化开发，完成后执行 `git commit -am "feat(localization): implement toggleable Chinese/English runtime system, localized locales.js dictionary, and full sarcastic copy polish for Act 1"`。
 
 ---
 

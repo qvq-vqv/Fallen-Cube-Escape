@@ -1540,12 +1540,18 @@ class GameEngine {
     }
 
     escapeHtml(value) {
-        return String(value)
+        return String(this.textOf(value))
             .replaceAll('&', '&amp;')
             .replaceAll('<', '&lt;')
             .replaceAll('>', '&gt;')
             .replaceAll('"', '&quot;')
             .replaceAll("'", '&#039;');
+    }
+
+    textOf(value) {
+        return typeof window !== 'undefined' && window.getText
+            ? window.getText(value)
+            : (value ?? '');
     }
 
     renderFailureAnalysis(tone = 'coach') {
@@ -1789,7 +1795,7 @@ class GameEngine {
         const tutorialCue = document.getElementById('tutorial-cue');
         const tutorial = this.currentLevel?.tutorial || {};
         if (levelTitle && this.currentLevel) {
-            levelTitle.innerText = `${this.currentLevel.title} · ${this.currentLevel.chapter}`;
+            levelTitle.innerText = `${this.textOf(this.currentLevel.title)} · ${this.textOf(this.currentLevel.chapter)}`;
         }
         if (levelGoal && this.currentLevel) {
             levelGoal.innerText = this.getCurrentGoalText();
@@ -1814,8 +1820,8 @@ class GameEngine {
         document.getElementById('console-rotation-display') && (document.getElementById('console-rotation-display').innerText = this.rotationsUsed);
         document.getElementById('console-turn-display') && (document.getElementById('console-turn-display').innerText = this.turn);
         document.getElementById('console-ap-display') && (document.getElementById('console-ap-display').innerText = `${this.playerAP} / ${this.maxAP}`);
-        document.getElementById('esc-level-title') && (document.getElementById('esc-level-title').innerText = this.currentLevel?.title || '当前残局');
-        document.getElementById('esc-level-desc') && (document.getElementById('esc-level-desc').innerText = this.currentLevel?.concept || this.getCurrentGoalText());
+        document.getElementById('esc-level-title') && (document.getElementById('esc-level-title').innerText = this.textOf(this.currentLevel?.title) || '当前残局');
+        document.getElementById('esc-level-desc') && (document.getElementById('esc-level-desc').innerText = this.textOf(this.currentLevel?.concept) || this.getCurrentGoalText());
 
         const hasRotation = this.rotationEnabled;
         const hasThreats = this.ais.length > 0;
@@ -1871,14 +1877,18 @@ class GameEngine {
         const exitDot = document.getElementById('obj-exit-dot');
 
         if (keyText && keyDot) {
-            keyText.innerText = this.hasKey ? '钥匙状态: 已取得' : '钥匙状态: 未取得';
+            keyText.innerText = this.hasKey
+                ? (window.currentLang === 'en' ? 'Key: secured' : '钥匙状态: 已取得')
+                : (window.t?.('console.key') || '钥匙状态: 未取得');
             keyText.classList.toggle('text-neon-yellow', !this.hasKey);
             keyText.classList.toggle('text-neon-green', this.hasKey);
             keyDot.className = this.hasKey ? 'obj-dot active-green' : 'obj-dot active-yellow';
         }
 
         if (exitText && exitDot) {
-            exitText.innerText = this.hasKey ? '逃生门: 已解锁' : '逃生门: 需要钥匙';
+            exitText.innerText = this.hasKey
+                ? (window.currentLang === 'en' ? 'Exit: open' : '逃生门: 已解锁')
+                : (window.t?.('console.exit') || '逃生门: 需要钥匙');
             exitText.classList.toggle('text-neon-green', this.hasKey);
             exitDot.className = this.hasKey ? 'obj-dot active-green' : 'obj-dot';
         }
@@ -1938,7 +1948,7 @@ class GameEngine {
     getCurrentGoalText() {
         if (this.gameState === 'win') return '已逃离。可以回到选关继续下一组残局。';
         if (this.gameState === 'gameover') return '这一步被抓了。可以悔棋，或者展开残局复盘看距离怎么被压近。';
-        const tutorialGoal = this.currentLevel?.tutorial?.goal;
+        const tutorialGoal = this.textOf(this.currentLevel?.tutorial?.goal);
         if (tutorialGoal) return tutorialGoal;
         if (!this.hasKey && this.keyPos !== null) {
             return `先去 ${this.describeCell(this.keyPos)} 取钥匙，再撤到 ${this.describeCell(this.exitPos)}。`;
@@ -1947,7 +1957,7 @@ class GameEngine {
     }
 
     getCurrentRouteTip() {
-        const tutorialTip = this.currentLevel?.tutorial?.tip;
+        const tutorialTip = this.textOf(this.currentLevel?.tutorial?.tip);
         if (this.toolMode === 'patch') {
             return '点黑色缺口铺补片。E-7 可以踩过去一次，但不能停在上面。';
         }

@@ -18,6 +18,8 @@ document.addEventListener('DOMContentLoaded', () => {
     const prologueOverlay = document.getElementById('prologue-overlay');
     const btnPrologueStart = document.getElementById('btn-prologue-start');
     const btnPrologueSkip = document.getElementById('btn-prologue-skip');
+    const prologueFeed = document.getElementById('prologue-feed');
+    const prologueReplies = document.getElementById('prologue-replies');
     const setupOverlay = document.getElementById('setup-overlay');
     const gameContainer = document.getElementById('game-container');
     const startBtn = document.getElementById('start-game-btn');
@@ -70,6 +72,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const commsChoicesEl = document.querySelector('.comms-choices');
     const archiveUnlockList = document.getElementById('archive-unlock-list');
     const achievementList = document.getElementById('achievement-list');
+    const langToggleBtns = document.querySelectorAll('[data-lang-toggle]');
 
     const safeParseArray = (key) => {
         try {
@@ -241,6 +244,84 @@ document.addEventListener('DOMContentLoaded', () => {
         feel.note('残局册已打开', 'info');
     }
 
+    const prologueScripts = {
+        zh: [
+            { who: 'sys', text: 'LINK SELF-CHECK... failed twice, trying anyway.' },
+            { who: 'sys', text: '未知坐标: CUBE_SURFACE / 呼吸信号: 1' },
+            { who: 'dawn', text: '……喂？谁在我手机里？' },
+            { who: 'dawn', text: '我刚刚还在床上。现在床没了，地面也很可疑。' },
+            { who: 'dawn', text: '那条线是你画的？先说好，我不随便跟陌生信号走。' },
+            { who: 'dawn', text: '……但我想回家。所以你最好真的会带路。' }
+        ],
+        en: [
+            { who: 'sys', text: 'LINK SELF-CHECK... failed twice, trying anyway.' },
+            { who: 'sys', text: 'Unknown coordinate: CUBE_SURFACE / heartbeat: 1' },
+            { who: 'dawn', text: '...Hello? Who is inside my phone?' },
+            { who: 'dawn', text: 'I was in bed five seconds ago. The bed is gone. The floor is also suspicious.' },
+            { who: 'dawn', text: 'Did you draw that line? Great. I do not follow strange signals for free.' },
+            { who: 'dawn', text: '...But I want to go home. So you had better know where you are pointing.' }
+        ]
+    };
+
+    const prologueReplyText = {
+        zh: {
+            steady: '行。你先证明你不是会画线的灾难现场。',
+            warm: '别用那种表情。好吧，有人看着也比没人强。',
+            tease: '试营业？你们外侧的人都这么欠吗。算了，先救我。'
+        },
+        en: {
+            steady: 'Fine. Prove you are not a disaster with a cursor.',
+            warm: 'Do not make that face. Fine. Being watched beats being alone.',
+            tease: 'Trial run? Are all outside people this annoying? Whatever. Rescue first.'
+        }
+    };
+
+    function getProloguePrefix(who) {
+        if (who === 'sys') return '> ';
+        if (who === 'you') return window.currentLang === 'en' ? 'You: ' : '你：';
+        return 'Dawn: ';
+    }
+
+    function appendPrologueLine(line) {
+        if (!prologueFeed) return;
+        const row = document.createElement('p');
+        row.className = `prologue-line ${line.who}`;
+        const prefix = getProloguePrefix(line.who);
+        const text = textOf(line.text);
+        row.textContent = prefix;
+        prologueFeed.appendChild(row);
+        prologueFeed.scrollTo?.({ top: prologueFeed.scrollHeight, behavior: 'smooth' });
+        let index = 0;
+        const timer = window.setInterval(() => {
+            index += 1;
+            row.textContent = `${prefix}${text.slice(0, index)}`;
+            prologueFeed.scrollTo?.({ top: prologueFeed.scrollHeight, behavior: 'smooth' });
+            if (index >= text.length) {
+                window.clearInterval(timer);
+            }
+        }, line.who === 'sys' ? 12 : 18);
+    }
+
+    function runPrologueSequence() {
+        if (!prologueFeed) return;
+        prologueFeed.innerHTML = '';
+        prologueReplies?.classList.add('is-disabled');
+        btnPrologueStart?.classList.add('is-hidden');
+        const lines = prologueScripts[window.currentLang === 'en' ? 'en' : 'zh'];
+        lines.forEach((line, index) => {
+            setTimeout(() => appendPrologueLine(line), 280 + index * 620);
+        });
+        setTimeout(() => prologueReplies?.classList.remove('is-disabled'), 520 + lines.length * 620);
+    }
+
+    function handlePrologueReply(tone) {
+        const lang = window.currentLang === 'en' ? 'en' : 'zh';
+        appendPrologueLine({ who: 'you', text: window.t?.(`prologue.reply.${tone}`) || tone });
+        appendPrologueLine({ who: 'dawn', text: prologueReplyText[lang][tone] || prologueReplyText[lang].steady });
+        prologueReplies?.classList.add('is-disabled');
+        btnPrologueStart?.classList.remove('is-hidden');
+    }
+
     function getActiveTerminalTab() {
         return Array.from(terminalTabs).find(tab => tab.classList.contains('active'))?.dataset.terminalTab || 'comms';
     }
@@ -282,14 +363,37 @@ document.addEventListener('DOMContentLoaded', () => {
         clearUnread(tabName);
     }
 
+    function textOf(value) {
+        return window.getText ? window.getText(value) : (value ?? '');
+    }
+
     function escapeHtml(value) {
-        return String(value)
+        return String(textOf(value))
             .replaceAll('&', '&amp;')
             .replaceAll('<', '&lt;')
             .replaceAll('>', '&gt;')
             .replaceAll('"', '&quot;')
             .replaceAll("'", '&#039;');
     }
+
+    function applyLanguage() {
+        document.documentElement.lang = window.currentLang === 'en' ? 'en' : 'zh-CN';
+        document.querySelectorAll('[data-i18n]').forEach(node => {
+            node.textContent = window.t?.(node.dataset.i18n) || node.textContent;
+            if (node.classList.contains('glitch-text')) {
+                node.dataset.text = node.textContent;
+            }
+        });
+        langToggleBtns.forEach(btn => {
+            btn.textContent = window.currentLang === 'en' ? 'EN / 中' : '中 / EN';
+            btn.setAttribute('aria-label', window.currentLang === 'en' ? 'Switch to Chinese' : '切换到英文');
+        });
+        renderArchive();
+        renderLevelCards();
+        renderLevelBrief();
+        game.updateUI?.();
+    }
+    window.updateUILanguage = applyLanguage;
 
     function persistArchive() {
         localStorage.setItem('dimensionHackArchiveEntries', JSON.stringify([...archiveState.entries]));
@@ -306,7 +410,7 @@ document.addEventListener('DOMContentLoaded', () => {
                         <p>${escapeHtml(entry.body)}</p>
                     </article>
                 `)
-                .join('') || '<p class="archive-empty">还没有新档案。先活过这一局。</p>';
+                .join('') || `<p class="archive-empty">${escapeHtml(window.t?.('archive.empty') || '还没有新档案。先活过这一局。')}</p>`;
         }
         if (achievementList) {
             achievementList.innerHTML = achievements
@@ -317,7 +421,7 @@ document.addEventListener('DOMContentLoaded', () => {
                             <span class="achievement-icon">${unlocked ? '◆' : '◇'}</span>
                             <div>
                                 <strong>${escapeHtml(achievement.title)}</strong>
-                                <p>${escapeHtml(unlocked ? achievement.body : '未解锁')}</p>
+                                <p>${escapeHtml(unlocked ? achievement.body : (window.t?.('archive.locked') || '未解锁'))}</p>
                             </div>
                         </article>
                     `;
@@ -364,15 +468,15 @@ document.addEventListener('DOMContentLoaded', () => {
         commsState.activeSceneId = sceneId;
         commsState.lastReply = '';
 
-        if (commsSceneTitle) commsSceneTitle.textContent = scene.title || '通讯';
+        if (commsSceneTitle) commsSceneTitle.textContent = textOf(scene.title) || window.t?.('comms.scene') || '通讯';
         if (commsBondLabel) commsBondLabel.textContent = getBondLabel();
-        if (companionStatus) companionStatus.textContent = scene.status || '信号稳定';
-        if (companionBubble) companionBubble.textContent = scene.bubble || scene.lines?.[0] || '我在。';
+        if (companionStatus) companionStatus.textContent = textOf(scene.status) || window.t?.('comms.signalStable') || '信号稳定';
+        if (companionBubble) companionBubble.textContent = textOf(scene.bubble) || textOf(scene.lines?.[0]) || window.t?.('comms.live') || '我在。';
         if (commsContextLine) {
             commsContextLine.textContent = storyModule?.getContextLine?.(scene, commsState, game)
                 || (game.currentLevel
-                    ? `${game.currentLevel.title} · ${game.currentLevel.chapter}。玩家只回表情；她会慢慢讲。`
-                    : '通讯只在安全间隙展开；路线直接在 3D 魔方上画。');
+                    ? `${textOf(game.currentLevel.title)} · ${textOf(game.currentLevel.chapter)}。${window.t?.('comms.contextShort') || '玩家只回表情；她会慢慢讲。'}`
+                    : (window.t?.('comms.context') || '通讯只在安全间隙展开；路线直接在 3D 魔方上画。'));
         }
 
         if (commsStoryLines) {
@@ -381,7 +485,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 .join('');
         }
         if (commsLiveLine) {
-            commsLiveLine.textContent = '选择一个表情回她。';
+            commsLiveLine.textContent = window.t?.('comms.chooseEmoji') || '选择一个表情回她。';
             commsLiveLine.className = 'comms-line system';
         }
         if (commsChoicesEl) {
@@ -422,15 +526,15 @@ document.addEventListener('DOMContentLoaded', () => {
         }
         if (commsLiveLine) {
             commsLiveLine.className = 'comms-line protagonist';
-            commsLiveLine.textContent = reply.response;
+            commsLiveLine.textContent = textOf(reply.response);
         }
         if (companionBubble) {
-            companionBubble.textContent = reply.bubble || reply.response;
+            companionBubble.textContent = textOf(reply.bubble) || textOf(reply.response);
         }
             if (commsContextLine) {
                 commsContextLine.textContent = game.currentLevel
-                ? `${game.currentLevel.title}：通讯已记录。路线直接在 3D 魔方上画。`
-                : '通讯已记录。';
+                ? `${textOf(game.currentLevel.title)}：${window.t?.('comms.recordedRoute') || '通讯已记录。路线直接在 3D 魔方上画。'}`
+                : (window.t?.('comms.recorded') || '通讯已记录。');
         }
         audio.play('uiConfirm');
     }
@@ -461,19 +565,19 @@ document.addEventListener('DOMContentLoaded', () => {
         syncFromGame(currentGame) {
             const scene = dialogueScript.scenes[commsState.activeSceneId];
             if (!scene || commsState.lastReply) return;
-            if (companionStatus) companionStatus.textContent = scene.status || '信号稳定';
+            if (companionStatus) companionStatus.textContent = textOf(scene.status) || window.t?.('comms.signalStable') || '信号稳定';
             if (companionBubble) {
                 companionBubble.textContent = storyModule?.getAmbientBubble?.({
                     scene,
                     state: commsState,
                     game: currentGame
-                }) || scene.bubble || '我在。';
+                }) || textOf(scene.bubble) || window.t?.('comms.live') || '我在。';
             }
             if (commsContextLine) {
                 commsContextLine.textContent = storyModule?.getContextLine?.(scene, commsState, currentGame)
                     || (currentGame?.currentLevel
-                        ? `${currentGame.currentLevel.title} · ${currentGame.currentLevel.chapter}。玩家只回表情；她会慢慢讲。`
-                        : '通讯只在安全间隙展开；路线直接在 3D 魔方上画。');
+                        ? `${textOf(currentGame.currentLevel.title)} · ${textOf(currentGame.currentLevel.chapter)}。${window.t?.('comms.contextShort') || '玩家只回表情；她会慢慢讲。'}`
+                        : (window.t?.('comms.context') || '通讯只在安全间隙展开；路线直接在 3D 魔方上画。'));
             }
         }
     };
@@ -627,18 +731,18 @@ document.addEventListener('DOMContentLoaded', () => {
             card.type = 'button';
             card.dataset.levelIndex = index;
             card.innerHTML = `
-                <span class="level-card-title">${level.title}</span>
-                <span class="level-card-chapter">${level.chapter}</span>
+                <span class="level-card-title">${escapeHtml(level.title)}</span>
+                <span class="level-card-chapter">${escapeHtml(level.chapter)}</span>
                 <span class="level-card-meta">
                     ${renderLevelMetaIcons(level, index)}
                 </span>
-                <span class="level-card-concept">${level.concept}</span>
+                <span class="level-card-concept">${escapeHtml(level.concept)}</span>
             `;
             card.addEventListener('click', () => {
                 selectedLevelIndex = index;
                 renderLevelCards();
                 renderLevelBrief();
-                feel.note(`${level.title} 已选中`, 'info');
+                feel.note(`${textOf(level.title)} 已选中`, 'info');
             });
             levelListEl.appendChild(card);
         });
@@ -653,8 +757,8 @@ document.addEventListener('DOMContentLoaded', () => {
         updateActPageTabs();
         const level = game.levels[selectedLevelIndex];
         levelBriefEl.innerHTML = `
-            <div class="brief-title">${level.title} · ${level.chapter}</div>
-            <p>${level.concept}</p>
+            <div class="brief-title">${escapeHtml(level.title)} · ${escapeHtml(level.chapter)}</div>
+            <p>${escapeHtml(level.concept)}</p>
             <div class="brief-meta">
                 <span>最佳回合 ${level.bestTurns}</span>
                 <span>最佳旋转 ${level.bestRotations}</span>
@@ -788,7 +892,7 @@ document.addEventListener('DOMContentLoaded', () => {
         initRenderScene();
         audio.start();
         audio.setTension('calm');
-        feel.note(`${game.currentLevel.title} · ${game.currentLevel.chapter}`, 'info');
+        feel.note(`${textOf(game.currentLevel.title)} · ${textOf(game.currentLevel.chapter)}`, 'info');
         feel.flashScreen('info');
     }
 
@@ -836,12 +940,31 @@ document.addEventListener('DOMContentLoaded', () => {
     renderLevelCards();
     renderLevelBrief();
     updateLayerDropdown(3);
+    applyLanguage();
+    runPrologueSequence();
     if (analysisToneSelect) {
         analysisToneSelect.value = localStorage.getItem('failureAnalysisTone') || 'coach';
     }
 
     btnPrologueStart?.addEventListener('click', closePrologue);
     btnPrologueSkip?.addEventListener('click', closePrologue);
+    prologueReplies?.addEventListener('click', event => {
+        if (prologueReplies.classList.contains('is-disabled')) return;
+        const btn = event.target.closest('[data-prologue-reply]');
+        if (!btn) return;
+        handlePrologueReply(btn.dataset.prologueReply);
+    });
+    langToggleBtns.forEach(btn => {
+        btn.addEventListener('click', () => {
+            window.setLanguage?.(window.currentLang === 'en' ? 'zh' : 'en');
+        });
+    });
+    window.addEventListener('languageChanged', () => {
+        applyLanguage();
+        if (prologueOverlay?.classList.contains('active')) {
+            runPrologueSequence();
+        }
+    });
 
     terminalTabs.forEach(tab => {
         tab.addEventListener('click', () => {
