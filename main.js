@@ -45,7 +45,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const escConsole = document.getElementById('esc-console');
     const btnConsoleResume = document.getElementById('btn-console-resume');
     const btnConsoleReset = document.getElementById('btn-console-reset');
-    const btnConsoleAudio = document.getElementById('btn-console-audio');
+    const btnConsoleSettings = document.getElementById('btn-console-settings');
     const btnTwistMode = document.getElementById('btn-twist-mode');
     const phonePanel = document.getElementById('phone-panel');
     const phoneNotch = document.getElementById('phone-notch');
@@ -78,6 +78,13 @@ document.addEventListener('DOMContentLoaded', () => {
     const archiveUnlockList = document.getElementById('archive-unlock-list');
     const achievementList = document.getElementById('achievement-list');
     const langToggleBtns = document.querySelectorAll('[data-lang-toggle]');
+    const settingsOverlay = document.getElementById('settings-overlay');
+    const settingsCloseBtn = document.getElementById('settings-close-btn');
+    const settingsAudioBtn = document.getElementById('settings-audio-btn');
+    const settingsDevModeBtn = document.getElementById('settings-devmode-btn');
+    const settingsLangBtns = document.querySelectorAll('[data-settings-lang]');
+    const settingsPrecisionBtns = document.querySelectorAll('[data-settings-precision]');
+    const keybindButtons = document.querySelectorAll('[data-keybind-action]');
 
     const safeParseArray = (key) => {
         try {
@@ -87,6 +94,44 @@ document.addEventListener('DOMContentLoaded', () => {
             return [];
         }
     };
+    const safeParseObject = (key, fallback = {}) => {
+        try {
+            const value = JSON.parse(localStorage.getItem(key) || '{}');
+            return value && typeof value === 'object' && !Array.isArray(value)
+                ? value
+                : { ...fallback };
+        } catch (error) {
+            return { ...fallback };
+        }
+    };
+
+    const defaultKeybinds = {
+        route: 'Digit1',
+        patch: 'Digit2',
+        beacon: 'Digit3',
+        break: 'Digit4',
+        wait: 'Space',
+        twist: 'Shift'
+    };
+    const keybindLabels = {
+        Digit1: '1',
+        Digit2: '2',
+        Digit3: '3',
+        Digit4: '4',
+        Space: 'Space',
+        Shift: 'Shift',
+        Escape: 'Esc'
+    };
+    const settingsState = {
+        precision: Math.max(0, Math.min(2, Number(localStorage.getItem('dawnCubeTimerPrecision') || 1))),
+        devMode: localStorage.getItem('dimensionHackDevMode') === 'true',
+        keybinds: {
+            ...defaultKeybinds,
+            ...safeParseObject('dawnCubeKeybinds', defaultKeybinds)
+        }
+    };
+    let listeningKeybindAction = null;
+    window.dawnCubeSettings = settingsState;
 
     let selectedLevelIndex = 0;
     let selectedActPage = 1;
@@ -137,6 +182,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     function isHiddenCrazyUnlocked() {
+        if (settingsState.devMode) return true;
         const requiredNumbers = new Set([1, 2, 3, 4, 5, 6, 7, 8, 9, 11, 12]);
         game.levels.forEach((level, index) => {
             if (completedLevels.has(index)) requiredNumbers.delete(level.number || index + 1);
@@ -145,6 +191,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     function isLevelVisible(level) {
+        if (settingsState.devMode) return true;
         return !level.hiddenUntilActOneClear || isHiddenCrazyUnlocked();
     }
 
@@ -414,6 +461,7 @@ document.addEventListener('DOMContentLoaded', () => {
         renderArchive();
         renderLevelCards();
         renderLevelBrief();
+        renderSettingsPanel();
         game.updateUI?.();
     }
     window.updateUILanguage = applyLanguage;
@@ -739,7 +787,7 @@ document.addEventListener('DOMContentLoaded', () => {
         actPageTabs.forEach(tab => {
             const page = Number(tab.dataset.actPage);
             const hasLevels = game.levels.some(level => (level.act || 1) === page);
-            tab.classList.toggle('is-hidden', !hasLevels || !unlockedActs.has(page));
+            tab.classList.toggle('is-hidden', !hasLevels || (!settingsState.devMode && !unlockedActs.has(page)));
             tab.classList.toggle('active', page === selectedActPage);
             tab.setAttribute('aria-selected', String(page === selectedActPage));
         });
@@ -747,7 +795,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     function renderLevelCards() {
         levelListEl.innerHTML = '';
-        if (!unlockedActs.has(selectedActPage)) {
+        if (!settingsState.devMode && !unlockedActs.has(selectedActPage)) {
             selectedActPage = 1;
         }
 
@@ -766,12 +814,12 @@ document.addEventListener('DOMContentLoaded', () => {
             card.type = 'button';
             card.dataset.levelIndex = index;
             card.innerHTML = `
-                <span class="level-card-title">${escapeHtml(level.title)}</span>
-                <span class="level-card-chapter">${escapeHtml(level.chapter)}</span>
+                <span class="level-card-title">${escapeHtml(textOf(level.title))}</span>
+                <span class="level-card-chapter">${escapeHtml(textOf(level.chapter))}</span>
                 <span class="level-card-meta">
                     ${renderLevelMetaIcons(level, index)}
                 </span>
-                <span class="level-card-concept">${escapeHtml(level.concept)}</span>
+                <span class="level-card-concept">${escapeHtml(textOf(level.concept))}</span>
             `;
             card.addEventListener('click', () => {
                 selectedLevelIndex = index;
@@ -785,15 +833,15 @@ document.addEventListener('DOMContentLoaded', () => {
 
     function renderLevelBrief() {
         const selectedAct = game.levels[selectedLevelIndex]?.act || 1;
-        if (!unlockedActs.has(selectedAct)) {
+        if (!settingsState.devMode && !unlockedActs.has(selectedAct)) {
             selectedLevelIndex = 0;
             selectedActPage = 1;
         }
         updateActPageTabs();
         const level = game.levels[selectedLevelIndex];
         levelBriefEl.innerHTML = `
-            <div class="brief-title">${escapeHtml(level.title)} · ${escapeHtml(level.chapter)}</div>
-            <p>${escapeHtml(level.concept)}</p>
+            <div class="brief-title">${escapeHtml(textOf(level.title))} · ${escapeHtml(textOf(level.chapter))}</div>
+            <p>${escapeHtml(textOf(level.concept))}</p>
             <div class="brief-meta">
                 <span>最佳回合 ${level.bestTurns}</span>
                 <span>最佳旋转 ${level.bestRotations}</span>
@@ -907,6 +955,113 @@ document.addEventListener('DOMContentLoaded', () => {
             game.updateUI();
             audio.play('uiConfirm');
         }
+    }
+
+    function keyLabel(code) {
+        if (!code) return '?';
+        if (keybindLabels[code]) return keybindLabels[code];
+        return code.replace(/^Key/, '').replace(/^Digit/, '');
+    }
+
+    function normalizeKeyCode(event) {
+        if (event.code === 'ShiftLeft' || event.code === 'ShiftRight') return 'Shift';
+        if (event.code === 'ControlLeft' || event.code === 'ControlRight') return 'Control';
+        if (event.code === 'AltLeft' || event.code === 'AltRight') return 'Alt';
+        if (event.code === 'MetaLeft' || event.code === 'MetaRight') return 'Meta';
+        return event.code || event.key;
+    }
+
+    function persistSettings() {
+        localStorage.setItem('dawnCubeTimerPrecision', String(settingsState.precision));
+        localStorage.setItem('dimensionHackDevMode', String(settingsState.devMode));
+        localStorage.setItem('dawnCubeKeybinds', JSON.stringify(settingsState.keybinds));
+        window.dawnCubeSettings = settingsState;
+    }
+
+    function renderSettingsPanel() {
+        settingsLangBtns.forEach(btn => {
+            const active = btn.dataset.settingsLang === window.currentLang;
+            btn.classList.toggle('active', active);
+            btn.setAttribute('aria-pressed', String(active));
+        });
+        settingsPrecisionBtns.forEach(btn => {
+            const active = Number(btn.dataset.settingsPrecision) === settingsState.precision;
+            btn.classList.toggle('active', active);
+            btn.setAttribute('aria-pressed', String(active));
+        });
+        keybindButtons.forEach(btn => {
+            const action = btn.dataset.keybindAction;
+            btn.textContent = listeningKeybindAction === action
+                ? '...'
+                : keyLabel(settingsState.keybinds[action]);
+            btn.classList.toggle('is-listening', listeningKeybindAction === action);
+        });
+        if (settingsAudioBtn) {
+            settingsAudioBtn.classList.toggle('active', !audio.muted);
+            settingsAudioBtn.setAttribute('aria-pressed', String(!audio.muted));
+            settingsAudioBtn.textContent = audio.muted
+                ? (window.t?.('settings.soundOff') || '关闭')
+                : (window.t?.('settings.soundOn') || '开启');
+        }
+        if (settingsDevModeBtn) {
+            settingsDevModeBtn.classList.toggle('active', settingsState.devMode);
+            settingsDevModeBtn.setAttribute('aria-pressed', String(settingsState.devMode));
+        }
+    }
+
+    function openSettings() {
+        listeningKeybindAction = null;
+        settingsOverlay?.classList.add('active');
+        settingsOverlay?.setAttribute('aria-hidden', 'false');
+        renderSettingsPanel();
+        audio.play('uiConfirm');
+    }
+
+    function closeSettings() {
+        listeningKeybindAction = null;
+        settingsOverlay?.classList.remove('active');
+        settingsOverlay?.setAttribute('aria-hidden', 'true');
+        renderSettingsPanel();
+    }
+
+    function applyToolKeybind(action) {
+        if (!isGameActive || render.isAnimating) return false;
+        const target = document.querySelector(`[data-tool-mode="${action}"]`);
+        if (target && !target.disabled) {
+            game.setToolMode(action);
+            feel.note(`${target.textContent.replace(/\s+/g, ' ').trim()} 模式`, 'info');
+            return true;
+        }
+        return false;
+    }
+
+    function triggerWaitKeybind() {
+        if (!isGameActive || render.isAnimating || game.gameState !== 'playing') return false;
+        feel.note('原地待命，敌人行动', 'danger');
+        feel.flashScreen('danger');
+        game.skipTurn();
+        return true;
+    }
+
+    function handleGameplayKeybind(event, phase = 'down') {
+        if (settingsOverlay?.classList.contains('active')) return false;
+        const { keybinds } = settingsState;
+        const code = normalizeKeyCode(event);
+        if (phase === 'down') {
+            if (code === keybinds.route) return applyToolKeybind('route');
+            if (code === keybinds.patch) return applyToolKeybind('patch');
+            if (code === keybinds.beacon) return applyToolKeybind('beacon');
+            if (code === keybinds.break) return applyToolKeybind('break');
+            if (code === keybinds.wait) return triggerWaitKeybind();
+            if (code === keybinds.twist && !event.repeat && isGameActive) {
+                setTwistMode(true);
+                return true;
+            }
+        } else if (code === keybinds.twist && isGameActive) {
+            setTwistMode(false);
+            return true;
+        }
+        return false;
     }
 
     function setPhoneCollapsed(collapsed) {
@@ -1055,7 +1210,7 @@ document.addEventListener('DOMContentLoaded', () => {
     actPageTabs.forEach(tab => {
         tab.addEventListener('click', () => {
             const page = Number(tab.dataset.actPage);
-            if (!unlockedActs.has(page)) return;
+            if (!settingsState.devMode && !unlockedActs.has(page)) return;
             selectedActPage = page;
             renderLevelCards();
             renderLevelBrief();
@@ -1142,8 +1297,7 @@ document.addEventListener('DOMContentLoaded', () => {
         showLevelBook({ openArchive: true });
     });
     landingSettingsBtn?.addEventListener('click', () => {
-        audio.play('routeTick');
-        feel.note('设置面板正在接入', 'info');
+        openSettings();
     });
 
     startBtn.addEventListener('click', startSelectedLevel);
@@ -1192,8 +1346,45 @@ document.addEventListener('DOMContentLoaded', () => {
             resetCurrentLevel();
         }
     });
-    btnConsoleAudio?.addEventListener('click', () => {
-        audioToggle?.click();
+    btnConsoleSettings?.addEventListener('click', openSettings);
+    settingsCloseBtn?.addEventListener('click', closeSettings);
+    settingsOverlay?.addEventListener('click', event => {
+        if (event.target === settingsOverlay) closeSettings();
+    });
+    settingsLangBtns.forEach(btn => {
+        btn.addEventListener('click', () => {
+            window.setLanguage?.(btn.dataset.settingsLang);
+            audio.play('routeTick');
+        });
+    });
+    settingsPrecisionBtns.forEach(btn => {
+        btn.addEventListener('click', () => {
+            settingsState.precision = Math.max(0, Math.min(2, Number(btn.dataset.settingsPrecision || 0)));
+            persistSettings();
+            renderSettingsPanel();
+            audio.play('routeTick');
+        });
+    });
+    settingsAudioBtn?.addEventListener('click', () => {
+        audio.setMuted(!audio.muted);
+        renderSettingsPanel();
+        feel.note(audio.muted ? '声音已关闭' : '声音已开启', audio.muted ? 'warn' : 'good');
+        if (!audio.muted) audio.start().then(() => audio.play('uiConfirm'));
+    });
+    settingsDevModeBtn?.addEventListener('click', () => {
+        settingsState.devMode = !settingsState.devMode;
+        persistSettings();
+        renderSettingsPanel();
+        renderLevelCards();
+        renderLevelBrief();
+        feel.note(settingsState.devMode ? '开发者模式：关卡全解锁' : '开发者模式已关闭', settingsState.devMode ? 'good' : 'info');
+    });
+    keybindButtons.forEach(btn => {
+        btn.addEventListener('click', () => {
+            listeningKeybindAction = btn.dataset.keybindAction;
+            renderSettingsPanel();
+            audio.play('routeTick');
+        });
     });
     phoneNotch?.addEventListener('click', () => {
         setPhoneCollapsed(!phonePanel?.classList.contains('is-collapsed'));
@@ -1209,17 +1400,33 @@ document.addEventListener('DOMContentLoaded', () => {
         card?.classList.add('is-hidden');
     });
     document.addEventListener('keydown', event => {
+        if (listeningKeybindAction) {
+            event.preventDefault();
+            if (event.code !== 'Escape') {
+                settingsState.keybinds[listeningKeybindAction] = normalizeKeyCode(event);
+                persistSettings();
+                audio.play('uiConfirm');
+            }
+            listeningKeybindAction = null;
+            renderSettingsPanel();
+            return;
+        }
         if (event.key === 'Escape') {
             event.preventDefault();
-            toggleEscConsole();
+            if (settingsOverlay?.classList.contains('active')) {
+                closeSettings();
+            } else {
+                toggleEscConsole();
+            }
+            return;
         }
-        if (event.key === 'Shift' && !event.repeat && isGameActive) {
-            setTwistMode(true);
+        if (handleGameplayKeybind(event, 'down')) {
+            event.preventDefault();
         }
     });
     document.addEventListener('keyup', event => {
-        if (event.key === 'Shift' && isGameActive) {
-            setTwistMode(false);
+        if (handleGameplayKeybind(event, 'up')) {
+            event.preventDefault();
         }
     });
 
@@ -1342,6 +1549,7 @@ document.addEventListener('DOMContentLoaded', () => {
     audioToggle.addEventListener('click', () => {
         const nextMuted = !audio.muted;
         audio.setMuted(nextMuted);
+        renderSettingsPanel();
         feel.note(audio.muted ? '声音已关闭' : '声音已开启', audio.muted ? 'warn' : 'good');
         if (!audio.muted) {
             audio.start().then(() => audio.play('uiConfirm'));

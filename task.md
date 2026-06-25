@@ -12,11 +12,11 @@
   - [x] 主菜单下，Three.js 相机视轨 Target 向右下方偏置，将自转魔方完全暴露在中右侧。
   - [x] *Git Checkpoint*：`feat(ui): redesign main menu to FNAF 2 style, add 3D title with IP elements and camera offset`
 
-- [ ] **M6.2 独立「游戏设置」面板与自定义键位 (Settings Panel & Keybindings)**
-  - [ ] 建立独立的 `#settings-overlay` 设置面板（支持主菜单与 Esc 界面唤起）。
-  - [ ] 选项包含：中/EN 语言切换、声音开关、数值精度选择（3 / 3.0 / 3.00数位）、开发模式（一键解锁所有关卡并持久化）。
-  - [ ] 实现自定义键位（点击按键输入绑定）：支持修改移动/画路、部署补片、部署信标、碎解、原地待命、Twist 拧层模式的按键。
-  - [ ] *Git Checkpoint*：`feat(settings): implement standalone settings panel, keybinding customization, and dev unlock mode`
+- [x] **M6.2 独立「游戏设置」面板与自定义键位 (Settings Panel & Keybindings)**
+  - [x] 建立独立的 `#settings-overlay` 设置面板（支持主菜单与 Esc 界面唤起）。
+  - [x] 选项包含：中/EN 语言切换、声音开关、数值精度选择（3 / 3.0 / 3.00数位）、开发模式（一键解锁所有关卡并持久化）。
+  - [x] 实现自定义键位（点击按键输入绑定）：支持修改移动/画路、部署补片、部署信标、碎解、原地待命、Twist 拧层模式的按键。
+  - [x] *Git Checkpoint*：`feat(settings): implement standalone settings panel, keybinding customization, and dev unlock mode`
 
 - [ ] **M6.3 星轨选关系统与零重力漂移魔方 (Constellation Level Selector & Drifting Cube)**
   - [ ] 点击「关卡选择」时，利用 JS 缩放和位置差值，使魔方缩至 60% 尺寸，并开启零重力漂浮效果（极慢自转 + 随机正弦小幅曲线漂移，允许稍微超出屏缘但不脱屏）。

@@ -287,10 +287,63 @@
                 <button class="btn-lang-toggle console-lang" type="button" data-lang-toggle>中 / EN</button>
                 <button id="btn-console-resume" class="btn btn-primary btn-large" type="button" data-i18n="console.resume">继续游戏</button>
                 <button id="btn-console-reset" class="btn btn-secondary btn-large" type="button" data-i18n="console.reset">重新开始</button>
-                <button id="btn-console-audio" class="btn btn-secondary btn-large" type="button" data-i18n="console.audio">声音开关</button>
+                <button id="btn-console-settings" class="btn btn-secondary btn-large" type="button" data-i18n="settings.title">游戏设置</button>
                 <button id="btn-main-menu" class="btn btn-danger btn-large" type="button" data-i18n="console.menu">返回菜单</button>
             </section>
         </div>
+    </div>
+
+    <div id="settings-overlay" class="settings-overlay" aria-hidden="true">
+        <section class="settings-panel glass-panel" aria-label="游戏设置">
+            <div class="settings-header">
+                <span class="terminal-kicker" data-i18n="settings.kicker">SYSTEM PATCH</span>
+                <h2 data-i18n="settings.title">游戏设置</h2>
+                <button id="settings-close-btn" class="settings-close-btn" type="button" aria-label="关闭设置">×</button>
+            </div>
+
+            <div class="settings-grid">
+                <article class="settings-card">
+                    <span class="settings-label" data-i18n="settings.language">语言</span>
+                    <div class="segmented-control" role="group" aria-label="语言">
+                        <button class="settings-segment" type="button" data-settings-lang="zh">中</button>
+                        <button class="settings-segment" type="button" data-settings-lang="en">EN</button>
+                    </div>
+                </article>
+
+                <article class="settings-card">
+                    <span class="settings-label" data-i18n="settings.sound">声音</span>
+                    <button id="settings-audio-btn" class="settings-toggle" type="button" aria-pressed="true">
+                        <span data-i18n="settings.soundOn">开启</span>
+                    </button>
+                </article>
+
+                <article class="settings-card">
+                    <span class="settings-label" data-i18n="settings.precision">倒计时精度</span>
+                    <div class="segmented-control" role="group" aria-label="倒计时精度">
+                        <button class="settings-segment" type="button" data-settings-precision="0">3</button>
+                        <button class="settings-segment" type="button" data-settings-precision="1">3.0</button>
+                        <button class="settings-segment" type="button" data-settings-precision="2">3.00</button>
+                    </div>
+                </article>
+
+                <article class="settings-card">
+                    <span class="settings-label" data-i18n="settings.devMode">开发者模式</span>
+                    <button id="settings-devmode-btn" class="settings-toggle danger" type="button" aria-pressed="false" data-i18n="settings.devUnlock">解锁所有关卡</button>
+                </article>
+            </div>
+
+            <div class="settings-keybinds">
+                <h3 data-i18n="settings.keybinds">自定义键位</h3>
+                <div class="keybind-grid">
+                    <label><span data-i18n="settings.key.route">移动/画路</span><button class="keybind-button" type="button" data-keybind-action="route">1</button></label>
+                    <label><span data-i18n="settings.key.patch">部署补片</span><button class="keybind-button" type="button" data-keybind-action="patch">2</button></label>
+                    <label><span data-i18n="settings.key.beacon">部署信标</span><button class="keybind-button" type="button" data-keybind-action="beacon">3</button></label>
+                    <label><span data-i18n="settings.key.break">碎解</span><button class="keybind-button" type="button" data-keybind-action="break">4</button></label>
+                    <label><span data-i18n="settings.key.wait">原地待命</span><button class="keybind-button" type="button" data-keybind-action="wait">Space</button></label>
+                    <label><span data-i18n="settings.key.twist">Twist 模式</span><button class="keybind-button" type="button" data-keybind-action="twist">Shift</button></label>
+                </div>
+            </div>
+        </section>
     </div>
 
     <!-- 游戏结束/胜利 Overlays -->
