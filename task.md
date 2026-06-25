@@ -24,14 +24,16 @@
   - [x] 点击星点时，在下方弹出一个完全不透光的关卡信息板（包含进入链路按钮），并提供悬浮「返回主菜单」按钮。
   - [x] *Git Checkpoint*：`feat(ui): implement constellation level selector and zero-gravity drifting background cube`
 
-- [ ] **M6.4 实时 CD 直控引擎与实体进度环倒计时 (Real-time CD Direct Control Engine & Entity Timers)**
-  - [ ] 废弃回合制 AP 限制和“画线规划->发送”逻辑。玩家直接点击 E-7 邻格，E-7 立即平滑移动一格并触发 0.6s 移动 CD。
-  - [ ] 限制移动 CD 期间操作，仅缓冲下一次有效相邻格点击。
-  - [ ] AI 敌人根据独立定时器（Easy=2.5s，Normal=1.5s，Hard=0.9s）实时移动。
-  - [ ] 实时捕获判定：在 3D 渲染循环中计算 E-7 与怪物的 Mesh 距离（`distance < 0.8`）或共用连边时判负。
-  - [ ] CD 可视化：根据实体标志颜色（E-7=淡蓝，怪=红色），在棋子下方渲染 3D 进度环，上方悬浮显示数值倒计时小字（精度匹配设置）。
-  - [ ] 实时红格预示：追击者前进的下一格根据它移动 CD 频率进行发光闪烁，临近时加快。
-  - [ ] *Git Checkpoint*：`feat(engine): transition to real-time grid movement, click cooldowns, and entity visual timer rings`
+- [x] **M6.4 实时 CD 直控引擎与实体进度环倒计时 (Real-time CD Direct Control Engine & Entity Timers)**
+  - [x] 废弃真实游玩中的回合制 AP 限制和“画线规划->发送”逻辑；保留旧接口供 Bot/审计工具验证关卡。
+  - [x] 玩家直接点击 E-7 邻格，E-7 立即平滑移动一格并触发 0.6s 移动 CD。
+  - [x] 限制移动 CD 期间操作，仅缓冲下一次有效相邻格点击。
+  - [x] AI 敌人根据独立定时器（Easy=2.5s，Normal=1.5s，Hard=0.9s）实时移动。
+  - [x] 实时捕获判定：在 3D 渲染循环中计算 E-7 与怪物的 Mesh 距离（`distance < 0.8`）或共用连边时判负。
+  - [x] CD 可视化：根据实体标志颜色（E-7=淡蓝，怪=红色），在棋子下方渲染 3D 进度环，上方悬浮显示数值倒计时小字（精度匹配设置）。
+  - [x] 实时红格预示：追击者前进的下一格根据它移动 CD 频率进行发光闪烁，临近时加快。
+  - [x] 修复星图页被非 active landing panel 拦截点击的层级 bug。
+  - [x] *Git Checkpoint*：`feat(engine): transition to real-time grid movement, click cooldowns, and entity visual timer rings`
 
 - [ ] **M6.5 Twist 模式子弹时间与 3D 霓虹控制环 (Bullet Time & 3D Neon Rings)**
   - [ ] 在 Twist 旋转模式下，在 3D 魔方外包裹渲染出 X/Y/Z 三个轴向、3 组 × 3 层共 9 个彩色半透（opacity: 0.15）圆环。

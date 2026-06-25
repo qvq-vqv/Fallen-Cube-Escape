@@ -65,6 +65,7 @@ class RenderEngine {
         this.presentationSpeed = 0;
         this.cameraFlight = null;
         this.presentationLookAt = new THREE.Vector3(0, 0, 0);
+        this.threatPreviewMeshes = {};
     }
 
     // 初始化 3D 场景
@@ -1733,6 +1734,10 @@ class RenderEngine {
             this.scene.remove(this.beaconMesh);
             this.disposeObject(this.beaconMesh);
         }
+        Object.values(this.threatPreviewMeshes || {}).forEach(mesh => {
+            this.scene.remove(mesh);
+            this.disposeObject(mesh);
+        });
         
         this.aiMeshes = {};
         this.playerMesh = null;
@@ -1742,6 +1747,7 @@ class RenderEngine {
         this.patchMeshes = [];
         this.voidMarkerMeshes = [];
         this.beaconMesh = null;
+        this.threatPreviewMeshes = {};
         
         // 1. 玩家：逃脱者棋座 + 方向翼 + 镜头徽章
         this.playerMesh = this.createPlayerBody(0x00ff88);
@@ -1752,6 +1758,7 @@ class RenderEngine {
         // 玩家光晕
         const playerLight = new THREE.PointLight(0x00ff88, 1, 3);
         this.playerMesh.add(playerLight);
+        this.attachRealtimeTimerVisual(this.playerMesh, '#8bdcff', 'GO', 'player');
         this.scene.add(this.playerMesh);
         
         // 2. AI 敌人
@@ -1788,6 +1795,7 @@ class RenderEngine {
             // AI 光晕
             const aiLight = new THREE.PointLight(ai.color, 0.8, 2.5);
             mesh.add(aiLight);
+            this.attachRealtimeTimerVisual(mesh, ai.color || '#ff0055', '...', 'ai');
             
             this.scene.add(mesh);
             this.aiMeshes[ai.id] = mesh;
@@ -2393,6 +2401,162 @@ class RenderEngine {
         }
     }
 
+    attachRealtimeTimerVisual(group, color, label, kind) {
+        if (!group) return;
+        const ring = new THREE.Mesh(
+            new THREE.TorusGeometry(kind === 'player' ? 0.44 : 0.39, 0.018, 8, 44),
+            new THREE.MeshBasicMaterial({
+                color: new THREE.Color(color),
+                transparent: true,
+                opacity: 0.28,
+                depthWrite: false,
+                blending: THREE.AdditiveBlending
+            })
+        );
+        ring.rotation.x = Math.PI / 2;
+        ring.position.y = 0.04;
+        const labelSprite = this.createTimerLabelSprite(label, color);
+        labelSprite.position.set(0, kind === 'player' ? 0.92 : 0.84, 0);
+        labelSprite.scale.set(0.62, 0.22, 1);
+        group.add(ring);
+        group.add(labelSprite);
+        group.userData.realtimeTimer = {
+            ring,
+            labelSprite,
+            color,
+            label
+        };
+    }
+
+    createTimerLabelSprite(text, color) {
+        const canvas = document.createElement('canvas');
+        canvas.width = 160;
+        canvas.height = 64;
+        const texture = new THREE.CanvasTexture(canvas);
+        texture.minFilter = THREE.LinearFilter;
+        const material = new THREE.SpriteMaterial({
+            map: texture,
+            transparent: true,
+            depthWrite: false,
+            opacity: 0.92
+        });
+        const sprite = new THREE.Sprite(material);
+        sprite.userData.timerCanvas = canvas;
+        sprite.userData.timerTexture = texture;
+        sprite.userData.timerColor = color;
+        this.updateTimerLabelSprite(sprite, text);
+        return sprite;
+    }
+
+    updateTimerLabelSprite(sprite, text) {
+        if (!sprite || sprite.userData.timerText === text) return;
+        const canvas = sprite.userData.timerCanvas;
+        const texture = sprite.userData.timerTexture;
+        const color = sprite.userData.timerColor || '#8bdcff';
+        const ctx = canvas?.getContext?.('2d');
+        if (!ctx) return;
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        ctx.font = '700 30px Inter, system-ui, sans-serif';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.shadowColor = color;
+        ctx.shadowBlur = 14;
+        ctx.fillStyle = 'rgba(4, 10, 18, 0.72)';
+        this.roundRect(ctx, 18, 12, 124, 40, 16);
+        ctx.fill();
+        ctx.fillStyle = color;
+        ctx.fillText(text, canvas.width / 2, canvas.height / 2 + 1);
+        texture.needsUpdate = true;
+        sprite.userData.timerText = text;
+    }
+
+    roundRect(ctx, x, y, width, height, radius) {
+        ctx.beginPath();
+        ctx.moveTo(x + radius, y);
+        ctx.arcTo(x + width, y, x + width, y + height, radius);
+        ctx.arcTo(x + width, y + height, x, y + height, radius);
+        ctx.arcTo(x, y + height, x, y, radius);
+        ctx.arcTo(x, y, x + width, y, radius);
+        ctx.closePath();
+    }
+
+    updateRealtimeTimerVisuals() {
+        if (!this.game?.realtimeMode || this.renderMode === 'fallback') return;
+        const state = this.game.getRealtimeVisualState?.();
+        if (!state) return;
+        this.applyTimerState(this.playerMesh, state.player, '#8bdcff');
+        state.ais.forEach(aiState => {
+            this.applyTimerState(this.aiMeshes[aiState.id], aiState, aiState.color || '#ff0055');
+        });
+        this.updateThreatPreviewMeshes(state.ais);
+    }
+
+    applyTimerState(mesh, state, color) {
+        const visual = mesh?.userData?.realtimeTimer;
+        if (!visual || !state) return;
+        const urgency = 1 - Math.max(0, Math.min(1, state.remainingMs / Math.max(1, state.intervalMs || this.game.playerMoveCooldownMs)));
+        visual.ring.material.opacity = 0.22 + urgency * 0.58;
+        const scale = 0.78 + urgency * 0.34;
+        visual.ring.scale.set(scale, scale, scale);
+        visual.ring.rotation.z += 0.018 + urgency * 0.03;
+        this.updateTimerLabelSprite(visual.labelSprite, state.label);
+        visual.labelSprite.material.opacity = state.remainingMs > 0 ? 0.95 : 0.72;
+        visual.labelSprite.userData.timerColor = color;
+    }
+
+    updateThreatPreviewMeshes(aiStates) {
+        const active = new Set();
+        aiStates.forEach(aiState => {
+            if (aiState.nextCell === null || aiState.nextCell === undefined) return;
+            const key = String(aiState.id);
+            active.add(key);
+            if (!this.threatPreviewMeshes[key]) {
+                const mesh = this.createThreatPreviewMesh(aiState.nextCell, aiState.color || '#ff0055');
+                this.threatPreviewMeshes[key] = mesh;
+                this.scene.add(mesh);
+            }
+            const mesh = this.threatPreviewMeshes[key];
+            const normal = this.getCellNormalVector(this.game.cells[aiState.nextCell]);
+            mesh.position.copy(this.getCellWorldPosition(aiState.nextCell, 'pulse').clone().addScaledVector(normal, 0.045));
+            mesh.quaternion.setFromUnitVectors(new THREE.Vector3(0, 0, 1), normal);
+            const urgency = Math.max(0, Math.min(1, aiState.progress));
+            mesh.material.opacity = 0.12 + urgency * 0.62;
+            const scale = 0.72 + urgency * 0.28 + Math.sin(Date.now() * (0.006 + urgency * 0.018)) * 0.06;
+            mesh.scale.set(scale, scale, 1);
+        });
+        Object.keys(this.threatPreviewMeshes).forEach(key => {
+            if (active.has(key)) return;
+            const mesh = this.threatPreviewMeshes[key];
+            this.scene.remove(mesh);
+            this.disposeObject(mesh);
+            delete this.threatPreviewMeshes[key];
+        });
+    }
+
+    createThreatPreviewMesh(cellId, color) {
+        const normal = this.getCellNormalVector(this.game.cells[cellId]);
+        const ring = new THREE.Mesh(
+            new THREE.RingGeometry(0.34, 0.48, 48),
+            new THREE.MeshBasicMaterial({
+                color: new THREE.Color(color),
+                transparent: true,
+                opacity: 0.18,
+                side: THREE.DoubleSide,
+                depthWrite: false,
+                blending: THREE.AdditiveBlending
+            })
+        );
+        ring.position.copy(this.getCellWorldPosition(cellId, 'pulse').clone().addScaledVector(normal, 0.045));
+        ring.quaternion.setFromUnitVectors(new THREE.Vector3(0, 0, 1), normal);
+        return ring;
+    }
+
+    getRealtimeEntityDistance(aiId) {
+        const aiMesh = this.aiMeshes?.[aiId];
+        if (!this.playerMesh || !aiMesh) return Infinity;
+        return this.playerMesh.position.distanceTo(aiMesh.position);
+    }
+
     spawnCellPulse(cellId, color = '#00f0ff', intensity = 1) {
         if (cellId === null || cellId === undefined || !this.scene || !this.game) return;
 
@@ -2676,6 +2840,10 @@ class RenderEngine {
         
         // 更新 OrbitControls 摄像机控制器
         if (this.controls && !this.cameraFlight) this.controls.update();
+        if (this.game?.updateRealtime) {
+            this.game.updateRealtime(performance.now());
+            this.updateRealtimeTimerVisuals();
+        }
         
         // 自转动画，增加精致感
         // A. 悬浮钥匙自转

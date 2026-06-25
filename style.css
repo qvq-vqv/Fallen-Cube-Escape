@@ -223,6 +223,10 @@ body {
     opacity: 0;
 }
 
+.landing-overlay:not(.active) .landing-panel {
+    pointer-events: none;
+}
+
 .landing-panel {
     position: fixed;
     left: clamp(1rem, 3.4vw, 4.25rem);

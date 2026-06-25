@@ -41,6 +41,14 @@ class GameEngine {
         this.beaconTTL = 0;
         this.toolMode = 'route';
         this.trust = 80;
+        this.realtimeMode = false;
+        this.realtimePaused = false;
+        this.realtimeLastTick = null;
+        this.playerMoveCooldownMs = 600;
+        this.playerCooldownRemaining = 0;
+        this.bufferedMoveCell = null;
+        this.realtimeAIClocks = {};
+        this.realtimeEdges = { player: null, ai: {} };
 
         this.DIR = { UP: 0, DOWN: 1, LEFT: 2, RIGHT: 3 };
         this.rotationPermutations = { X: {}, Y: {}, Z: {} };
@@ -128,7 +136,17 @@ class GameEngine {
         this.beaconTTL = 0;
         this.toolMode = 'route';
         this.trust = this.loadTrust();
+        this.resetRealtimeState();
         this.gameState = 'setup';
+    }
+
+    resetRealtimeState() {
+        this.realtimePaused = false;
+        this.realtimeLastTick = null;
+        this.playerCooldownRemaining = 0;
+        this.bufferedMoveCell = null;
+        this.realtimeAIClocks = {};
+        this.realtimeEdges = { player: null, ai: {} };
     }
 
     loadTrust() {
@@ -676,6 +694,12 @@ class GameEngine {
             trust: this.trust,
             gameState: this.gameState,
             plannedPath: [...this.plannedPath],
+            realtimeMode: this.realtimeMode,
+            realtimePaused: this.realtimePaused,
+            playerCooldownRemaining: this.playerCooldownRemaining,
+            bufferedMoveCell: this.bufferedMoveCell,
+            realtimeAIClocks: JSON.parse(JSON.stringify(this.realtimeAIClocks || {})),
+            realtimeEdges: JSON.parse(JSON.stringify(this.realtimeEdges || { player: null, ai: {} })),
             lastFailure: this.lastFailure ? { ...this.lastFailure } : null,
             eventLog: this.eventLog.map(event => ({ ...event })),
             currentLevelIndex: this.currentLevelIndex
@@ -728,6 +752,13 @@ class GameEngine {
         this.trust = snapshot.trust ?? this.trust;
         this.gameState = snapshot.gameState === 'gameover' ? 'playing' : snapshot.gameState;
         this.plannedPath = snapshot.plannedPath || [];
+        this.realtimeMode = Boolean(snapshot.realtimeMode);
+        this.realtimePaused = Boolean(snapshot.realtimePaused);
+        this.realtimeLastTick = null;
+        this.playerCooldownRemaining = snapshot.playerCooldownRemaining ?? 0;
+        this.bufferedMoveCell = snapshot.bufferedMoveCell ?? null;
+        this.realtimeAIClocks = JSON.parse(JSON.stringify(snapshot.realtimeAIClocks || {}));
+        this.realtimeEdges = JSON.parse(JSON.stringify(snapshot.realtimeEdges || { player: null, ai: {} }));
         this.lastFailure = snapshot.lastFailure || null;
         this.eventLog = (snapshot.eventLog || []).map(event => ({ ...event }));
         this.currentLevelIndex = snapshot.currentLevelIndex ?? this.currentLevelIndex;
@@ -748,6 +779,15 @@ class GameEngine {
 
     skipTurn() {
         if (this.gameState !== 'playing') return;
+        if (this.realtimeMode) {
+            this.recordEvent('wait', { cooldown: this.playerCooldownRemaining });
+            this.playerCooldownRemaining = Math.max(this.playerCooldownRemaining, this.playerMoveCooldownMs * 0.45);
+            this.bufferedMoveCell = null;
+            this.playFeel('routeTick');
+            this.showFeel('原地稳住半拍', 'info');
+            this.updateUI();
+            return;
+        }
         this.pushHistory('skip');
         this.recordEvent('skip', { apBefore: this.playerAP });
         this.playerAP = 0;
@@ -896,8 +936,302 @@ class GameEngine {
         if (this.toolMode === 'patch') return this.placePatch(cellId);
         if (this.toolMode === 'beacon') return this.placeBeacon(cellId);
         if (this.toolMode === 'break') return this.placeBreak(cellId);
+        if (this.realtimeMode) return this.requestRealtimeMove(cellId);
         this.appendPathCell(cellId);
         return true;
+    }
+
+    setRealtimeMode(enabled) {
+        this.realtimeMode = Boolean(enabled);
+        this.clearPlannedPath();
+        this.resetRealtimeState();
+        if (this.realtimeMode) {
+            this.primeRealtimeClocks();
+            this.realtimeLastTick = this.nowMs();
+        }
+        this.updateUI();
+    }
+
+    startRealtime() {
+        if (!this.realtimeMode) this.setRealtimeMode(true);
+        this.realtimePaused = false;
+        this.realtimeLastTick = this.nowMs();
+        this.primeRealtimeClocks();
+    }
+
+    stopRealtime() {
+        this.realtimePaused = true;
+        this.realtimeLastTick = null;
+    }
+
+    setRealtimePaused(paused) {
+        this.realtimePaused = Boolean(paused);
+        this.realtimeLastTick = this.realtimePaused ? null : this.nowMs();
+    }
+
+    nowMs() {
+        if (typeof performance !== 'undefined' && performance.now) return performance.now();
+        return Date.now();
+    }
+
+    getRealtimeTimeScale() {
+        if (this.realtimePaused || this.gameState !== 'playing') return 0;
+        if (typeof window !== 'undefined' && window.renderEngine?.interactionMode === 'twist') return 0.2;
+        return 1;
+    }
+
+    primeRealtimeClocks() {
+        this.ais.forEach(ai => {
+            if (!this.realtimeAIClocks[ai.id]) {
+                this.realtimeAIClocks[ai.id] = {
+                    intervalMs: this.getAIRealtimeIntervalMs(ai),
+                    remainingMs: this.getAIRealtimeIntervalMs(ai),
+                    nextCell: this.computeAIMovement(ai)
+                };
+            }
+        });
+    }
+
+    getAIRealtimeIntervalMs(ai) {
+        const difficulty = Number(this.currentLevel?.difficulty || 3);
+        const base = difficulty <= 3 ? 2500 : (difficulty <= 7 ? 1500 : 900);
+        if (ai.type === 'guardian' && this.hasKey) return Math.max(700, base * 0.72);
+        if (ai.type === 'ambusher') return Math.max(750, base * 0.82);
+        return base;
+    }
+
+    requestRealtimeMove(targetId) {
+        if (this.gameState !== 'playing') return false;
+        if (targetId === this.playerPos) return false;
+        if (!this.isWalkableForPlayer(targetId)) {
+            this.playFeel('invalid');
+            this.showFeel(this.isVoidCell(targetId) ? '这里是缺口，先铺补片' : '这格不能落脚', 'warn');
+            return false;
+        }
+        if (!this.isAdjacent(this.playerPos, targetId)) {
+            this.playFeel('invalid');
+            this.showFeel('实时模式只接相邻格。别隔空指挥，我会怀疑你也在掉帧。', 'warn');
+            return false;
+        }
+        if (this.playerCooldownRemaining > 0) {
+            this.bufferedMoveCell = targetId;
+            this.playFeel('routeTick');
+            this.showFeel('已预输入下一步', 'info');
+            this.updateUI();
+            return true;
+        }
+        return this.movePlayerRealtime(targetId);
+    }
+
+    movePlayerRealtime(targetId) {
+        if (this.gameState !== 'playing') return false;
+        const fromCell = this.playerPos;
+        if (!this.isAdjacent(fromCell, targetId) || !this.isWalkableForPlayer(targetId)) return false;
+        this.pushHistory('realtimeMove');
+        this.playerLastPos = fromCell;
+        this.playerPos = targetId;
+        this.playerCooldownRemaining = this.playerMoveCooldownMs;
+        this.realtimeEdges.player = {
+            from: fromCell,
+            to: targetId,
+            remainingMs: this.playerMoveCooldownMs,
+            durationMs: this.playerMoveCooldownMs
+        };
+        this.recordEvent('playerMove', {
+            from: fromCell,
+            to: targetId,
+            remainingAP: 'realtime',
+            usedBridge: this.isBridgeStep(fromCell, targetId)
+        });
+        this.playFeel(this.isBridgeStep(fromCell, targetId) ? 'bridgeStep' : 'playerStep');
+        this.consumePatchBehind(fromCell, targetId);
+        this.checkKeyCollection();
+        if (typeof window !== 'undefined' && window.renderEngine) {
+            window.renderEngine.movePlayer(targetId);
+            window.renderEngine.drawPlannedPath([]);
+            window.renderEngine.spawnCellPulse(targetId, '#8bdcff', 0.45);
+        }
+        this.checkCollisions();
+        this.updateUI();
+        return true;
+    }
+
+    consumePatchBehind(fromCell, toCell) {
+        if (!this.activePatchCells.has(fromCell)) return;
+        this.activePatchCells.delete(fromCell);
+        this.recordEvent('patchBroken', { at: fromCell, afterStepTo: toCell });
+        this.playFeel('patchBreak');
+        this.showFeel('补片碎了。好消息：它很听话；坏消息：一次性的。', 'warn');
+        if (typeof window !== 'undefined' && window.renderEngine) {
+            window.renderEngine.spawnCellPulse(fromCell, '#8bdcff', 1.35);
+            window.renderEngine.spawnEntities3D();
+        }
+    }
+
+    updateRealtime(now = this.nowMs()) {
+        if (!this.realtimeMode) return;
+        if (this.gameState !== 'playing') {
+            this.realtimeLastTick = now;
+            return;
+        }
+        const scale = this.getRealtimeTimeScale();
+        if (scale <= 0) {
+            this.realtimeLastTick = now;
+            return;
+        }
+        if (this.realtimeLastTick === null) {
+            this.realtimeLastTick = now;
+            return;
+        }
+        const rawDelta = Math.max(0, Math.min(120, now - this.realtimeLastTick));
+        this.realtimeLastTick = now;
+        const deltaMs = rawDelta * scale;
+
+        this.tickRealtimePlayer(deltaMs);
+        this.tickRealtimeAI(deltaMs);
+        Object.keys(this.realtimeEdges.ai || {}).forEach(aiId => {
+            const edge = this.realtimeEdges.ai[aiId];
+            if (!edge) return;
+            edge.remainingMs = Math.max(0, edge.remainingMs - deltaMs);
+            if (edge.remainingMs <= 0) delete this.realtimeEdges.ai[aiId];
+        });
+        this.checkRealtimeCollisions();
+    }
+
+    tickRealtimePlayer(deltaMs) {
+        if (this.playerCooldownRemaining > 0) {
+            this.playerCooldownRemaining = Math.max(0, this.playerCooldownRemaining - deltaMs);
+            if (this.realtimeEdges.player) {
+                this.realtimeEdges.player.remainingMs = Math.max(0, this.realtimeEdges.player.remainingMs - deltaMs);
+                if (this.realtimeEdges.player.remainingMs <= 0) this.realtimeEdges.player = null;
+            }
+        }
+        if (this.playerCooldownRemaining <= 0 && this.bufferedMoveCell !== null) {
+            const buffered = this.bufferedMoveCell;
+            this.bufferedMoveCell = null;
+            this.requestRealtimeMove(buffered);
+        }
+    }
+
+    tickRealtimeAI(deltaMs) {
+        this.primeRealtimeClocks();
+        this.ais.forEach(ai => {
+            const clock = this.realtimeAIClocks[ai.id];
+            if (!clock) return;
+            clock.intervalMs = this.getAIRealtimeIntervalMs(ai);
+            clock.remainingMs -= deltaMs;
+            let safety = 0;
+            while (clock.remainingMs <= 0 && safety < 2 && this.gameState === 'playing') {
+                this.moveAIRealtime(ai);
+                clock.remainingMs += clock.intervalMs;
+                safety++;
+            }
+            clock.nextCell = this.computeAIMovement(ai);
+        });
+    }
+
+    moveAIRealtime(ai) {
+        const fromCell = ai.pos;
+        const nextCell = this.computeAIMovement(ai);
+        if (nextCell === null || nextCell === fromCell) return false;
+        ai.pos = nextCell;
+        this.realtimeEdges.ai[ai.id] = {
+            from: fromCell,
+            to: nextCell,
+            remainingMs: Math.min(420, this.getAIRealtimeIntervalMs(ai) * 0.35),
+            durationMs: Math.min(420, this.getAIRealtimeIntervalMs(ai) * 0.35)
+        };
+        this.recordEvent('aiMove', {
+            aiId: ai.id,
+            aiType: ai.type,
+            aiState: ai.state,
+            from: fromCell,
+            to: nextCell,
+            stepIndex: 1,
+            stepBudget: 1,
+            distanceBefore: this.distanceBetween(fromCell, this.playerPos),
+            distanceAfter: this.distanceBetween(nextCell, this.playerPos),
+            target: this.getAIPreviewTarget({ ...ai })
+        });
+        this.playFeel(ai.type === 'guardian' && ai.state === 'rage' ? 'guardianRage' : 'enemyStep');
+        if (typeof window !== 'undefined' && window.renderEngine) {
+            window.renderEngine.moveAI(ai.id, nextCell);
+            window.renderEngine.spawnCellPulse(nextCell, ai.color || '#ff0055', 0.75);
+        }
+        if (this.beaconCell !== null && nextCell === this.beaconCell) {
+            this.recordEvent('beaconTriggered', { at: this.beaconCell, aiId: ai.id, aiType: ai.type });
+            this.playFeel('beaconTrigger');
+            this.beaconCell = null;
+            this.beaconTTL = 0;
+            this.showFeel('诱饵被吃掉了', 'warn');
+            if (typeof window !== 'undefined' && window.renderEngine) window.renderEngine.spawnEntities3D();
+        }
+        this.checkCollisions();
+        this.updateUI();
+        return true;
+    }
+
+    checkRealtimeCollisions() {
+        if (this.gameState !== 'playing') return;
+        const crossing = this.ais.find(ai => {
+            const aiEdge = this.realtimeEdges.ai?.[ai.id];
+            const playerEdge = this.realtimeEdges.player;
+            return aiEdge && playerEdge
+                && aiEdge.from === playerEdge.to
+                && aiEdge.to === playerEdge.from;
+        });
+        if (crossing) {
+            this.triggerGameOver(crossing);
+            return;
+        }
+
+        if (typeof window !== 'undefined' && window.renderEngine?.getRealtimeEntityDistance) {
+            const caught = this.ais.find(ai => {
+                const distance = window.renderEngine.getRealtimeEntityDistance(ai.id);
+                return Number.isFinite(distance) && distance < 0.8;
+            });
+            if (caught) {
+                this.triggerGameOver(caught);
+                return;
+            }
+        }
+
+        this.checkCollisions();
+    }
+
+    getRealtimeVisualState() {
+        const precision = Math.max(0, Math.min(2, Number(
+            typeof window !== 'undefined' ? window.dawnCubeSettings?.precision : 1
+        )));
+        const format = (ms) => {
+            const seconds = Math.max(0, ms || 0) / 1000;
+            return precision === 0 ? String(Math.ceil(seconds)) : seconds.toFixed(precision);
+        };
+        const playerProgress = 1 - (this.playerCooldownRemaining / this.playerMoveCooldownMs);
+        return {
+            player: {
+                remainingMs: this.playerCooldownRemaining,
+                progress: Math.max(0, Math.min(1, playerProgress)),
+                label: this.playerCooldownRemaining > 0 ? format(this.playerCooldownRemaining) : 'GO'
+            },
+            ais: this.ais.map(ai => {
+                const clock = this.realtimeAIClocks[ai.id] || {
+                    intervalMs: this.getAIRealtimeIntervalMs(ai),
+                    remainingMs: this.getAIRealtimeIntervalMs(ai),
+                    nextCell: this.computeAIMovement(ai)
+                };
+                const progress = 1 - (clock.remainingMs / Math.max(1, clock.intervalMs));
+                return {
+                    id: ai.id,
+                    color: ai.color || '#ff0055',
+                    remainingMs: clock.remainingMs,
+                    intervalMs: clock.intervalMs,
+                    progress: Math.max(0, Math.min(1, progress)),
+                    label: format(clock.remainingMs),
+                    nextCell: clock.nextCell
+                };
+            })
+        };
     }
 
     appendPathCell(targetId) {
@@ -1804,22 +2138,36 @@ class GameEngine {
             tutorialSticker.innerText = tutorial.icon || '➜';
         }
         if (tutorialCue) {
-            tutorialCue.innerText = tutorial.cue || '看图行动';
+            tutorialCue.innerText = this.textOf(tutorial.cue) || '看图行动';
         }
         if (routeTip) {
             routeTip.innerText = this.getCurrentRouteTip();
         }
         this.updateTutorialHelper();
 
-        document.getElementById('turn-count').innerText = this.turn;
-        document.getElementById('ap-display').innerText = `${this.playerAP} / ${this.maxAP}`;
-        document.getElementById('ap-bar-fill').style.width = `${(this.playerAP / this.maxAP) * 100}%`;
+        const turnCountEl = document.getElementById('turn-count');
+        const apDisplayEl = document.getElementById('ap-display');
+        const apBarEl = document.getElementById('ap-bar-fill');
+        if (turnCountEl) turnCountEl.innerText = this.realtimeMode ? 'RT' : this.turn;
+        if (apDisplayEl) {
+            apDisplayEl.innerText = this.realtimeMode
+                ? (this.playerCooldownRemaining > 0
+                    ? `${(this.playerCooldownRemaining / 1000).toFixed(1)}s`
+                    : 'READY')
+                : `${this.playerAP} / ${this.maxAP}`;
+        }
+        if (apBarEl) {
+            const fill = this.realtimeMode
+                ? (1 - this.playerCooldownRemaining / this.playerMoveCooldownMs)
+                : (this.playerAP / this.maxAP);
+            apBarEl.style.width = `${Math.max(0, Math.min(1, fill)) * 100}%`;
+        }
         document.getElementById('rotation-charge').innerText = '1 AP';
         document.getElementById('trust-display') && (document.getElementById('trust-display').innerText = this.trust);
         document.getElementById('console-trust-display') && (document.getElementById('console-trust-display').innerText = this.trust);
         document.getElementById('console-rotation-display') && (document.getElementById('console-rotation-display').innerText = this.rotationsUsed);
-        document.getElementById('console-turn-display') && (document.getElementById('console-turn-display').innerText = this.turn);
-        document.getElementById('console-ap-display') && (document.getElementById('console-ap-display').innerText = `${this.playerAP} / ${this.maxAP}`);
+        document.getElementById('console-turn-display') && (document.getElementById('console-turn-display').innerText = this.realtimeMode ? '实时' : this.turn);
+        document.getElementById('console-ap-display') && (document.getElementById('console-ap-display').innerText = this.realtimeMode ? '移动 CD' : `${this.playerAP} / ${this.maxAP}`);
         document.getElementById('esc-level-title') && (document.getElementById('esc-level-title').innerText = this.textOf(this.currentLevel?.title) || '当前残局');
         document.getElementById('esc-level-desc') && (document.getElementById('esc-level-desc').innerText = this.textOf(this.currentLevel?.concept) || this.getCurrentGoalText());
 
@@ -1868,7 +2216,12 @@ class GameEngine {
         if (trackerClearBtn) {
             trackerClearBtn.disabled = this.trackerCell === null || this.trackerCell === undefined;
         }
-        document.getElementById('btn-end-turn')?.classList.toggle('is-hidden', !hasThreats);
+        document.getElementById('btn-confirm-path')?.classList.toggle('is-hidden', this.realtimeMode);
+        const endTurnBtn = document.getElementById('btn-end-turn');
+        endTurnBtn?.classList.toggle('is-hidden', !hasThreats && !this.realtimeMode);
+        if (endTurnBtn) {
+            endTurnBtn.innerText = this.realtimeMode ? '待命' : (window.t?.('phone.skip') || '跳过');
+        }
         document.getElementById('threat-panel')?.classList.toggle('is-hidden', !hasThreats);
 
         const keyText = document.getElementById('obj-key-text');
@@ -2026,17 +2379,21 @@ class GameEngine {
 
         const finalCell = this.plannedPath[this.plannedPath.length - 1];
         const endsOnPatch = this.plannedPath.length > 0 && this.isActivePatchCell(finalCell);
-        confirmBtn.disabled = this.plannedPath.length === 0 || this.playerAP <= 0 || endsOnPatch;
-        confirmBtn.innerText = this.plannedPath.length > 0
+        confirmBtn.disabled = this.realtimeMode || this.plannedPath.length === 0 || this.playerAP <= 0 || endsOnPatch;
+        confirmBtn.innerText = this.realtimeMode
+            ? '直控中'
+            : (this.plannedPath.length > 0
             ? (endsOnPatch ? '别停补片' : `发送 ${this.plannedPath.length}AP`)
-            : '发送路线';
+            : '发送路线');
         const previewEl = document.getElementById('route-command-preview');
         if (previewEl) {
             const commandCells = [this.playerPos, ...this.plannedPath]
                 .map(cellId => this.describeCell(cellId));
-            previewEl.innerText = this.plannedPath.length > 0
+            previewEl.innerText = this.realtimeMode
+                ? `当前位置：${this.describeCell(this.playerPos)} · 蓝圈=下一步可走`
+                : (this.plannedPath.length > 0
                 ? `走向：${commandCells.join(' -> ')}`
-                : '走向：未规划';
+                : '走向：未规划');
         }
 
         if (undoBtn) {

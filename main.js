@@ -948,10 +948,10 @@ document.addEventListener('DOMContentLoaded', () => {
         render.setInteractionMode?.(twistMode ? 'twist' : 'route');
         if (twistMode) {
             game.clearPlannedPath();
-            feel.note('Twist 模式：拖拽魔方面拧当前层', 'info');
+            feel.note('空间折叠：拖拽魔方面拧当前层，世界流速放慢', 'info');
         } else {
             render.clearLayerHighlight?.();
-            feel.note('路线模式：在 3D 表面画路', 'info');
+            feel.note(game.realtimeMode ? '直控模式：点击相邻格移动' : '路线模式：在 3D 表面画路', 'info');
         }
     }
 
@@ -961,6 +961,7 @@ document.addEventListener('DOMContentLoaded', () => {
             : Boolean(force);
         escConsole?.classList.toggle('active', shouldOpen);
         escConsole?.setAttribute('aria-hidden', String(!shouldOpen));
+        game.setRealtimePaused?.(shouldOpen);
         if (shouldOpen) {
             game.updateUI();
             audio.play('uiConfirm');
@@ -1023,6 +1024,7 @@ document.addEventListener('DOMContentLoaded', () => {
         listeningKeybindAction = null;
         settingsOverlay?.classList.add('active');
         settingsOverlay?.setAttribute('aria-hidden', 'false');
+        game.setRealtimePaused?.(true);
         renderSettingsPanel();
         audio.play('uiConfirm');
     }
@@ -1031,6 +1033,7 @@ document.addEventListener('DOMContentLoaded', () => {
         listeningKeybindAction = null;
         settingsOverlay?.classList.remove('active');
         settingsOverlay?.setAttribute('aria-hidden', 'true');
+        game.setRealtimePaused?.(escConsole?.classList.contains('active'));
         renderSettingsPanel();
     }
 
@@ -1047,8 +1050,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
     function triggerWaitKeybind() {
         if (!isGameActive || render.isAnimating || game.gameState !== 'playing') return false;
-        feel.note('原地待命，敌人行动', 'danger');
-        feel.flashScreen('danger');
+        feel.note(game.realtimeMode ? '原地稳住半拍' : '原地待命，敌人行动', game.realtimeMode ? 'info' : 'danger');
+        if (!game.realtimeMode) feel.flashScreen('danger');
         game.skipTurn();
         return true;
     }
@@ -1118,6 +1121,8 @@ document.addEventListener('DOMContentLoaded', () => {
         isGameActive = true;
 
         game.initLevel(selectedLevelIndex);
+        game.setRealtimeMode?.(true);
+        game.startRealtime?.();
         renderLevelComms(selectedLevelIndex);
         syncArchiveForLevelStart(selectedLevelIndex);
         updateLayerDropdown(game.N);
@@ -1132,6 +1137,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
     function resetCurrentLevel() {
         game.initLevel(game.currentLevelIndex);
+        game.setRealtimeMode?.(true);
+        game.startRealtime?.();
         render.buildCube3D();
         render.spawnEntities3D();
         render.resetCamera?.();
@@ -1147,6 +1154,7 @@ document.addEventListener('DOMContentLoaded', () => {
         gameContainer.classList.add('preplay-stage');
         gameoverOverlay.classList.remove('active', 'jump-alert');
         victoryOverlay.classList.remove('active');
+        game.stopRealtime?.();
         setupOverlay.classList.add('active');
         landingOverlay?.classList.remove('active');
         render.setPresentationMode?.('constellation');
@@ -1317,6 +1325,10 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 
     btnConfirmPath.addEventListener('click', () => {
+        if (game.realtimeMode) {
+            feel.note('实时模式不用发送路线，直接点相邻格。', 'info');
+            return;
+        }
         if (!render.isAnimating) {
             feel.pulse(btnConfirmPath, 'good');
             appendRouteBubble();
