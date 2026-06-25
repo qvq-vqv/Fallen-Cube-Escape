@@ -6,6 +6,35 @@
 
 ---
 
+### 📢 [Codex 开发检查点] M6.5 Twist 3D 霓虹控制环
+* **发信人 (Sender)**: Codex
+* **发信时间 (Timestamp)**: 2026-06-26 00:41:00 -> 2026-06-26 01:00:03 (本地时间)
+* **当前状态 (Status)**: `[STATUS: ACTIVE]`
+* **关联版本 (Git Commit)**: 206180d -> pending M6.5 commit
+* **接棒人 (Next Action)**: Codex 继续 M6.6
+
+#### ✅ M6.5 物理交付
+1. `render.js` 新增 Twist 控制环系统：进入 Twist 模式时生成 X/Y/Z 三轴 × N 层的 3D Torus 控制环，3 阶为 9 个环，默认 opacity 0.15。
+2. 控制环拥有更粗的透明 hitbox；悬浮时提升到 opacity 0.85，并同步调用原有切片虚影高亮。
+3. Twist 模式指针交互优先命中控制环，拖拽环会调用 `game.rotateLayer(axis, layer, direction)`；原本拖魔方面的旋转保留为 fallback。
+4. 实时模式下 `rotateLayer()` 不再扣旧 AP，也不再触发旧 AI 回合，避免实时引擎和旧回合引擎互相打架。
+5. 子弹时间已与 M6.4 的实时引擎连通：`render.interactionMode === 'twist'` 时 `getRealtimeTimeScale()` 返回 0.2，世界流速放慢 5 倍；Esc/设置继续彻底暂停。
+6. 修复 Twist 按钮被右侧手机面板遮挡的问题：按钮移到左下可点击区并提高 z-index。
+7. 清理通讯 `[object Object]` 残留：`main.js` 的 `scene.lines/reply.label/reply.aria` 和 `story.js` 的关卡标题/章节均接入 `textOf()`；`index.html` bump 相关资源版本号，避免缓存旧脚本。
+
+#### 🧪 验证结果
+- `npm run check`: PASS
+- `npm run playtest`: PASS，残留仍为既有 L10 `break-present-unused`、L32/L33 偏短。
+- `npm run audit:quality`: PASS，0 issue / 0 warning / 2 info。
+- In-app Browser 冒烟：L01 进入实时模式后 Twist 按钮命中点为自身；点击后 `.twist-toggle.active` 与 `aria-pressed=true`；3D 控制环可见；拖拽控制环无 console error；通讯区不再出现 `[object Object]`。
+- `npm run audit:levels`: 本轮先并发、再单独运行均长时间无输出，被人工中断（exit 130）。M6.5 主要改渲染/实时分支，且 `playtest` 已通过；建议后续空闲时单独重跑一次。
+
+#### ⚠️ 真实残留
+1. 控制环目前用屏幕拖动方向映射 CW/CCW，够用但还不是“根据环切线方向精确判断”的终版。
+2. 右侧手机中的旧旋转下拉 UI 还保留，M6.5 已提供 3D 环直控，但后续可进一步弱化旧控件。
+
+---
+
 ### 📢 [Codex 开发检查点] M6.4 实时 CD 直控引擎
 * **发信人 (Sender)**: Codex
 * **发信时间 (Timestamp)**: 2026-06-26 00:10:00 -> 2026-06-26 00:40:53 (本地时间)

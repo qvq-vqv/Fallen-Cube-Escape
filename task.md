@@ -35,11 +35,13 @@
   - [x] 修复星图页被非 active landing panel 拦截点击的层级 bug。
   - [x] *Git Checkpoint*：`feat(engine): transition to real-time grid movement, click cooldowns, and entity visual timer rings`
 
-- [ ] **M6.5 Twist 模式子弹时间与 3D 霓虹控制环 (Bullet Time & 3D Neon Rings)**
-  - [ ] 在 Twist 旋转模式下，在 3D 魔方外包裹渲染出 X/Y/Z 三个轴向、3 组 × 3 层共 9 个彩色半透（opacity: 0.15）圆环。
-  - [ ] 圆环设置较大的鼠标 Hitbox。鼠标悬浮时高亮（opacity 达 0.85）并显示对应切片虚影，直接拖拽圆环即可物理拧层。
-  - [ ] 子弹时间：在 Twist 模式下，整个游戏世界的流速（包括怪物移动速度）放慢 5 倍。当呼出 Esc/设置界面时彻底暂停。
-  - [ ] *Git Checkpoint*：`feat(control): implement 3D neon axis rings and bullet time slow-down during twist mode`
+- [x] **M6.5 Twist 模式子弹时间与 3D 霓虹控制环 (Bullet Time & 3D Neon Rings)**
+  - [x] 在 Twist 旋转模式下，在 3D 魔方外包裹渲染出 X/Y/Z 三个轴向、3 组 × 3 层共 9 个彩色半透（opacity: 0.15）圆环。
+  - [x] 圆环设置较大的鼠标 Hitbox。鼠标悬浮时高亮（opacity 达 0.85）并显示对应切片虚影，直接拖拽圆环即可物理拧层。
+  - [x] 子弹时间：在 Twist 模式下，整个游戏世界的流速（包括怪物移动速度）放慢 5 倍。当呼出 Esc/设置界面时彻底暂停。
+  - [x] 修复 Twist 浮动按钮被右侧手机面板遮挡导致无法点击的问题。
+  - [x] 修复本地化缓存与通讯 `[object Object]` 残留：更新脚本版本查询串，并补齐 `textOf()` 读取。
+  - [x] *Git Checkpoint*：`feat(control): implement 3D neon axis rings and bullet time slow-down during twist mode`
 
 - [ ] **M6.6 3 秒倒流悔棋机制 (3-Second Rollback Undo)**
   - [ ] 彻底抛弃传统回合退步，改写为实时环形历史状态缓冲区。

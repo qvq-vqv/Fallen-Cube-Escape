@@ -66,6 +66,8 @@ class RenderEngine {
         this.cameraFlight = null;
         this.presentationLookAt = new THREE.Vector3(0, 0, 0);
         this.threatPreviewMeshes = {};
+        this.twistRingMeshes = [];
+        this.hoveredTwistRing = null;
     }
 
     // 初始化 3D 场景
@@ -213,34 +215,45 @@ class RenderEngine {
         }
         if (this.interactionMode !== 'twist') {
             this.clearLayerHighlight();
+            this.clearTwistControlRings();
+        } else {
+            this.ensureTwistControlRings();
         }
     }
 
     handleBoardPointerDown(event) {
         if (!this.game || this.isAnimating) return;
+        const ringHit = this.interactionMode === 'twist' ? this.pickTwistRing(event) : null;
         const cellId = this.pickBoardCell(event);
         this.pointerDown = {
             x: event.clientX,
             y: event.clientY,
             cellId,
-            mode: this.interactionMode
+            mode: this.interactionMode,
+            twistRing: ringHit
         };
         this.pointerLastCell = cellId;
         if (this.renderer?.domElement?.setPointerCapture) {
             this.renderer.domElement.setPointerCapture(event.pointerId);
         }
-        if (this.interactionMode === 'twist' && cellId !== null && cellId !== undefined) {
+        if (this.interactionMode === 'twist') {
             event.preventDefault();
             if (this.controls) this.controls.enabled = false;
-            const layer = this.getTwistLayerFromCell(cellId);
+            const layer = ringHit || this.getTwistLayerFromCell(cellId);
             if (layer) this.highlightLayer(layer.axis, layer.layer);
         }
     }
 
     handleBoardPointerMove(event) {
         if (!this.game || this.isAnimating) return;
-        const cellId = this.pickBoardCell(event);
         if (this.interactionMode === 'twist') {
+            const ringHit = this.pickTwistRing(event);
+            this.setHoveredTwistRing(ringHit);
+            if (ringHit) {
+                this.highlightLayer(ringHit.axis, ringHit.layer);
+                return;
+            }
+            const cellId = this.pickBoardCell(event);
             if (cellId !== this.hoveredCellId) {
                 this.hoveredCellId = cellId;
                 const layer = this.getTwistLayerFromCell(cellId);
@@ -249,6 +262,7 @@ class RenderEngine {
             return;
         }
 
+        const cellId = this.pickBoardCell(event);
         if (!this.pointerDown || this.pointerDown.mode !== 'route') return;
         this.pointerLastCell = cellId;
     }
@@ -266,8 +280,8 @@ class RenderEngine {
             this.controls.enabled = true;
         }
 
-        if (down.mode === 'twist' && down.cellId !== null && down.cellId !== undefined && moved > 10) {
-            const layer = this.getTwistLayerFromCell(down.cellId);
+        if (down.mode === 'twist' && moved > 10) {
+            const layer = down.twistRing || this.getTwistLayerFromCell(down.cellId);
             if (!layer) return;
             const dx = event.clientX - down.x;
             const dy = event.clientY - down.y;
@@ -305,6 +319,103 @@ class RenderEngine {
             axis,
             layer: Math.min(this.game.N - 1, Math.max(0, idx))
         };
+    }
+
+    ensureTwistControlRings() {
+        if (this.renderMode === 'fallback' || !this.scene || !this.game || !this.game.rotationEnabled) return;
+        if (this.twistRingMeshes.length) return;
+        const axisConfigs = [
+            { axis: 'X', color: 0xff2d73, normal: new THREE.Vector3(1, 0, 0) },
+            { axis: 'Y', color: 0x00f0ff, normal: new THREE.Vector3(0, 1, 0) },
+            { axis: 'Z', color: 0xbd00ff, normal: new THREE.Vector3(0, 0, 1) }
+        ];
+        const N = this.game.N;
+        const H = (N - 1) / 2;
+        const radius = this.getCubletSize() * (N * 0.66 + 0.5);
+        axisConfigs.forEach(config => {
+            for (let layer = 0; layer < N; layer++) {
+                const coord = (layer - H) * 2;
+                const group = new THREE.Group();
+                const visible = new THREE.Mesh(
+                    new THREE.TorusGeometry(radius, 0.018, 8, 96),
+                    new THREE.MeshBasicMaterial({
+                        color: config.color,
+                        transparent: true,
+                        opacity: 0.15,
+                        depthWrite: false,
+                        blending: THREE.AdditiveBlending
+                    })
+                );
+                const hitbox = new THREE.Mesh(
+                    new THREE.TorusGeometry(radius, 0.18, 8, 72),
+                    new THREE.MeshBasicMaterial({
+                        color: config.color,
+                        transparent: true,
+                        opacity: 0,
+                        depthWrite: false
+                    })
+                );
+                const axisVector = config.normal.clone();
+                group.quaternion.setFromUnitVectors(new THREE.Vector3(0, 0, 1), axisVector);
+                group.position.copy(axisVector.multiplyScalar(coord));
+                group.add(visible);
+                group.add(hitbox);
+                group.userData.twistRing = {
+                    axis: config.axis,
+                    layer,
+                    visible,
+                    hitbox,
+                    baseOpacity: 0.15,
+                    hoverOpacity: 0.85,
+                    color: config.color
+                };
+                visible.userData.twistRingHost = group;
+                hitbox.userData.twistRingHost = group;
+                this.scene.add(group);
+                this.twistRingMeshes.push(group);
+            }
+        });
+    }
+
+    clearTwistControlRings() {
+        if (!this.twistRingMeshes?.length) return;
+        this.twistRingMeshes.forEach(group => {
+            this.scene?.remove(group);
+            this.disposeObject(group);
+        });
+        this.twistRingMeshes = [];
+        this.hoveredTwistRing = null;
+    }
+
+    pickTwistRing(event) {
+        if (!this.raycaster || !this.pointer || !this.camera || !this.renderer || !this.twistRingMeshes.length) return null;
+        const rect = this.renderer.domElement.getBoundingClientRect();
+        this.pointer.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
+        this.pointer.y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
+        this.raycaster.setFromCamera(this.pointer, this.camera);
+        const hitboxes = this.twistRingMeshes
+            .map(group => group.userData.twistRing?.hitbox)
+            .filter(Boolean);
+        const hit = this.raycaster.intersectObjects(hitboxes, false)[0];
+        const host = hit?.object?.userData?.twistRingHost;
+        if (!host?.userData?.twistRing) return null;
+        return {
+            axis: host.userData.twistRing.axis,
+            layer: host.userData.twistRing.layer,
+            host
+        };
+    }
+
+    setHoveredTwistRing(ringHit) {
+        const host = ringHit?.host || null;
+        if (host === this.hoveredTwistRing) return;
+        this.twistRingMeshes.forEach(group => {
+            const data = group.userData.twistRing;
+            if (!data?.visible) return;
+            data.visible.material.opacity = group === host ? data.hoverOpacity : data.baseOpacity;
+            data.visible.scale.setScalar(group === host ? 1.025 : 1);
+        });
+        this.hoveredTwistRing = host;
     }
 
     pickBoardCell(event) {
@@ -847,6 +958,7 @@ class RenderEngine {
 
         const N = this.game.N;
         const cubletSize = this.getCubletSize(); // 子方块边长
+        this.clearTwistControlRings();
         
         // 材质库 (黑色底座 + 半透霓虹贴面)
         const createFaceMaterial = (colorHex, faceId) => {
@@ -957,6 +1069,9 @@ class RenderEngine {
                     this.cublets.push(mesh);
                 }
             }
+        }
+        if (this.interactionMode === 'twist') {
+            this.ensureTwistControlRings();
         }
     }
 

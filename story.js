@@ -250,6 +250,13 @@
         return Math.max(min, Math.min(max, value));
     }
 
+    function textOf(value) {
+        if (value && typeof value === 'object') {
+            return value.zh || value.en || '';
+        }
+        return value ?? '';
+    }
+
     function createState() {
         return {
             tones: { steady: 0, warm: 0, tease: 0 },
@@ -320,7 +327,7 @@
         const suffix = tone === 'tease'
             ? '她嘴上嫌弃，但会继续看你画线。'
             : (tone === 'warm' ? '她会记住你刚才的担心。' : '通讯稳定，先处理残局。');
-        return `${level.title} · ${level.chapter}。${suffix}`;
+        return `${textOf(level.title)} · ${textOf(level.chapter)}。${suffix}`;
     }
 
     function getAmbientBubble({ scene, state, game }) {

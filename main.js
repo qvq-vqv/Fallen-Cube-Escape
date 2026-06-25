@@ -564,7 +564,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
         if (commsStoryLines) {
             commsStoryLines.innerHTML = (scene.lines || [])
-                .map(line => `<p class="comms-line protagonist">${escapeHtml(line)}</p>`)
+                .map(line => `<p class="comms-line protagonist">${escapeHtml(textOf(line))}</p>`)
                 .join('');
         }
         if (commsLiveLine) {
@@ -574,9 +574,9 @@ document.addEventListener('DOMContentLoaded', () => {
         if (commsChoicesEl) {
             commsChoicesEl.innerHTML = commsState.currentChoices
                 .map((reply, index) => `
-                    <button class="terminal-choice kaomoji-choice" type="button" data-comms-choice="${index}" aria-label="${escapeHtml(reply.aria || '颜文字回应')}">
+                    <button class="terminal-choice kaomoji-choice" type="button" data-comms-choice="${index}" aria-label="${escapeHtml(textOf(reply.aria) || '颜文字回应')}">
                         <span class="kaomoji-face">${escapeHtml(reply.face)}</span>
-                        <small>[ ${escapeHtml(reply.label || reply.tone || '回应')} ]</small>
+                        <small>[ ${escapeHtml(textOf(reply.label) || reply.tone || '回应')} ]</small>
                     </button>
                 `)
                 .join('');

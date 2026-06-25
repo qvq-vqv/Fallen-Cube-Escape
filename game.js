@@ -1450,7 +1450,7 @@ class GameEngine {
             this.showFeel('本关暂未引入旋转', 'warn', true);
             return;
         }
-        if (this.playerAP < 1) {
+        if (!this.realtimeMode && this.playerAP < 1) {
             this.playFeel('invalid');
             this.showFeel('Twist 需要 1 AP', 'warn', true);
             return;
@@ -1458,7 +1458,9 @@ class GameEngine {
 
         this.pushHistory('rotate');
         this.playFeel('rotateStart');
-        this.showFeel(`旋转 ${axis} 轴第 ${layerIdx + 1} 层`, 'info');
+        this.showFeel(this.realtimeMode
+            ? `空间折叠 ${axis}${layerIdx + 1}`
+            : `旋转 ${axis} 轴第 ${layerIdx + 1} 层`, 'info');
         this.recordEvent('rotate', {
             axis,
             layer: layerIdx,
@@ -1468,7 +1470,7 @@ class GameEngine {
             exitBefore: this.exitPos,
             trackerBefore: this.trackerCell
         });
-        this.playerAP -= 1;
+        if (!this.realtimeMode) this.playerAP -= 1;
         this.rotationsUsed += 1;
         this.plannedPath = [];
         this.lastInputCell = null;
@@ -1493,7 +1495,7 @@ class GameEngine {
                 window.renderEngine.spawnEntities3D();
             }
 
-            if (this.playerAP === 0 && this.gameState === 'playing') {
+            if (!this.realtimeMode && this.playerAP === 0 && this.gameState === 'playing') {
                 this.triggerAITurn();
             }
         };

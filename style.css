@@ -3408,9 +3408,10 @@ body {
 
 .twist-toggle {
     position: absolute;
-    right: clamp(1rem, 0.75rem + 0.75vw, 1.5rem);
-    bottom: clamp(1rem, 0.75rem + 0.75vw, 1.5rem);
-    z-index: 20;
+    left: clamp(1rem, 0.75rem + 0.75vw, 1.5rem);
+    right: auto;
+    bottom: clamp(5.2rem, 4.6rem + 2vh, 6.4rem);
+    z-index: 70;
     border: 1px solid rgba(255, 183, 0, 0.34);
     border-radius: 999px;
     background: rgba(5, 8, 14, 0.78);
