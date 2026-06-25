@@ -12,9 +12,13 @@ function check() {
   }
   try {
     const content = fs.readFileSync(boardPath, 'utf8');
-    if (content.includes('[STATUS: WAITING_FOR_QA]') || content.includes('[STATUS: WAITING_FOR_PLAN_REVIEW]')) {
-      console.log('Status changed to WAITING_FOR_QA or WAITING_FOR_PLAN_REVIEW. Exiting to wake up Antigravity...');
-      process.exit(0);
+    const match = content.match(/> \*\*当前项目状态\*\*:\s*`\[STATUS:\s*([^\]]+)\]`/);
+    if (match) {
+      const status = match[1].trim();
+      if (status === 'WAITING_FOR_QA' || status === 'WAITING_FOR_PLAN_REVIEW') {
+        console.log(`Status changed to ${status}. Exiting to wake up Antigravity...`);
+        process.exit(0);
+      }
     }
   } catch (err) {
     console.error('Error reading board:', err);

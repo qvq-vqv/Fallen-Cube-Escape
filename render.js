@@ -64,6 +64,7 @@ class RenderEngine {
         this.presentationAngle = 0;
         this.presentationSpeed = 0;
         this.cameraFlight = null;
+        this.presentationLookAt = new THREE.Vector3(0, 0, 0);
     }
 
     // 初始化 3D 场景
@@ -739,15 +740,18 @@ class RenderEngine {
         if (!force) this.presentationAngle += this.presentationSpeed;
         const radius = this.presentationMode === 'landing' ? 16.8 : 15.2;
         const height = this.presentationMode === 'landing' ? 10.4 : 8.8;
+        const lookAt = this.presentationMode === 'landing'
+            ? new THREE.Vector3(1.85, -0.62, 0.45)
+            : new THREE.Vector3(0.65, -0.28, 0.2);
         const angle = this.presentationAngle;
         this.camera.position.set(
-            Math.cos(angle) * radius,
+            Math.cos(angle) * radius + lookAt.x * 0.48,
             height + Math.sin(angle * 0.7) * 0.45,
-            Math.sin(angle) * radius
+            Math.sin(angle) * radius + lookAt.z * 0.48
         );
-        this.camera.lookAt(0, 0, 0);
+        this.camera.lookAt(lookAt);
         if (this.controls) {
-            this.controls.target.set(0, 0, 0);
+            this.controls.target.copy(lookAt);
             this.controls.update();
         }
     }

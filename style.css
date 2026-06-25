@@ -212,11 +212,11 @@ body {
 .landing-overlay {
     z-index: 1080;
     background:
-        radial-gradient(circle at 50% 38%, rgba(0, 240, 255, 0.13), transparent 34%),
-        radial-gradient(circle at 64% 56%, rgba(189, 0, 255, 0.12), transparent 36%),
-        rgba(2, 4, 9, 0.54);
-    backdrop-filter: blur(8px) saturate(165%);
-    -webkit-backdrop-filter: blur(8px) saturate(165%);
+        radial-gradient(circle at 78% 42%, rgba(0, 240, 255, 0.08), transparent 34%),
+        radial-gradient(circle at 88% 62%, rgba(189, 0, 255, 0.1), transparent 38%),
+        linear-gradient(90deg, rgba(2, 4, 9, 0.9) 0%, rgba(2, 4, 9, 0.66) 36%, rgba(2, 4, 9, 0.18) 72%, rgba(2, 4, 9, 0.08) 100%);
+    backdrop-filter: blur(3px) saturate(142%);
+    -webkit-backdrop-filter: blur(3px) saturate(142%);
 }
 
 .landing-overlay.is-fading {
@@ -224,21 +224,16 @@ body {
 }
 
 .landing-panel {
-    width: min(720px, calc(100vw - clamp(1.5rem, 1rem + 4vw, 5rem)));
-    padding: clamp(1.2rem, 0.85rem + 1.8vw, 2.4rem);
+    position: fixed;
+    left: clamp(1rem, 3.4vw, 4.25rem);
+    top: clamp(1rem, 3.1vw, 3.75rem);
+    width: min(38rem, calc(100vw - clamp(2rem, 5vw, 5rem)));
+    padding: clamp(0.35rem, 0.18rem + 0.7vw, 0.9rem) 0;
     display: grid;
-    gap: clamp(0.85rem, 0.65rem + 0.7vw, 1.25rem);
-    justify-items: center;
-    text-align: center;
-    background:
-        linear-gradient(145deg, rgba(255, 255, 255, 0.09), transparent 24%),
-        rgba(4, 8, 15, 0.58);
-    border-color: rgba(0, 240, 255, 0.26);
-    box-shadow:
-        0 30px 80px rgba(0, 0, 0, 0.48),
-        0 10px 24px rgba(0, 0, 0, 0.32),
-        0 0 0 1px rgba(0, 240, 255, 0.12),
-        inset 0 1px 0 rgba(255, 255, 255, 0.22);
+    gap: clamp(0.85rem, 0.58rem + 1.05vw, 1.65rem);
+    justify-items: start;
+    text-align: left;
+    pointer-events: auto;
 }
 
 .landing-kicker {
@@ -251,111 +246,211 @@ body {
 
 .landing-title {
     font-family: var(--font-title);
-    font-size: clamp(2.45rem, 1.5rem + 4.6vw, 5.5rem);
-    line-height: 0.95;
+    font-size: clamp(3.35rem, 1.65rem + 7.1vw, 8.2rem);
+    line-height: 0.78;
     letter-spacing: 0;
     color: #f7fbff;
+    transform: perspective(48rem) rotateX(8deg) rotateY(-18deg) skewX(-4deg);
+    transform-origin: left top;
     text-shadow:
-        0 0 16px rgba(0, 240, 255, 0.32),
-        0 0 42px rgba(189, 0, 255, 0.22);
+        clamp(0.08rem, 0.02rem + 0.22vw, 0.22rem) clamp(0.08rem, 0.02rem + 0.2vw, 0.2rem) 0 rgba(255, 0, 161, 0.5),
+        calc(-1 * clamp(0.08rem, 0.02rem + 0.22vw, 0.22rem)) calc(-1 * clamp(0.04rem, 0.01rem + 0.14vw, 0.14rem)) 0 rgba(0, 240, 255, 0.58),
+        0 0 clamp(1rem, 0.6rem + 1.4vw, 2.4rem) rgba(0, 240, 255, 0.38),
+        0 0 clamp(2rem, 1.2rem + 2.6vw, 4.5rem) rgba(189, 0, 255, 0.28);
     position: relative;
+    filter: drop-shadow(0 clamp(1.1rem, 0.5rem + 2vw, 2.4rem) clamp(1rem, 0.7rem + 1.4vw, 2.4rem) rgba(0, 0, 0, 0.42));
+}
+
+.landing-title-line {
+    display: block;
+    position: relative;
+}
+
+.title-letter {
+    display: inline-grid;
+    place-items: center;
+    width: 0.78em;
+    margin-inline: -0.03em;
+    color: var(--neon-green);
+    text-shadow:
+        0 0 clamp(0.65rem, 0.38rem + 1vw, 1.35rem) rgba(0, 255, 136, 0.55),
+        0 0 clamp(1.4rem, 0.8rem + 1.8vw, 2.9rem) rgba(0, 240, 255, 0.24);
+}
+
+.title-letter-a {
+    color: var(--neon-blue);
+    animation: titlePointerBlink 1.9s steps(2, jump-none) infinite;
+}
+
+.title-letter-u {
+    color: var(--neon-green);
+    font-size: 0.88em;
+    transform: translateY(-0.02em);
 }
 
 .landing-title small {
     display: block;
-    margin-top: clamp(0.35rem, 0.25rem + 0.4vw, 0.65rem);
+    margin-top: clamp(0.55rem, 0.32rem + 0.7vw, 1rem);
     font-family: var(--font-ui);
-    font-size: clamp(1rem, 0.76rem + 0.9vw, 1.55rem);
+    font-size: clamp(1.05rem, 0.72rem + 1.05vw, 1.9rem);
     font-weight: 900;
     letter-spacing: 0.16em;
     color: var(--neon-green);
+    transform: skewX(4deg);
 }
 
-.title-glyph {
+.title-creature {
     position: absolute;
-    display: inline-grid;
-    place-items: center;
-    width: 0.72em;
-    height: 0.72em;
-    color: rgba(255, 255, 255, 0.22);
-    text-shadow: none;
+    display: block;
     pointer-events: none;
 }
 
-.key-glyph {
-    right: 4.85em;
-    top: -0.26em;
+.title-creature-e7 {
+    left: 1.18em;
+    top: -0.2em;
+    width: 0.34em;
+    height: 0.42em;
 }
 
-.door-glyph {
-    right: 1.35em;
-    top: 0.3em;
-}
-
-.title-glyph::after {
+.title-creature-e7::before,
+.title-creature-e7::after {
+    content: '';
     position: absolute;
-    inset: 0;
-    display: grid;
-    place-items: center;
-    font-family: var(--font-data);
-    font-size: 0.48em;
-    color: var(--neon-yellow);
-    text-shadow: 0 0 14px rgba(255, 183, 0, 0.55);
-    animation: landingGlyphPulse 2.2s var(--ease-natural) infinite;
+    top: -0.12em;
+    width: 0;
+    height: 0;
+    border-left: 0.08em solid transparent;
+    border-right: 0.08em solid transparent;
+    border-bottom: 0.14em solid rgba(185, 255, 232, 0.92);
+    filter: drop-shadow(0 0 0.12em rgba(0, 255, 136, 0.8));
 }
 
-.key-glyph::after {
-    content: '◇';
+.title-creature-e7::before {
+    left: 0.02em;
+    transform: rotate(-18deg);
 }
 
-.door-glyph::after {
-    content: '▣';
-    color: var(--neon-green);
-    text-shadow: 0 0 14px rgba(0, 255, 136, 0.5);
-    animation-delay: 0.45s;
+.title-creature-e7::after {
+    right: 0.02em;
+    transform: rotate(18deg);
 }
 
-@keyframes landingGlyphPulse {
+.title-creature-e7 i {
+    position: absolute;
+    inset: 0.08em 0 0;
+    border-radius: 50% 50% 45% 45%;
+    background:
+        radial-gradient(circle at 62% 36%, rgba(255, 0, 161, 0.9) 0 0.035em, transparent 0.04em),
+        radial-gradient(circle at 38% 36%, rgba(0, 240, 255, 0.9) 0 0.035em, transparent 0.04em),
+        linear-gradient(180deg, rgba(221, 255, 245, 0.95), rgba(96, 255, 196, 0.58));
+    box-shadow:
+        0 0 0.18em rgba(0, 255, 136, 0.7),
+        inset 0 0 0.06em rgba(255, 255, 255, 0.8);
+    animation: titlePeek 2.8s var(--ease-elastic) infinite;
+}
+
+.title-creature-chaser {
+    left: 4.28em;
+    top: 0.34em;
+    width: 0.26em;
+    height: 0.26em;
+    border-radius: 42% 58% 48% 52%;
+    background: linear-gradient(145deg, rgba(255, 0, 80, 0.95), rgba(109, 0, 56, 0.62));
+    box-shadow:
+        0 0 0.16em rgba(255, 0, 92, 0.8),
+        0.1em 0.1em 0 rgba(0, 0, 0, 0.3);
+    animation: titleChaserBob 2.1s var(--ease-natural) infinite;
+}
+
+.title-creature-portal {
+    left: 3.1em;
+    top: 0.98em;
+    width: 0.54em;
+    height: 0.3em;
+    border-radius: 50%;
+    border: 0.035em solid rgba(0, 240, 255, 0.8);
+    box-shadow:
+        0 0 0.16em rgba(0, 240, 255, 0.7),
+        inset 0 0 0.12em rgba(255, 183, 0, 0.34);
+    transform: rotate(-18deg);
+    animation: titlePortalPulse 2.4s var(--ease-natural) infinite;
+}
+
+@keyframes titlePointerBlink {
+    0%, 62% {
+        opacity: 1;
+    }
+    63%, 74% {
+        opacity: 0.34;
+    }
+    75%, 100% {
+        opacity: 1;
+    }
+}
+
+@keyframes titlePeek {
+    0%, 100% {
+        transform: translateY(0);
+    }
+    50% {
+        transform: translateY(-0.08em);
+    }
+}
+
+@keyframes titleChaserBob {
+    0%, 100% {
+        transform: translateY(0) scale(1);
+    }
+    50% {
+        transform: translateY(-0.05em) scale(1.08);
+    }
+}
+
+@keyframes titlePortalPulse {
     0%, 100% {
         opacity: 0.58;
         transform: scale(0.95);
     }
     50% {
         opacity: 1;
-        transform: scale(1.08);
+        transform: scale(1.06);
     }
 }
 
 .landing-subtitle {
-    max-width: 48ch;
+    max-width: 34ch;
     color: rgba(226, 232, 240, 0.78);
     font-size: clamp(0.86rem, 0.72rem + 0.35vw, 1rem);
     line-height: 1.65;
+    text-shadow: 0 0 1.2rem rgba(0, 0, 0, 0.72);
 }
 
 .landing-actions {
-    width: min(520px, 100%);
+    width: min(23rem, 78vw);
     display: grid;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
+    grid-template-columns: 1fr;
     gap: clamp(0.55rem, 0.42rem + 0.45vw, 0.85rem);
 }
 
 .landing-btn {
     min-height: clamp(2.8rem, 2.55rem + 0.85vw, 3.35rem);
     border: 1px solid rgba(0, 240, 255, 0.18);
-    border-radius: 10px;
+    border-radius: clamp(0.45rem, 0.32rem + 0.4vw, 0.7rem);
     background:
-        linear-gradient(145deg, rgba(255, 255, 255, 0.08), transparent 55%),
-        rgba(4, 10, 18, 0.76);
+        linear-gradient(145deg, rgba(255, 255, 255, 0.11), transparent 56%),
+        rgba(4, 10, 18, 0.42);
     color: var(--text-color);
     font-family: var(--font-ui);
     font-size: clamp(0.82rem, 0.72rem + 0.32vw, 0.98rem);
     font-weight: 800;
     letter-spacing: 0.04em;
     cursor: pointer;
+    backdrop-filter: blur(18px) saturate(180%);
+    -webkit-backdrop-filter: blur(18px) saturate(180%);
     box-shadow:
-        0 10px 26px rgba(0, 0, 0, 0.22),
-        inset 0 1px 0 rgba(255, 255, 255, 0.12);
+        0 clamp(0.5rem, 0.25rem + 0.9vw, 1.1rem) clamp(1rem, 0.6rem + 1.4vw, 2rem) rgba(0, 0, 0, 0.28),
+        0 0 0 1px rgba(0, 240, 255, 0.08),
+        inset 0 1px 0 rgba(255, 255, 255, 0.16);
     transition:
         border-color var(--motion-base) var(--ease-decisive),
         background var(--motion-base) var(--ease-decisive),
@@ -365,7 +460,6 @@ body {
 }
 
 .landing-btn.primary {
-    grid-column: 1 / -1;
     color: #061018;
     background:
         linear-gradient(145deg, rgba(255, 255, 255, 0.42), transparent 42%),

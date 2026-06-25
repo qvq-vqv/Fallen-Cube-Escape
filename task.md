@@ -1,8 +1,59 @@
-# 🎬 Milestone 5: 3D Landing Screen & Dynamic Kaomoji System (2026-06-25)
+# 🎬 Milestone 6: Real-time Movement Engine, Settings Modal & 星轨选关 (2026-06-25)
 
-> 状态：`[PLAN_APPROVED_V1.0]`  
+> 状态：`[PLAN_APPROVED_V2.2]`  
 > 执行者：Codex  
-> 红线：不使用占位图片；保持高端的毛玻璃和 3D 转场；保持 E-7 性格鲜明（傲娇、毒舌、想回家）。
+> 红线：不使用占位图片；保持高端的毛玻璃和 3D 效果；确保 E-7 文案网感毒舌并带格式化焦虑；确保 3D 旋转控制环易于点击和拖动；确保实时 CD 判定无缝衔接。
+
+- [x] **M6.1 FNAF 2 风格主菜单与 3D 标题 (FNAF Style Menu & 3D Title)**
+  - [x] 移除主菜单的中央玻璃面板，重置 `#landing-overlay` 为左对齐竖排版。
+  - [x] 将“声音开关”、“中/EN”按钮移出主页面，新增「游戏设置」按钮。
+  - [x] 标题 "DAWN CUBE" 放大位于左上角，采用 3D 透视霓虹阴影，字母 `A` 替换为三角指针，`U` 替换为出口门 `▣` 符号。
+  - [x] 在标题字母上方/缝隙巧妙融入 E-7 像素小人（猫耳露头）、Chaser 追捕者模型和 Portal 传送门波纹。
+  - [x] 主菜单下，Three.js 相机视轨 Target 向右下方偏置，将自转魔方完全暴露在中右侧。
+  - [x] *Git Checkpoint*：`feat(ui): redesign main menu to FNAF 2 style, add 3D title with IP elements and camera offset`
+
+- [ ] **M6.2 独立「游戏设置」面板与自定义键位 (Settings Panel & Keybindings)**
+  - [ ] 建立独立的 `#settings-overlay` 设置面板（支持主菜单与 Esc 界面唤起）。
+  - [ ] 选项包含：中/EN 语言切换、声音开关、数值精度选择（3 / 3.0 / 3.00数位）、开发模式（一键解锁所有关卡并持久化）。
+  - [ ] 实现自定义键位（点击按键输入绑定）：支持修改移动/画路、部署补片、部署信标、碎解、原地待命、Twist 拧层模式的按键。
+  - [ ] *Git Checkpoint*：`feat(settings): implement standalone settings panel, keybinding customization, and dev unlock mode`
+
+- [ ] **M6.3 星轨选关系统与零重力漂移魔方 (Constellation Level Selector & Drifting Cube)**
+  - [ ] 点击「关卡选择」时，利用 JS 缩放和位置差值，使魔方缩至 60% 尺寸，并开启零重力漂浮效果（极慢自转 + 随机正弦小幅曲线漂移，允许稍微超出屏缘但不脱屏）。
+  - [ ] 选关面板改为超高透明度，背景应用模糊，将 12 个关卡渲染为左右错落的霓虹连线星轨节点（通关=青色，当前=黄色呼吸，锁定=暗线框，Dev模式解锁全部）。
+  - [ ] 点击星点时，在下方弹出一个完全不透光的关卡信息板（包含进入链路按钮），并提供悬浮「返回主菜单」按钮。
+  - [ ] *Git Checkpoint*：`feat(ui): implement constellation level selector and zero-gravity drifting background cube`
+
+- [ ] **M6.4 实时 CD 直控引擎与实体进度环倒计时 (Real-time CD Direct Control Engine & Entity Timers)**
+  - [ ] 废弃回合制 AP 限制和“画线规划->发送”逻辑。玩家直接点击 E-7 邻格，E-7 立即平滑移动一格并触发 0.6s 移动 CD。
+  - [ ] 限制移动 CD 期间操作，仅缓冲下一次有效相邻格点击。
+  - [ ] AI 敌人根据独立定时器（Easy=2.5s，Normal=1.5s，Hard=0.9s）实时移动。
+  - [ ] 实时捕获判定：在 3D 渲染循环中计算 E-7 与怪物的 Mesh 距离（`distance < 0.8`）或共用连边时判负。
+  - [ ] CD 可视化：根据实体标志颜色（E-7=淡蓝，怪=红色），在棋子下方渲染 3D 进度环，上方悬浮显示数值倒计时小字（精度匹配设置）。
+  - [ ] 实时红格预示：追击者前进的下一格根据它移动 CD 频率进行发光闪烁，临近时加快。
+  - [ ] *Git Checkpoint*：`feat(engine): transition to real-time grid movement, click cooldowns, and entity visual timer rings`
+
+- [ ] **M6.5 Twist 模式子弹时间与 3D 霓虹控制环 (Bullet Time & 3D Neon Rings)**
+  - [ ] 在 Twist 旋转模式下，在 3D 魔方外包裹渲染出 X/Y/Z 三个轴向、3 组 × 3 层共 9 个彩色半透（opacity: 0.15）圆环。
+  - [ ] 圆环设置较大的鼠标 Hitbox。鼠标悬浮时高亮（opacity 达 0.85）并显示对应切片虚影，直接拖拽圆环即可物理拧层。
+  - [ ] 子弹时间：在 Twist 模式下，整个游戏世界的流速（包括怪物移动速度）放慢 5 倍。当呼出 Esc/设置界面时彻底暂停。
+  - [ ] *Git Checkpoint*：`feat(control): implement 3D neon axis rings and bullet time slow-down during twist mode`
+
+- [ ] **M6.6 3 秒倒流悔棋机制 (3-Second Rollback Undo)**
+  - [ ] 彻底抛弃传统回合退步，改写为实时环形历史状态缓冲区。
+  - [ ] 点击 Undo 时，整个游戏世界的时间线精确倒卷回 3 秒前（包含玩家/怪物坐标、道具数、CD读条、状态等）。
+  - [ ] *Git Checkpoint*：`feat(engine): implement 3-second rollback time travel undo mechanism`
+
+- [ ] **M6.7 无缝中英切换、3D 气泡与文案地道化 (Seamless Lang Toggle & Copy Polish)**
+  - [ ] 切换语言时彻底销毁历史打字机 Timer 并就地翻译文本，绝不重播序章。
+  - [ ] 在 E-7 棋子头顶渲染跟随移动的 3D 投影气泡，载入情境对白库。
+  - [ ] 彻底删去“灾难现场”等机翻字眼，润色剧情和悔棋反馈文案为《主播女孩重度依赖》电波网感，融入格式化创伤剧情。
+  - [ ] 新手教程弹窗出现时强制暂停游戏，确认关闭后恢复。
+  - [ ] *Git Checkpoint*：`feat(copy): polish copy to Needy Girl style, add 3D dialog bubbles, and fix typewriter lang-toggle bug`
+
+---
+
+# 🎬 Milestone 5: 3D Landing Screen & Dynamic Kaomoji System (2026-06-25)
 
 - [x] **M5.1 3D 旋转初始界面与镜头转场 (3D Landing Screen & Cinematic Camera Zoom)**
   - [x] 在 `index.html` 添加 `#landing-overlay`，包含主标题 “DAWN CUBE / 黎明魔方” 和菜单按钮组。

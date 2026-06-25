@@ -24,7 +24,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const landingStartBtn = document.getElementById('landing-start-btn');
     const landingLevelsBtn = document.getElementById('landing-levels-btn');
     const landingArchiveBtn = document.getElementById('landing-archive-btn');
-    const landingAudioBtn = document.getElementById('landing-audio-btn');
+    const landingSettingsBtn = document.getElementById('landing-settings-btn');
     const setupOverlay = document.getElementById('setup-overlay');
     const gameContainer = document.getElementById('game-container');
     const startBtn = document.getElementById('start-game-btn');
@@ -1141,8 +1141,9 @@ document.addEventListener('DOMContentLoaded', () => {
         audio.play('routeTick');
         showLevelBook({ openArchive: true });
     });
-    landingAudioBtn?.addEventListener('click', () => {
-        audioToggle?.click();
+    landingSettingsBtn?.addEventListener('click', () => {
+        audio.play('routeTick');
+        feel.note('设置面板正在接入', 'info');
     });
 
     startBtn.addEventListener('click', startSelectedLevel);
