@@ -127,6 +127,14 @@
             <!-- 3D Canvas 将插入此处 -->
             <div id="canvas-overlay-ui">
                 <div id="route-tip" class="help-tooltip">在 3D 魔方表面拖拽画路线；按 Shift 进入 Twist 拧层模式。</div>
+                <aside id="tutorial-helper-card" class="tutorial-helper-card" aria-live="polite">
+                    <button id="tutorial-helper-close" class="tutorial-helper-close" type="button" aria-label="关闭提示">×</button>
+                    <span id="tutorial-helper-icon" class="tutorial-helper-icon">➜</span>
+                    <div>
+                        <strong id="tutorial-helper-title">画出逃生线</strong>
+                        <p id="tutorial-helper-body">点相邻格规划路线，发送后 Dawn 会照着走。</p>
+                    </div>
+                </aside>
             </div>
             <button id="audio-toggle" class="audio-toggle" type="button" aria-pressed="true">声音 开</button>
             <button id="btn-twist-mode" class="twist-toggle" type="button" aria-pressed="false">Twist</button>
@@ -162,6 +170,7 @@
                     <button id="btn-tool-route" class="tool-mode-btn active" type="button" data-tool-mode="route">画路</button>
                     <button id="btn-tool-patch" class="tool-mode-btn" type="button" data-tool-mode="patch">补片 <b id="patch-count">0</b></button>
                     <button id="btn-tool-beacon" class="tool-mode-btn" type="button" data-tool-mode="beacon">诱饵 <b id="beacon-count">0</b></button>
+                    <button id="btn-tool-break" class="tool-mode-btn" type="button" data-tool-mode="break">碎解 <b id="break-count">0</b></button>
                 </div>
 
                 <div class="action-section phone-fold-panel" id="rotation-section">

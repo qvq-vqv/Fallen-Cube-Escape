@@ -1535,7 +1535,7 @@ body {
 .phone-tool-row {
     grid-column: 1 / -1;
     display: grid;
-    grid-template-columns: repeat(3, minmax(0, 1fr));
+    grid-template-columns: repeat(4, minmax(0, 1fr));
     gap: 6px;
 }
 
@@ -1576,6 +1576,11 @@ body {
 .tool-mode-btn[data-tool-mode="beacon"].active {
     border-color: rgba(255, 183, 0, 0.58);
     background: rgba(255, 183, 0, 0.12);
+}
+
+.tool-mode-btn[data-tool-mode="break"].active {
+    border-color: rgba(255, 0, 85, 0.58);
+    background: rgba(255, 0, 85, 0.12);
 }
 
 .tool-mode-btn:disabled {
@@ -2583,6 +2588,94 @@ body {
     border-color: rgba(255, 238, 138, 0.74);
     background: var(--neon-yellow);
     transform: translateY(-1px);
+}
+
+.tutorial-helper-card {
+    position: absolute;
+    left: clamp(14px, 2.5vw, 28px);
+    bottom: clamp(18px, 3vw, 34px);
+    z-index: 18;
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr);
+    gap: 12px;
+    width: min(340px, calc(100vw - 32px));
+    padding: 14px 42px 14px 14px;
+    border: 1px solid rgba(77, 225, 255, 0.32);
+    border-radius: 14px;
+    background:
+        linear-gradient(135deg, rgba(8, 18, 28, 0.84), rgba(8, 10, 22, 0.62)),
+        rgba(5, 8, 16, 0.72);
+    backdrop-filter: blur(18px) saturate(1.2);
+    -webkit-backdrop-filter: blur(18px) saturate(1.2);
+    box-shadow:
+        0 18px 44px rgba(0, 0, 0, 0.35),
+        inset 0 1px 0 rgba(255, 255, 255, 0.08),
+        0 0 24px rgba(77, 225, 255, 0.12);
+    transform: translateY(0);
+    opacity: 1;
+    transition:
+        opacity 180ms var(--ease-decisive),
+        transform 260ms var(--ease-elastic),
+        border-color 180ms var(--ease-decisive);
+}
+
+.tutorial-helper-card.is-hidden {
+    pointer-events: none;
+    opacity: 0;
+    transform: translateY(18px) scale(0.98);
+}
+
+.tutorial-helper-icon {
+    display: grid;
+    place-items: center;
+    width: 42px;
+    height: 42px;
+    border: 1px solid rgba(111, 255, 153, 0.45);
+    border-radius: 12px;
+    color: #8dffb2;
+    font-family: var(--font-display);
+    font-size: 1.25rem;
+    background: rgba(10, 255, 166, 0.1);
+    box-shadow: 0 0 18px rgba(34, 255, 170, 0.16);
+}
+
+.tutorial-helper-card strong {
+    display: block;
+    margin-bottom: 3px;
+    color: #e8fbff;
+    font-size: 0.92rem;
+}
+
+.tutorial-helper-card p {
+    margin: 0;
+    color: rgba(216, 236, 255, 0.72);
+    font-size: 0.78rem;
+    line-height: 1.55;
+}
+
+.tutorial-helper-close {
+    position: absolute;
+    top: 8px;
+    right: 8px;
+    display: grid;
+    place-items: center;
+    width: 24px;
+    height: 24px;
+    border: 1px solid rgba(255, 255, 255, 0.14);
+    border-radius: 50%;
+    color: rgba(234, 246, 255, 0.72);
+    background: rgba(255, 255, 255, 0.06);
+    cursor: pointer;
+    transition:
+        border-color 160ms var(--ease-decisive),
+        color 160ms var(--ease-decisive),
+        transform 180ms var(--ease-elastic);
+}
+
+.tutorial-helper-close:hover {
+    border-color: rgba(77, 225, 255, 0.42);
+    color: #ffffff;
+    transform: scale(1.08);
 }
 
 .esc-console {

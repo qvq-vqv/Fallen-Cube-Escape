@@ -203,7 +203,7 @@ class RenderEngine {
     setInteractionMode(mode = 'route') {
         this.interactionMode = mode === 'twist' ? 'twist' : 'route';
         if (this.controls) {
-            this.controls.enableRotate = this.interactionMode !== 'route';
+            this.controls.enableRotate = this.interactionMode === 'route';
         }
         if (this.interactionMode !== 'twist') {
             this.clearLayerHighlight();
@@ -223,15 +223,9 @@ class RenderEngine {
         if (this.renderer?.domElement?.setPointerCapture) {
             this.renderer.domElement.setPointerCapture(event.pointerId);
         }
-        if (this.controls && cellId !== null && cellId !== undefined) {
-            this.controls.enabled = this.interactionMode === 'twist';
-        }
-        if (this.interactionMode === 'route' && cellId !== null && cellId !== undefined) {
-            event.preventDefault();
-            this.game.handleBoardCellClick(cellId);
-        }
         if (this.interactionMode === 'twist' && cellId !== null && cellId !== undefined) {
             event.preventDefault();
+            if (this.controls) this.controls.enabled = false;
             const layer = this.getTwistLayerFromCell(cellId);
             if (layer) this.highlightLayer(layer.axis, layer.layer);
         }
@@ -250,10 +244,7 @@ class RenderEngine {
         }
 
         if (!this.pointerDown || this.pointerDown.mode !== 'route') return;
-        if (cellId === null || cellId === undefined || cellId === this.pointerLastCell) return;
-        event.preventDefault();
         this.pointerLastCell = cellId;
-        this.game.handleBoardCellClick(cellId);
     }
 
     handleBoardPointerUp(event) {
@@ -278,6 +269,13 @@ class RenderEngine {
                 ? (dx > 0 ? 'CW' : 'CCW')
                 : (dy > 0 ? 'CCW' : 'CW');
             this.game.rotateLayer(layer.axis, layer.layer, direction);
+            return;
+        }
+
+        if (down.mode === 'route' && moved <= 10) {
+            const cellId = this.pickBoardCell(event);
+            if (cellId === null || cellId === undefined) return;
+            this.game.handleBoardCellClick(cellId);
         }
     }
 
@@ -314,10 +312,22 @@ class RenderEngine {
             ...this.patchMeshes,
             ...this.cublets
         ];
-        const intersections = this.raycaster.intersectObjects(targets, true);
+        const intersections = this.raycaster
+            .intersectObjects(targets, true)
+            .filter(hit => {
+                if (!hit.object || hit.object.type !== 'Mesh' || !hit.face) return false;
+                if (hit.object.userData?.isLayerOverlay) return false;
+                let node = hit.object;
+                while (node) {
+                    if (node.userData?.layerOverlay === hit.object) return false;
+                    node = node.parent;
+                }
+                return true;
+            });
         if (!intersections.length) return null;
 
-        let hit = intersections[0].object;
+        const firstHit = intersections[0];
+        let hit = firstHit.object;
         while (hit && hit.parent && hit.userData.cellId === undefined && hit.userData.gridX === undefined) {
             hit = hit.parent;
         }
@@ -325,8 +335,35 @@ class RenderEngine {
 
         const cublet = hit?.userData?.gridX !== undefined ? hit : hit?.parent;
         if (!cublet || cublet.userData.gridX === undefined) return null;
-        const materialIndex = intersections[0].face?.materialIndex;
-        return this.getCellIdFromCubletFace(cublet.userData, materialIndex);
+        return this.getCellIdFromCubletHit(cublet, firstHit);
+    }
+
+    getCellIdFromCubletHit(cublet, intersection) {
+        if (!this.game || !intersection?.face) return null;
+        const N = this.game.N || 3;
+        const x = this.getLayerVal(cublet.position, 'X');
+        const y = this.getLayerVal(cublet.position, 'Y');
+        const z = N - 1 - this.getLayerVal(cublet.position, 'Z');
+        const worldNormal = intersection.face.normal.clone().transformDirection(cublet.matrixWorld).normalize();
+        const abs = {
+            x: Math.abs(worldNormal.x),
+            y: Math.abs(worldNormal.y),
+            z: Math.abs(worldNormal.z)
+        };
+
+        if (abs.x >= abs.y && abs.x >= abs.z) {
+            return worldNormal.x > 0
+                ? this.game.cellId(3, N - 1 - y, z)
+                : this.game.cellId(2, N - 1 - y, N - 1 - z);
+        }
+        if (abs.y >= abs.x && abs.y >= abs.z) {
+            return worldNormal.y > 0
+                ? this.game.cellId(0, N - 1 - z, x)
+                : this.game.cellId(1, z, x);
+        }
+        return worldNormal.z > 0
+            ? this.game.cellId(4, N - 1 - y, x)
+            : this.game.cellId(5, N - 1 - y, N - 1 - x);
     }
 
     getCellIdFromCubletFace(grid, materialIndex) {
@@ -2672,6 +2709,7 @@ class RenderEngine {
                         new THREE.BoxGeometry(overlaySize, overlaySize, overlaySize),
                         this.getLayerHighlightMaterial()
                     );
+                    overlay.userData.isLayerOverlay = true;
                     overlay.renderOrder = 6;
                     cublet.add(overlay);
                     cublet.userData.layerOverlay = overlay;

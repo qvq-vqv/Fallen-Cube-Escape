@@ -199,6 +199,11 @@
             '它断了。很好，我第一次喜欢地板坏掉。',
             '补片没了。别回头，回头也没路。'
         ],
+        breakPlaced: [
+            '裂了。好消息，怪物过不来，我也过不去。',
+            '格子被你打穿了。这地方的声音听着像玻璃碎掉。',
+            '物理隔离完成。让它在对面慢慢发呆吧。'
+        ],
         beaconPlaced: [
             '骗谁？这题我喜欢。',
             '诱饵放好了。希望它们真的没脑子。',
@@ -382,6 +387,9 @@
         }
         if (detail.type === 'patchBroken') {
             return pickReaction(state, microReactions.patchBroken, turnSeed + (detail.at || 0));
+        }
+        if (detail.type === 'breakPlaced') {
+            return pickReaction(state, microReactions.breakPlaced, turnSeed + (detail.at || 0));
         }
         if (detail.type === 'beaconPlaced') {
             return pickReaction(state, microReactions.beaconPlaced, turnSeed + (detail.at || 0));

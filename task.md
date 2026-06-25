@@ -1,16 +1,18 @@
 # 🎬 Milestone 4: 3D Direct Interaction & UI Refactoring (2026-06-24 重组主线)
 
-> 状态：`[PLAN_APPROVED]`  
+> 状态：`[WAITING_FOR_QA]`  
 > 执行者：Codex  
 > 红线：不使用任何 2D Net 展开图逻辑（彻底废弃 2D Net 画线，仅保留 3D 界面画线与 Twist 层）；保持极致的 UI 微动效与毛玻璃美学；不使用占位美术。
 > 📌 **大学申请专用 Git 备份规范**：Codex 每完成一个子任务（M4.1~M4.4），**必须**在工作区自动执行 `git add` 并按照下方注明的 commit message 进行一次干净的 Git Commit，严禁所有修改堆在一个 commit 中。
 
-- [ ] **M4.1 页面布局与控制台重构 (UI & Esc Menu)**
+> Codex 2026-06-25 交付记录：M4.1-M4.6 已完成主体实装并通过 `npm run check`、`npm run audit:levels`、`npm run playtest -- --summary`、`npm run audit:quality`。`npm run smoke:browser` 因 Playwright 未安装自动跳过。真实残留：L10 隐藏考仍存在不用碎解的 5 步路线，playtest 标记 `break-present-unused`；L32/L33 仍是 info 级短关。由于接手时工作区已存在跨模块修改，本轮无法按 M4.1-M4.6 拆出完全干净的逐项提交，改为完整里程碑安全提交并在看板记录。
+
+- [x] **M4.1 页面布局与控制台重构 (UI & Esc Menu)**
   - [ ] 彻底移除左侧面板 `left-panel` 及其样式。
   - [ ] 实现顶部极简 HUD 栏：显示关卡名称、当前回合数、剩余行动点 (AP)。
   - [ ] 实现 **Esc 全屏模糊控制台 (Esc Menu)**：
     - 按 `Escape` 键或点击顶部 `☰` 按钮触发，背景应用 `backdrop-filter: blur(10px)`。
-    - 左侧显�- [ ] **M4.2 3D 空间直控与自然拧动 (3D Cube Interaction)**
+    - 左侧显�- [x] **M4.2 3D 空间直控与自然拧动 (3D Cube Interaction)**
   - [ ] 废弃 2D Canvas（minimapCanvas）事件，直接在 3D Canvas 上进行交互。
   - [ ] **正常模式分流 (Normal Mode Controls)**：
     - 开启 OrbitControls 视角旋转 (`this.controls.enableRotate = true`)。
@@ -31,7 +33,7 @@
     - 钥匙设在左半侧 `at(4, 1, 0)`，玩家在 Face 0，必须拧水平中层接通道路取得钥匙。与 L04 彻底做区分。
   - [ ] *Git Checkpoint*：完成此项后 commit：`feat(control): implement 3D direct controls, natural swipe-to-twist, and redesign L05 connection quiz`
 
-- [ ] **M4.3 坐标代数生成与通讯气泡发送 (Coordinate Commands & Comms Log)**
+- [x] **M4.3 坐标代数生成与通讯气泡发送 (Coordinate Commands & Comms Log)**
   - [ ] **中文代数坐标转换**：
     - 对应面颜色：0-蓝，1-紫，2-橙，3-红，4-绿，5-黄。列：a/b/c，行：1/2/3。
     - 修改 `describeCell(cellId)`，使返回诸如 `绿b2`、`蓝a1` 的中文代数格式坐标。
@@ -45,7 +47,7 @@
   - [ ] 确保聊天记录区容器在添加气泡后，scrollTop 自动平滑滚动至最底端。
   - [ ] *Git Checkpoint*：完成此项后 commit：`feat(comms): integrate Chinese color algebraic coordinates and auto-generate player command bubbles in terminal log`
 
-- [ ] **M4.4 主动碎解格子机制与 L07 重构 (Break Tool & L07 Overhaul)**
+- [x] **M4.4 主动碎解格子机制与 L07/L10 重构 (Break Tool & L07/L10 Overhaul)**
   - [ ] **碎解引擎逻辑实装**：
     - `resetRuntimeState()` 增加 `this.breakCharges = 0` 且在 `initLevel()` 中读取 `level.breakCharges || 0`。
     - 编写 `isLegalBreakTarget(cellId)`：过滤空缺口、玩家位置、怪位置、钥匙、门、传送门，确认合法性。
@@ -57,24 +59,25 @@
   - [ ] **L07 关卡碎解阻断重构**：
     - 将 `levels.js` 中的 L07 改造为碎解首秀关：重命名为 `L07 碎解阻断`，添加 `breakCharges: 1`。
     - 改变关卡地形与守卫位置，使玩家必须主动碎解守卫必经之路上的一个格子阻止其围剿，才能成功过关。
+  - [ ] **L10 隐藏疯狂关重构**：
+    - 在 `levels.js` 中将 L10 配置为隐藏疯狂关：重命名为 `L10 隐藏考：碎解突围`，配置 `breakCharges: 1`，双追击者在 `at(5, 0, 0)` 和 `at(2, 2, 0)`，守卫在 `at(4, 1, 1)` 且为狂暴守门模式 `guardianAggro: 'guardDoor'`。
+    - 在 `main.js` 渲染逻辑中，限制 L10 的显示：读取 `localStorage` 中已通关的关卡列表，仅当第一幕其他关卡（L01-L09, L11-L12）全部通关后，才向玩家展示并解锁 L10。
   - [ ] **验证求解器同步**：
-    - 修改 `tools/playtest_bot.js` 与 `tools/validate-levels.js`：在搜索状态中模拟 `breakCharges` 计数与 `usedBreak`；当碎解可用时，生成 `break` 动作，并在状态的 `voids` 集合中添加被碎解格。
-  - [ ] *Git Checkpoint*：完成此项后 commit：`feat(tool): implement active Break Tool, integrate UI/engine/solvers, and redesign L07`
+    - 修改 `tools/playtest_bot.js` 与 `tools/validate-levels.js`：在搜索状态中模拟 `breakCharges` 计数与 `usedBreak`；当碎解可用时，生成 `break` 动作，并在状态的 `voids` 集合中添加被碎解格（玩家自身也不能在此格移动）。
+  - [ ] *Git Checkpoint*：完成此项后 commit：`feat(tool): implement active Break Tool, integrate UI/engine/solvers, and redesign L07/L10 hidden crazy levels`
 
-- [ ] **M4.5 E-7 信任系统与理智逆反 (Trust & Obedience System)**
+- [x] **M4.5 E-7 信任系统与理智逆反 (Trust & Obedience System)**
   - [ ] 引入持久化的关系信任值 (0-100，保存在 `localStorage`，初始默认 80)。
   - [ ] 动态交互影响：通关成功 +3 信任，死亡 -10 信任。发关心表情 +1 信任，发挑衅/吐槽表情 -2 信任。
   - [ ] 逆反判定：不听话概率为 `(100 - 信任值) * 0.3`。
   - [ ] 理智逆反执行：发生逆反时中断路径，消耗 1 AP。50% 概率原地不动，50% 概率随机乱走一格。乱走时**只能选择非缺口、无怪物、安全的相邻格子**，如无安全格则原地不动。
   - [ ] *Git Checkpoint*：完成此项后 commit：`feat(narrative): implement E-7 trust relationship system, localStorage persistence, and random safe movement for disobedience`
 
-- [ ] **M4.6 互动教程卡片与第一幕大终局 (Tutorial Card & Finale Exam)**
+- [x] **M4.6 互动教程卡片与第一幕大终局 (Tutorial Card & Act 1 Climax)**
   - [ ] **互动教程引导 (Contextual Tutorial Guides)**：
     - 在 3D 画布左下方浮动显示一个毛玻璃教程卡片 `#tutorial-helper-card`，具有关闭按钮，在 L01（走路）、L02（钥匙）、L03（红格）、L04（首次旋转）、L21（补片）、L23（信标）等教学关卡中动态展现详细的图文指引。
-  - [ ] **L12 第一幕 graduation 毕业残局重写**：
-    - 修改 L12 `levels.js`：将钥匙设在 `at(4, 0, 2)` (Front面右上角)，添加虚空隔断 `[at(4, 2, 1), at(0, 2, 1)]`。
-    - 增加**两个追击者**，位置分别在 `at(5, 0, 0)` 和 `at(2, 2, 0)`。
-    - 将守钥者行为改为 `guardianAggro: 'guardDoor'`，当钥匙到手时它会全力狂暴围堵出口门，强迫玩家做出旋转与诱导路线判断。
+  - [ ] **L12 第一幕毕业考保持原样**：
+    - L12 保持原本的关卡配置不变，作为标准毕业测验，以与隐藏狂暴关 L10 产生明显的道具使用与难度落差。
   - [ ] **剧情呈现与应用优化**：
     - 第一幕序章：四帧漫画以 `cubic-bezier(0.16, 1, 0.3, 1)` 渐入，背景深度模糊。
     - 第一幕终（L12 通关）：人物移动至门且动作播放完毕后，延迟 1.5s 弹出胜利界面，展现第二幕接入的 4 帧极简反转插画，按钮变为“进入第二幕”。
@@ -84,7 +87,21 @@
     - 狂暴警告：守钥者被激活后颜色变红（原本是淡黄色），并提示 `rage` 狂暴。
     - 残局复盘分析：玩家死亡后，失败分析界面会对比玩家路线中每一步，指出哪些步骤是“离怪物更近了一步”的致命动作。
     - 在 `project_pitch_report.md` 尾部追加 AI Statement。
-  - [ ] *Git Checkpoint*：完成此项后 commit：`feat(tutorial): implement floating tutorial helper card, rewrite L12 finale climax, and polish game details`
+  - [ ] *Git Checkpoint*：完成此项后 commit：`feat(tutorial): implement floating tutorial helper card, lock L12 as standard climax, and polish game details`
+
+- [ ] **M4.7 多语言本地化系统与精细文本润色 (Localization & Sarcastic Copy Polish)**
+  - [ ] **多语言框架开发**：
+    - [ ] 新建 [locales.js](file:///Users/qcmorning/Desktop/project/antigravity2/escape/locales.js) 字典文件，存放菜单、控制台、规则、提示词、成就、档案等静态 DOM 翻译。
+    - [ ] 在 `index.html` 的所有可翻译元素上增加 `data-i18n` 属性，并在选关界面右上角、控制台加入 `.btn-lang-toggle` 语言切换按钮。
+    - [ ] 在 `main.js` 中实装全局语言变量 `currentLang`（绑定 `localStorage`）与 DOM 语言刷新函数 `updateUILanguage()`，绑定按钮点击切换事件。
+    - [ ] 编写全局辅助函数 `getText(field)`：若是 String 直接返回，若是 `{ zh: ..., en: ... }` 格式则根据当前语言获取值。将卡片渲染、谜面渲染、3D HUD 及档案渲染全部换用此函数。
+  - [ ] **双语化警报提示与日志**：
+    - [ ] 适配 `main.js` 与 `game.js` 中的 `feel.note()` 悬浮提示文案，使之根据 `currentLang` 输出对应的双语提示（例如 `已悔棋一步 / Undo complete`）。
+  - [ ] **全案文本本土化润色 (中文地道语感 & 英文毒舌口语)**：
+    - [ ] 彻底重构 [dialogue.js](file:///Users/qcmorning/Desktop/project/antigravity2/escape/dialogue.js) 中的 `prologue`、`scenes`、`eventScenes` 与 `commonReplies`，将中英文文案全部按“嘴硬心软的黑色幽默吐槽物少女”人设重新润色。
+    - [ ] 彻底重构 [story.js](file:///Users/qcmorning/Desktop/project/antigravity2/escape/story.js) 中的 `microReactions` 走向及动作微反应文案。
+    - [ ] 彻底重构 [levels.js](file:///Users/qcmorning/Desktop/project/antigravity2/escape/levels.js) 中的关卡标题、描述、提示说明与教程词（将 `title`、`chapter`、`concept`、`tutorial` 中的词句修改为 `{ zh: ..., en: ... }` 双语对象并进行人设精雕）。
+  - [ ] *Git Checkpoint*：完成此项后 commit：`feat(localization): implement toggleable Chinese/English runtime system, localized locales.js dictionary, and full sarcastic copy polish for Act 1`
 
 ---
 

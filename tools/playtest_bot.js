@@ -82,6 +82,7 @@ function cloneState(state, action = null) {
         patches: new Set(state.patches),
         patchCharges: state.patchCharges,
         beaconCharges: state.beaconCharges,
+        breakCharges: state.breakCharges,
         beaconCell: state.beaconCell,
         beaconTTL: state.beaconTTL,
         beaconDuration: state.beaconDuration,
@@ -89,6 +90,7 @@ function cloneState(state, action = null) {
         usedBridge: state.usedBridge,
         usedPatch: state.usedPatch,
         usedBeacon: state.usedBeacon,
+        usedBreak: state.usedBreak,
         keyMovedByRotation: false,
         log: action ? [...state.log, action] : [...state.log]
     };
@@ -117,12 +119,14 @@ function stateKey(state) {
         serializeSet(state.patches),
         state.patchCharges,
         state.beaconCharges,
+        state.breakCharges,
         state.beaconCell ?? -1,
         state.beaconTTL,
         state.usedRotation ? 1 : 0,
         state.usedBridge ? 1 : 0,
         state.usedPatch ? 1 : 0,
-        state.usedBeacon ? 1 : 0
+        state.usedBeacon ? 1 : 0,
+        state.usedBreak ? 1 : 0
     ].join('|');
 }
 
@@ -278,6 +282,50 @@ function generatePatchActions(state) {
         .map(cell => ({ type: 'patch', cell }));
 }
 
+function isReservedBreakCell(state, cellId) {
+    return cellId === state.player ||
+        (!state.hasKey && state.key >= 0 && cellId === state.key) ||
+        cellId === state.exit ||
+        state.ais.some(ai => ai.pos === cellId) ||
+        state.bridges.some(link => link.a === cellId || link.b === cellId);
+}
+
+function isLegalBreakTarget(engine, state, cellId) {
+    if (state.breakCharges <= 0 || !engine.cells[cellId]) return false;
+    if (isReservedBreakCell(state, cellId)) return false;
+    return !state.voids.has(cellId) || state.patches.has(cellId);
+}
+
+function generateBreakActions(engine, state) {
+    if (state.breakCharges <= 0 || state.usedBreak) return [];
+    const candidates = new Set();
+    const add = cellId => {
+        if (isLegalBreakTarget(engine, state, cellId)) candidates.add(cellId);
+    };
+    state.ais.forEach(ai => {
+        const target = aiTarget(engine, state, ai);
+        const queue = [[ai.pos]];
+        const seen = new Set([ai.pos]);
+        for (let head = 0; head < queue.length && head < 8; head++) {
+            const path = queue[head];
+            const current = path[path.length - 1];
+            if (current === target || path.length > 4) continue;
+            for (const next of neighbors(engine, state, current, 'ai')) {
+                if (seen.has(next)) continue;
+                seen.add(next);
+                const nextPath = [...path, next];
+                nextPath.slice(1).forEach(add);
+                queue.push(nextPath);
+            }
+        }
+        neighbors(engine, state, ai.pos, 'ai').forEach(add);
+    });
+    [state.player, state.key, state.exit]
+        .filter(cellId => cellId !== null && cellId !== undefined && cellId >= 0)
+        .forEach(cellId => neighbors(engine, state, cellId, 'player').forEach(add));
+    return [...candidates].slice(0, 18).map(cell => ({ type: 'break', cell }));
+}
+
 function generateMoveActions(engine, state) {
     const actions = [{ type: 'move', sequence: [], usesBridge: false }];
     const walk = (current, stepsLeft, patches, sequence, usesBridge) => {
@@ -328,6 +376,14 @@ function applyAction(engine, state, action) {
         next.beaconCell = action.cell;
         next.beaconTTL = next.beaconDuration;
         next.usedBeacon = true;
+        return next;
+    }
+    if (action.type === 'break') {
+        if (!isLegalBreakTarget(engine, next, action.cell)) return null;
+        next.breakCharges -= 1;
+        next.patches.delete(action.cell);
+        next.voids.add(action.cell);
+        next.usedBreak = true;
         return next;
     }
     if (action.type === 'move') {
@@ -389,7 +445,7 @@ function heuristic(engine, state) {
 
 function actionCost(action) {
     if (action.type === 'rotate') return 2.2;
-    if (action.type === 'patch' || action.type === 'beacon') return 0.8;
+    if (action.type === 'patch' || action.type === 'beacon' || action.type === 'break') return 0.8;
     return Math.max(1, action.sequence.length || 1);
 }
 
@@ -407,6 +463,7 @@ function solve(level, index) {
         patches: new Set(engine.activePatchCells || []),
         patchCharges: engine.patchCharges,
         beaconCharges: engine.beaconCharges,
+        breakCharges: engine.breakCharges,
         beaconCell: null,
         beaconTTL: 0,
         beaconDuration: Math.max(1, Number(level.beaconDuration || 1)),
@@ -414,6 +471,7 @@ function solve(level, index) {
         usedBridge: false,
         usedPatch: false,
         usedBeacon: false,
+        usedBreak: false,
         keyMovedByRotation: false,
         log: []
     };
@@ -430,6 +488,7 @@ function solve(level, index) {
         const actions = [
             ...generatePatchActions(current.state),
             ...generateBeaconActions(engine, current.state),
+            ...generateBreakActions(engine, current.state),
             ...generateRotationActions(engine, current.state),
             ...generateMoveActions(engine, current.state)
         ];
@@ -451,6 +510,7 @@ function formatAction(engine, action) {
     if (action.type === 'rotate') return `${COLORS.magenta}${action.axis}${action.layer}${action.direction}${COLORS.reset}`;
     if (action.type === 'patch') return `${COLORS.yellow}patch ${describeCell(engine, action.cell)}${COLORS.reset}`;
     if (action.type === 'beacon') return `${COLORS.blue}beacon ${describeCell(engine, action.cell)}${COLORS.reset}`;
+    if (action.type === 'break') return `${COLORS.red}break ${describeCell(engine, action.cell)}${COLORS.reset}`;
     if (!action.sequence.length) return `${COLORS.dim}wait${COLORS.reset}`;
     const prefix = action.usesBridge ? 'bridge move' : 'move';
     return `${prefix} ${action.sequence.map(cell => describeCell(engine, cell)).join('>')}`;
@@ -460,6 +520,7 @@ function formatActionPlain(engine, action) {
     if (action.type === 'rotate') return `${action.axis}${action.layer}${action.direction}`;
     if (action.type === 'patch') return `patch ${describeCell(engine, action.cell)}`;
     if (action.type === 'beacon') return `beacon ${describeCell(engine, action.cell)}`;
+    if (action.type === 'break') return `break ${describeCell(engine, action.cell)}`;
     if (!action.sequence.length) return 'wait';
     const prefix = action.usesBridge ? 'bridge move' : 'move';
     return `${prefix} ${action.sequence.map(cell => describeCell(engine, cell)).join('>')}`;
@@ -562,13 +623,15 @@ targets.forEach(({ level, index }) => {
         rotation: result.state.usedRotation,
         bridge: result.state.usedBridge,
         patch: result.state.usedPatch,
-        beacon: result.state.usedBeacon
+        beacon: result.state.usedBeacon,
+        break: result.state.usedBreak
     };
     const risks = [];
     if ((level.act || 1) >= 2 && turns <= 3) risks.push('too-short-for-act-2');
     if ((level.bridges || []).length > 0 && !used.bridge) risks.push('bridge-present-unused');
     if (level.patchCharges && !used.patch) risks.push('patch-present-unused');
     if (level.beaconCharges && !used.beacon) risks.push('beacon-present-unused');
+    if (level.breakCharges && !used.break) risks.push('break-present-unused');
     if (level.validation?.mustUseRotation && !used.rotation) risks.push('rotation-required-but-unused');
 
     summaries.push({

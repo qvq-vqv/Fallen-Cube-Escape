@@ -42,6 +42,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const btnTwistMode = document.getElementById('btn-twist-mode');
     const phonePanel = document.getElementById('phone-panel');
     const phoneNotch = document.getElementById('phone-notch');
+    const tutorialHelperClose = document.getElementById('tutorial-helper-close');
     const toolModeBtns = document.querySelectorAll('[data-tool-mode]');
     const btnToggleTracker = document.getElementById('btn-toggle-tracker');
     const btnClearTracker = document.getElementById('btn-clear-tracker');
@@ -85,6 +86,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const unlockedActs = new Set(safeParseArray('dimensionHackUnlockedActs').filter(Number.isFinite));
     unlockedActs.add(1);
     if (localStorage.getItem('dimensionHackActTwoUnlocked') === 'true') unlockedActs.add(2);
+    const completedLevels = new Set(safeParseArray('dimensionHackCompletedLevels').filter(Number.isFinite));
     const unreadCounts = { comms: 0, tasks: 0, archive: 0 };
     const dialogueScript = window.DIALOGUE_SCRIPT || { defaultScene: 'fallback', levelScenes: {}, eventScenes: {}, scenes: {} };
     const storyModule = window.STORY_MODULE || null;
@@ -112,6 +114,28 @@ document.addEventListener('DOMContentLoaded', () => {
         if (unlockedActs.has(2)) {
             localStorage.setItem('dimensionHackActTwoUnlocked', 'true');
         }
+    }
+
+    function persistCompletedLevels() {
+        localStorage.setItem('dimensionHackCompletedLevels', JSON.stringify([...completedLevels].sort((a, b) => a - b)));
+    }
+
+    function markLevelCompleted(index) {
+        if (!Number.isFinite(index)) return;
+        completedLevels.add(index);
+        persistCompletedLevels();
+    }
+
+    function isHiddenCrazyUnlocked() {
+        const requiredNumbers = new Set([1, 2, 3, 4, 5, 6, 7, 8, 9, 11, 12]);
+        game.levels.forEach((level, index) => {
+            if (completedLevels.has(index)) requiredNumbers.delete(level.number || index + 1);
+        });
+        return requiredNumbers.size === 0;
+    }
+
+    function isLevelVisible(level) {
+        return !level.hiddenUntilActOneClear || isHiddenCrazyUnlocked();
     }
 
     function unlockActPage(act) {
@@ -187,6 +211,11 @@ document.addEventListener('DOMContentLoaded', () => {
             id: 'beaconTool',
             title: '诱饵信标',
             body: '一次性调敌工具。放在空地上，敌人会按正常路线被吸引过去，不会瞬移。'
+        },
+        {
+            id: 'breakTool',
+            title: '主动碎解',
+            body: '把一格安全地板打碎，切断追捕路线。救命时很好用，乱用时也很会害人。'
         }
     ];
     const achievements = [
@@ -377,6 +406,11 @@ document.addEventListener('DOMContentLoaded', () => {
         } else if (reply.tone && commsState.tones[reply.tone] !== undefined) {
             commsState.tones[reply.tone] += 1;
         }
+        if (reply.tone === 'warm') {
+            game.adjustTrust(1, 'warmReply');
+        } else if (reply.tone === 'tease') {
+            game.adjustTrust(-2, 'teaseReply');
+        }
         commsState.lastReply = reply.face;
 
         if (commsBondLabel) commsBondLabel.textContent = getBondLabel();
@@ -541,6 +575,14 @@ document.addEventListener('DOMContentLoaded', () => {
                 label: `诱饵信标 x${level.beaconCharges}`
             }));
         }
+        if (level.breakCharges) {
+            icons.push(makeMetaToken({
+                type: 'tool',
+                symbol: '碎',
+                count: level.breakCharges,
+                label: `碎解次数 x${level.breakCharges}`
+            }));
+        }
 
         const guardianRule = summarizeGuardianRule(level);
         if (guardianRule && includeAlwaysTools) {
@@ -572,7 +614,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
         const visibleLevels = game.levels
             .map((level, index) => ({ level, index }))
-            .filter(item => (item.level.act || 1) === selectedActPage);
+            .filter(item => (item.level.act || 1) === selectedActPage && isLevelVisible(item.level));
         if (!visibleLevels.some(item => item.index === selectedLevelIndex)) {
             selectedLevelIndex = visibleLevels[0]?.index || 0;
         }
@@ -649,6 +691,7 @@ document.addEventListener('DOMContentLoaded', () => {
         if (level.voids?.length) unlockArchive('voidCells');
         if (level.patchCharges) unlockArchive('patchTool');
         if (level.beaconCharges) unlockArchive('beaconTool');
+        if (level.breakCharges) unlockArchive('breakTool');
         if ((level.act || 1) >= 2) unlockArchive('actTwoShell');
     }
 
@@ -659,6 +702,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     function syncAchievementsForVictory(detail) {
+        markLevelCompleted(game.currentLevelIndex);
         unlockAchievement('firstEscape');
         if (detail?.actFinale) unlockAchievement('actOneClear');
         if (game.turn <= game.currentLevel?.bestTurns) unlockAchievement('cleanRoute');
@@ -712,9 +756,20 @@ document.addEventListener('DOMContentLoaded', () => {
         playerLine.className = 'comms-line player command-bubble';
         playerLine.textContent = routeCommandPreview.textContent.replace(/^走向：/, '路线：');
         commsStoryLines.appendChild(playerLine);
+        commsStoryLines.scrollTo?.({ top: commsStoryLines.scrollHeight, behavior: 'smooth' });
         if (companionBubble) companionBubble.textContent = game.trust < 55
             ? '我会看。但我不保证每次都乖乖照做。'
             : '行，我照这条线走。你最好是对的。';
+    }
+
+    function appendCommandBubble(text) {
+        if (!text || !commsStoryLines) return;
+        const playerLine = document.createElement('p');
+        playerLine.className = 'comms-line player command-bubble';
+        playerLine.textContent = text;
+        commsStoryLines.appendChild(playerLine);
+        commsStoryLines.scrollTo?.({ top: commsStoryLines.scrollHeight, behavior: 'smooth' });
+        markUnread('comms');
     }
 
     function startSelectedLevel() {
@@ -831,7 +886,23 @@ document.addEventListener('DOMContentLoaded', () => {
             );
             pulseCompanionReaction(detail);
         } else if (detail.type === 'rotate') {
+            appendCommandBubble(`指令：旋转 ${detail.axis} 轴第 ${Number(detail.layer || 0) + 1} 层 [${detail.direction === 'CW' ? '顺时针' : '逆时针'}]`);
             renderStoryEvent(detail, eventScenes.firstRotation, 'firstRotation');
+            pulseCompanionReaction(detail);
+        } else if (detail.type === 'patchPlaced') {
+            appendCommandBubble(`指令：在 ${game.describeCell(detail.at)} 部署补片`);
+            pulseCompanionReaction(detail);
+        } else if (detail.type === 'beaconPlaced') {
+            appendCommandBubble(`指令：在 ${game.describeCell(detail.at)} 部署诱饵`);
+            pulseCompanionReaction(detail);
+        } else if (detail.type === 'patchBroken') {
+            appendCommandBubble(`指令：碎解 ${game.describeCell(detail.at)}`);
+            pulseCompanionReaction(detail);
+        } else if (detail.type === 'breakPlaced') {
+            appendCommandBubble(`指令：碎解 ${game.describeCell(detail.at)}`);
+            pulseCompanionReaction(detail);
+        } else if (detail.type === 'skip') {
+            appendCommandBubble('指令：原地待命 (跳过回合)');
             pulseCompanionReaction(detail);
         } else if (detail.type === 'gameOver') {
             markUnread('tasks');
@@ -911,6 +982,12 @@ document.addEventListener('DOMContentLoaded', () => {
     btnTwistMode?.addEventListener('click', () => {
         if (render.isAnimating) return;
         setTwistMode(!twistMode);
+    });
+    tutorialHelperClose?.addEventListener('click', () => {
+        const card = document.getElementById('tutorial-helper-card');
+        const levelId = card?.dataset.levelId;
+        if (levelId) localStorage.setItem(`dawnCubeTutorialDismissed:${levelId}`, 'true');
+        card?.classList.add('is-hidden');
     });
     document.addEventListener('keydown', event => {
         if (event.key === 'Escape') {

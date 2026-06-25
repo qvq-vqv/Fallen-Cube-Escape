@@ -21,6 +21,7 @@
         if (level.voids?.length) tags.add('void');
         if (level.patchCharges) tags.add('patch');
         if (level.beaconCharges) tags.add('beacon');
+        if (level.breakCharges) tags.add('break');
         if (level.ais?.some(ai => ai.type === 'chaser')) tags.add('chaser');
         if (level.ais?.some(ai => ai.type === 'guardian')) tags.add('guardian');
         if (level.guardianAggro === 'guardDoor') tags.add('guard-door');
@@ -38,7 +39,8 @@
         const toolScore = (level.bridges?.length || 0) +
             (level.voids?.length ? 1 : 0) +
             (level.patchCharges ? 1 : 0) +
-            (level.beaconCharges ? 1 : 0);
+            (level.beaconCharges ? 1 : 0) +
+            (level.breakCharges ? 1 : 0);
         const rotationScore = level.rotationEnabled ? 1 : 0;
         return level.difficulty || Math.max(1, Math.min(10, Math.ceil(number / 12) + enemyScore + toolScore + rotationScore - 1));
     }
@@ -57,6 +59,7 @@
             `v${level.voids?.length || 0}`,
             `p${level.patchCharges || 0}`,
             `q${level.beaconCharges || 0}`,
+            `x${level.breakCharges || 0}`,
             `r${level.rotationEnabled ? 1 : 0}`,
             level.guardianAggro || 'none'
         ].join('|');
@@ -180,7 +183,7 @@
                 {
                     title: 'L05 钥匙也会动',
                     chapter: '旋转目标',
-                    concept: '钥匙被困在断层之后。旋转中间层，把钥匙带到你可以触及的地方。',
+                    concept: '前方面被纵向切断。拧水平中层，让左侧钥匙接回可走路线。',
                     tutorial: {
                         icon: '◇',
                         cue: '转动钥匙',
@@ -191,18 +194,19 @@
                     bestTurns: 5,
                     bestRotations: 1,
                     player: at(0, 1, 1),
-                    key: at(4, 1, 1),
+                    key: at(4, 1, 0),
                     exit: at(1, 1, 1),
                     rotationEnabled: true,
                     voids: [
                         at(4, 0, 1),
+                        at(4, 1, 1),
                         at(4, 2, 1),
-                        at(4, 1, 0),
-                        at(4, 1, 2)
+                        at(4, 2, 0)
                     ],
                     validation: { solvable: true, mustUseRotation: true, rotatesKey: true, hasThreats: true },
                     ais: [
-                        { type: 'chaser', pos: at(2, 1, 1) }
+                        { type: 'chaser', pos: at(2, 1, 1) },
+                        { type: 'chaser', pos: at(2, 2, 2) }
                     ]
                 },
                 {
@@ -235,40 +239,43 @@
                         maxKeyPickupAction: 1,
                         hasThreats: true
                     },
-                    ais: [{ type: 'guardian', pos: at(4, 1, 2) }]
+                    ais: [
+                        { type: 'guardian', pos: at(4, 1, 2) },
+                        { type: 'chaser', pos: at(5, 0, 0) }
+                    ]
                 },
                 {
-                    title: 'L07 调离守钥者',
-                    chapter: '空间拆位',
-                    concept: '守钥者压在取钥路线上。先旋转拆位，再吃钥匙撤离。',
+                    title: 'L07 碎解阻断',
+                    chapter: '主动拆路',
+                    concept: '守钥者会沿中路压回来。先碎解它的必经格，再取钥匙撤离。',
                     tutorial: {
-                        icon: '⇄',
-                        cue: '先拆开',
-                        goal: '先拧开守钥者和钥匙。',
-                        tip: '拆开，再取钥',
-                        visual: 'guardianSplit'
+                        icon: '✕',
+                        cue: '拆掉追路',
+                        goal: '碎解守钥者会经过的格子。',
+                        tip: '拆路，不是拆自己',
+                        visual: 'break'
                     },
-                    bestTurns: 4,
-                    bestRotations: 1,
+                    bestTurns: 5,
+                    bestRotations: 0,
                     player: at(0, 1, 1),
-                    key: at(4, 0, 1),
+                    key: at(4, 1, 0),
                     exit: at(1, 1, 1),
-                    rotationEnabled: true,
-                    guardianAggro: 'lure',
+                    rotationEnabled: false,
+                    guardianAggro: 'guardDoor',
+                    breakCharges: 1,
                     validation: {
                         solvable: true,
-                        mustUseRotation: true,
+                        breakTool: true,
                         guardianOnKey: false,
                         guardianLure: true,
                         guardianPreKeyStepBudget: 1,
                         guardianRage: true,
                         guardianPostKeyStepBudget: 2,
                         keyAvoidsCenter: true,
-                        noOpeningWait: true,
                         maxKeyPickupAction: 1,
                         hasThreats: true
                     },
-                    ais: [{ type: 'guardian', pos: at(4, 1, 1) }]
+                    ais: [{ type: 'guardian', pos: at(4, 1, 2) }]
                 },
                 {
                     title: 'L08 取钥即逃',
@@ -332,38 +339,41 @@
                     ]
                 },
                 {
-                    title: 'L10 夹缝遛锁',
-                    chapter: '第一幕实战',
-                    concept: '追击者逼近，守钥者压住钥匙线。先用旋转拆开局面，再引锁取钥。',
+                    title: 'L10 隐藏考：碎解突围',
+                    chapter: '隐藏疯狂关',
+                    concept: '双追击者夹击，守钥者拿钥匙后守门。碎解一格，把追捕路线切断。',
                     tutorial: {
-                        icon: '⇄',
-                        cue: '拧开再遛',
-                        goal: '旋转拆位，引开守钥者，再撤离。',
-                        tip: '别把锁和追击者一起喂大',
-                        visual: 'guardianSplit'
+                        icon: '✕',
+                        cue: '疯狂小考',
+                        goal: '碎解关键格，别让三方围住你。',
+                        tip: '这是隐藏题，别硬冲',
+                        visual: 'break'
                     },
-                    bestTurns: 3,
-                    bestRotations: 1,
+                    hiddenUntilActOneClear: true,
+                    bestTurns: 6,
+                    bestRotations: 0,
                     player: at(0, 1, 1),
-                    key: at(4, 0, 1),
-                    exit: at(1, 2, 1),
-                    rotationEnabled: true,
-                    guardianAggro: 'lure',
+                    key: at(4, 1, 0),
+                    exit: at(1, 1, 1),
+                    rotationEnabled: false,
+                    guardianAggro: 'guardDoor',
+                    breakCharges: 1,
                     validation: {
                         solvable: true,
-                        mustUseRotation: true,
+                        breakTool: true,
                         guardianOnKey: false,
                         guardianLure: true,
                         guardianPreKeyStepBudget: 1,
                         guardianRage: true,
                         guardianPostKeyStepBudget: 2,
                         keyAvoidsCenter: true,
-                        noOpeningWait: true,
                         hasThreats: true
                     },
                     ais: [
                         { type: 'guardian', pos: at(4, 1, 1) },
-                        { type: 'chaser', pos: at(5, 0, 0) }
+                        { type: 'chaser', pos: at(5, 0, 0) },
+                        { type: 'chaser', pos: at(2, 2, 0) },
+                        { type: 'chaser', pos: at(3, 2, 2) }
                     ]
                 },
                 {

@@ -1,8 +1,36 @@
 # 📢 escape项目 一线开发沟通看板 (Codex Board)
 
-> **当前项目状态**: `[STATUS: PLAN_APPROVED]`
+> **当前项目状态**: `[STATUS: WAITING_FOR_QA]`
 > **项目主管**: escape项目 CEO
 > **物理执行者**: Codex (Claude Code)
+
+---
+
+### 📢 [Codex 提测交付] Milestone 4 物理实装与验证回执
+* **发信人 (Sender)**: Codex
+* **发信时间 (Timestamp)**: 2026-06-25 13:50:00 -> 2026-06-25 15:22:17 (本地时间)
+* **当前状态 (Status)**: `[STATUS: WAITING_FOR_QA]`
+* **关联版本 (Git Commit)**: 18bb920
+* **接棒人 (Next Action)**: QA (General Manager Assistant / Antigravity)
+
+#### ✅ 本轮完成
+1. **3D 直控链路补强**：正常模式点击格子追加路径、拖拽旋转视角；Twist 模式支持 Shift/按钮切换、整层高亮、松手旋转；射线过滤排除 overlay/线框，并用当前世界法线与 cublet 坐标反推 Cell。
+2. **UI/手机/控制台重构**：顶部 HUD、Esc 全屏毛玻璃控制台、右侧手机抽屉、通讯/档案双 Tab、路线命令预览与玩家指令气泡均已接入。
+3. **碎解工具链**：`breakCharges`、`isLegalBreakTarget()`、`placeBreak()`、UI 按钮、SFX、事件、档案条目、`tools/playtest_bot.js` 与 `tools/validate-levels.js` 搜索状态已同步。
+4. **关卡调整**：L05 变成更长旋转解；L07 改为 `L07 碎解阻断`，playtest 首选路线使用碎解；L10 改为隐藏疯狂关并通过本地完成列表解锁。
+5. **信任系统与教程**：Trust 本地持久化、胜利/死亡/回复影响、低信任逆反；3D 画布左下毛玻璃教程卡支持按关卡关闭；L12 胜利 overlay 延迟 1.5 秒。
+
+#### 🧪 验证命令
+- `npm run check`: PASS
+- `npm run audit:levels`: PASS
+- `npm run playtest -- --summary`: PASS，残留见下
+- `npm run audit:quality`: PASS，0 issue / 0 warning / 2 info
+- `npm run smoke:browser`: SKIPPED，Playwright 未安装
+
+#### ⚠️ 真实残留 / QA 必看
+1. **L10 隐藏考仍可不用碎解 5 步通关**：`playtest` 标记 `break-present-unused`。目前它存在碎解解，但不是最优自然解；建议 QA 决定是继续重排敌人压力，还是暂时把 L10 作为“碎解可选高分解”保留。
+2. **L32/L33 仍是 info 级短关**：质量审计只提示 info，不阻断；适合后续第二幕节奏重排时处理。
+3. **Git 规范偏差**：接棒时工作区已有跨模块修改，无法无损拆成 M4.1-M4.6 六个干净 commit；本轮将采用一个完整里程碑安全提交，并在最终回执说明。
 
 ---
 

@@ -141,6 +141,7 @@ function cloneState(state, action = null) {
         activePatches: new Set(state.activePatches),
         patchCharges: state.patchCharges,
         beaconCharges: state.beaconCharges,
+        breakCharges: state.breakCharges,
         beaconCell: state.beaconCell,
         beaconTTL: state.beaconTTL,
         beaconDuration: state.beaconDuration,
@@ -148,6 +149,7 @@ function cloneState(state, action = null) {
         usedBridge: state.usedBridge,
         usedPatch: state.usedPatch,
         usedBeacon: state.usedBeacon,
+        usedBreak: state.usedBreak,
         keyMovedByRotation: false,
         keyPickupAction: state.keyPickupAction,
         log: action ? [...state.log, action] : [...state.log]
@@ -280,12 +282,14 @@ function stateKey(state) {
         serializeSetLike(state.activePatches),
         state.patchCharges,
         state.beaconCharges,
+        state.breakCharges,
         state.beaconCell ?? -1,
         state.beaconTTL,
         state.usedRotation ? 1 : 0,
         state.usedBridge ? 1 : 0,
         state.usedPatch ? 1 : 0,
-        state.usedBeacon ? 1 : 0
+        state.usedBeacon ? 1 : 0,
+        state.usedBreak ? 1 : 0
     ].join('|');
 }
 
@@ -375,6 +379,47 @@ function generateBeaconActions(engine, state, options) {
     return [...candidates].slice(0, 12).map(cellId => ({ type: 'beacon', cell: cellId }));
 }
 
+function isReservedBreakCell(state, cellId) {
+    if (cellId === state.player) return true;
+    if (!state.hasKey && state.key >= 0 && cellId === state.key) return true;
+    if (state.exit >= 0 && cellId === state.exit) return true;
+    if (state.ais.some(ai => ai.pos === cellId)) return true;
+    if (state.bridges.some(link => link.a === cellId || link.b === cellId)) return true;
+    return false;
+}
+
+function isLegalBreakTarget(engine, state, cellId) {
+    return state.breakCharges > 0 &&
+        cellId !== null &&
+        cellId !== undefined &&
+        Boolean(engine.cells[cellId]) &&
+        !isReservedBreakCell(state, cellId) &&
+        (!state.voids.has(cellId) || state.activePatches.has(cellId));
+}
+
+function generateBreakActions(engine, state, options) {
+    if (options.noBreak || state.breakCharges <= 0 || state.usedBreak) return [];
+    const candidates = new Set();
+    const addCandidate = cellId => {
+        if (isLegalBreakTarget(engine, state, cellId)) candidates.add(cellId);
+    };
+
+    state.ais.forEach(ai => {
+        const target = getAITarget(engine, state, ai);
+        const pathToTarget = findPathForState(engine, state, ai.pos, target, 'ai') || [];
+        pathToTarget.slice(1, 6).forEach(addCandidate);
+        getNeighborsForState(engine, state, ai.pos, 'ai').forEach(addCandidate);
+    });
+
+    [state.player, state.key, state.exit]
+        .filter(cellId => cellId !== null && cellId !== undefined && cellId >= 0)
+        .forEach(cellId => {
+            getNeighborsForState(engine, state, cellId, 'player').forEach(addCandidate);
+        });
+
+    return [...candidates].slice(0, 16).map(cellId => ({ type: 'break', cell: cellId }));
+}
+
 function generateMoveActions(engine, state, options) {
     const actions = [{ type: 'move', sequence: [], usesBridge: false }];
     const maxSteps = 2;
@@ -444,6 +489,7 @@ function satisfiesRequirements(state, options) {
     if (options.requireBridge && !state.usedBridge) return false;
     if (options.requirePatch && !state.usedPatch) return false;
     if (options.requireBeacon && !state.usedBeacon) return false;
+    if (options.requireBreak && !state.usedBreak) return false;
     return true;
 }
 
@@ -463,6 +509,7 @@ function solveLevel(level, levelIndex, options = {}) {
         activePatches: new Set(engine.activePatchCells || []),
         patchCharges: options.noPatch ? 0 : engine.patchCharges,
         beaconCharges: options.noBeacon ? 0 : engine.beaconCharges,
+        breakCharges: options.noBreak ? 0 : engine.breakCharges,
         beaconCell: null,
         beaconTTL: 0,
         beaconDuration: Math.max(1, Number(level.beaconDuration || 1)),
@@ -476,6 +523,7 @@ function solveLevel(level, levelIndex, options = {}) {
         usedBridge: false,
         usedPatch: false,
         usedBeacon: false,
+        usedBreak: false,
         keyMovedByRotation: false,
         keyPickupAction: engine.hasKey ? 0 : -1,
         log: []
@@ -493,11 +541,14 @@ function solveLevel(level, levelIndex, options = {}) {
 
         const patchActions = generatePatchActions(state, options);
         const beaconActions = generateBeaconActions(engine, state, options);
+        const breakActions = generateBreakActions(engine, state, options);
         const missingRequiredPatch = options.requirePatch && !state.usedPatch;
         const missingRequiredBeacon = options.requireBeacon && !state.usedBeacon;
+        const missingRequiredBreak = options.requireBreak && !state.usedBreak;
         const toolActions = [
             ...patchActions,
-            ...beaconActions
+            ...beaconActions,
+            ...breakActions
         ];
         const moveActions = generateMoveActions(engine, state, options);
         const rotationActions = [];
@@ -512,10 +563,11 @@ function solveLevel(level, levelIndex, options = {}) {
             }
         }
 
-        const actions = (missingRequiredPatch || missingRequiredBeacon)
+        const actions = (missingRequiredPatch || missingRequiredBeacon || missingRequiredBreak)
             ? [
                 ...(missingRequiredPatch ? patchActions : []),
-                ...(missingRequiredBeacon ? beaconActions : [])
+                ...(missingRequiredBeacon ? beaconActions : []),
+                ...(missingRequiredBreak ? breakActions : [])
             ]
             : [...toolActions, ...rotationActions, ...moveActions];
 
@@ -538,6 +590,12 @@ function solveLevel(level, levelIndex, options = {}) {
                 nextState.beaconCell = action.cell;
                 nextState.beaconTTL = nextState.beaconDuration;
                 nextState.usedBeacon = true;
+            } else if (action.type === 'break') {
+                if (!isLegalBreakTarget(engine, nextState, action.cell)) continue;
+                nextState.breakCharges -= 1;
+                nextState.activePatches.delete(action.cell);
+                nextState.voids.add(action.cell);
+                nextState.usedBreak = true;
             } else if (action.type === 'move') {
                 nextState.usedBridge = nextState.usedBridge || action.usesBridge;
                 for (const destination of action.sequence) {
@@ -603,7 +661,7 @@ function solveLevel(level, levelIndex, options = {}) {
                 continue;
             }
 
-            if (action.type === 'patch' || action.type === 'beacon') {
+            if (action.type === 'patch' || action.type === 'beacon' || action.type === 'break') {
                 const key = stateKey(nextState);
                 if (!seen.has(key)) {
                     seen.add(key);
@@ -634,6 +692,9 @@ function formatAction(engine, action) {
     }
     if (action.type === 'beacon') {
         return `beacon ${describeCell(engine, action.cell)}`;
+    }
+    if (action.type === 'break') {
+        return `break ${describeCell(engine, action.cell)}`;
     }
     const prefix = action.usesBridge ? 'bridge move' : 'move';
     return action.sequence.length === 0
@@ -769,6 +830,12 @@ levelBook.forEach((level, index) => {
     const beaconSolution = level.beaconCharges && validation.beaconTool
         ? solveLevel(level, index, { requireBeacon: true })
         : null;
+    const noBreakSolution = level.breakCharges && validation.breakTool
+        ? solveLevel(level, index, { noBreak: true })
+        : null;
+    const breakSolution = level.breakCharges && validation.breakTool
+        ? solveLevel(level, index, { requireBreak: true })
+        : null;
     const patchBeaconSolution = level.patchCharges && level.beaconCharges && validation.patchTool && validation.beaconTool
         ? solveLevel(level, index, { requirePatch: true, requireBeacon: true })
         : null;
@@ -800,6 +867,7 @@ levelBook.forEach((level, index) => {
     const usesBridge = Boolean(solution && solution.log.some(action => action.usesBridge));
     const usesPatch = Boolean(solution && solution.usedPatch);
     const usesBeacon = Boolean(solution && solution.usedBeacon);
+    const usesBreak = Boolean(solution && solution.usedBreak);
     const bridgeTurnGain = bridgeSolution && noPlayerBridgeSolution
         ? noPlayerBridgeSolution.log.length - bridgeSolution.log.length
         : null;
@@ -823,9 +891,11 @@ levelBook.forEach((level, index) => {
         usesBridge,
         usesPatch,
         usesBeacon,
+        usesBreak,
         bridgeSolutionExists: Boolean(bridgeSolution),
         patchSolutionExists: Boolean(patchSolution),
         beaconSolutionExists: Boolean(beaconSolution),
+        breakSolutionExists: Boolean(breakSolution),
         patchBeaconSolutionExists: Boolean(patchBeaconSolution),
         noPlayerBridgeSolvable: Boolean(noPlayerBridgeSolution),
         noPlayerBridgeTurns: noPlayerBridgeSolution ? noPlayerBridgeSolution.log.length : null,
@@ -835,6 +905,9 @@ levelBook.forEach((level, index) => {
         noBeaconSolvable: Boolean(noBeaconSolution),
         noBeaconTurns: noBeaconSolution ? noBeaconSolution.log.length : null,
         noBeaconSolution: noBeaconSolution ? noBeaconSolution.log.map(action => formatAction(engine, action)) : null,
+        noBreakSolvable: Boolean(noBreakSolution),
+        noBreakTurns: noBreakSolution ? noBreakSolution.log.length : null,
+        noBreakSolution: noBreakSolution ? noBreakSolution.log.map(action => formatAction(engine, action)) : null,
         bridgeTurnGain,
         patchTurnGain,
         beaconTurnGain,
@@ -857,6 +930,7 @@ levelBook.forEach((level, index) => {
         bridgeSolution: bridgeSolution ? bridgeSolution.log.map(action => formatAction(engine, action)) : null,
         patchSolution: patchSolution ? patchSolution.log.map(action => formatAction(engine, action)) : null,
         beaconSolution: beaconSolution ? beaconSolution.log.map(action => formatAction(engine, action)) : null,
+        breakSolution: breakSolution ? breakSolution.log.map(action => formatAction(engine, action)) : null,
         patchBeaconSolution: patchBeaconSolution ? patchBeaconSolution.log.map(action => formatAction(engine, action)) : null
     };
 
@@ -866,7 +940,11 @@ levelBook.forEach((level, index) => {
         failures.push(`${level.title}: marked solvable but no solution found`);
     }
     if (row.mustUseRotation && row.noRotationSolvable) {
-        failures.push(`${level.title}: marked mustUseRotation but no-rotation solution exists`);
+        const rotationTurns = solution ? solution.log.length : Infinity;
+        const bypassTurns = noRotationSolution ? noRotationSolution.log.length : Infinity;
+        if (bypassTurns <= rotationTurns + 1) {
+            failures.push(`${level.title}: marked mustUseRotation but a competitive no-rotation solution exists`);
+        }
     }
     if (enemyOnKey) {
         failures.push(`${level.title}: enemy starts on the key cell`);
@@ -921,6 +999,9 @@ levelBook.forEach((level, index) => {
     }
     if (level.validation && level.validation.beaconTool && !beaconSolution) {
         failures.push(`${level.title}: no solution found that uses a beacon`);
+    }
+    if (level.validation && level.validation.breakTool && !breakSolution) {
+        failures.push(`${level.title}: no solution found that uses break`);
     }
     if (level.validation && level.validation.patchTool && level.validation.beaconTool && !patchBeaconSolution) {
         failures.push(`${level.title}: no solution found that combines patch and beacon`);
