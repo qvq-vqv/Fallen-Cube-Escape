@@ -49,6 +49,8 @@ class GameEngine {
         this.bufferedMoveCell = null;
         this.realtimeAIClocks = {};
         this.realtimeEdges = { player: null, ai: {} };
+        this.realtimeHistoryBuffer = [];
+        this.realtimeLastHistoryAt = 0;
 
         this.DIR = { UP: 0, DOWN: 1, LEFT: 2, RIGHT: 3 };
         this.rotationPermutations = { X: {}, Y: {}, Z: {} };
@@ -147,6 +149,8 @@ class GameEngine {
         this.bufferedMoveCell = null;
         this.realtimeAIClocks = {};
         this.realtimeEdges = { player: null, ai: {} };
+        this.realtimeHistoryBuffer = [];
+        this.realtimeLastHistoryAt = 0;
     }
 
     loadTrust() {
@@ -715,11 +719,13 @@ class GameEngine {
     }
 
     canUndo() {
+        if (this.realtimeMode) return this.realtimeHistoryBuffer.length > 0;
         return this.historyStack.length > 0;
     }
 
     undoTurn() {
         if (!this.canUndo()) return false;
+        if (this.realtimeMode) return this.rollbackRealtime(3000);
         const snapshot = this.historyStack.pop();
         this.restoreSnapshot(snapshot);
         this.playFeel('undo');
@@ -957,6 +963,7 @@ class GameEngine {
         this.realtimePaused = false;
         this.realtimeLastTick = this.nowMs();
         this.primeRealtimeClocks();
+        this.recordRealtimeSnapshot(this.realtimeLastTick, true);
     }
 
     stopRealtime() {
@@ -1095,7 +1102,55 @@ class GameEngine {
             edge.remainingMs = Math.max(0, edge.remainingMs - deltaMs);
             if (edge.remainingMs <= 0) delete this.realtimeEdges.ai[aiId];
         });
+        this.recordRealtimeSnapshot(now);
         this.checkRealtimeCollisions();
+    }
+
+    recordRealtimeSnapshot(now = this.nowMs(), force = false) {
+        if (!this.realtimeMode || this.gameState !== 'playing') return;
+        if (!force && now - this.realtimeLastHistoryAt < 120) return;
+        const snapshot = this.createSnapshot('realtime');
+        snapshot.realtimeTimestamp = now;
+        this.realtimeHistoryBuffer.push(snapshot);
+        this.realtimeLastHistoryAt = now;
+        const minTime = now - 6500;
+        while (this.realtimeHistoryBuffer.length > 0
+            && this.realtimeHistoryBuffer[0].realtimeTimestamp < minTime) {
+            this.realtimeHistoryBuffer.shift();
+        }
+        if (this.realtimeHistoryBuffer.length > 80) {
+            this.realtimeHistoryBuffer.splice(0, this.realtimeHistoryBuffer.length - 80);
+        }
+        this.updateActionButtons();
+    }
+
+    rollbackRealtime(ms = 3000) {
+        if (!this.realtimeMode || this.realtimeHistoryBuffer.length === 0) return false;
+        const now = this.nowMs();
+        const targetTime = now - ms;
+        let target = this.realtimeHistoryBuffer[0];
+        for (const snapshot of this.realtimeHistoryBuffer) {
+            if (snapshot.realtimeTimestamp <= targetTime) {
+                target = snapshot;
+            } else {
+                break;
+            }
+        }
+        const retained = this.realtimeHistoryBuffer
+            .filter(snapshot => snapshot.realtimeTimestamp <= target.realtimeTimestamp)
+            .map(snapshot => ({ ...snapshot }));
+        this.restoreSnapshot(target);
+        this.realtimeMode = true;
+        this.realtimePaused = false;
+        this.realtimeLastTick = now;
+        this.realtimeHistoryBuffer = retained;
+        this.realtimeLastHistoryAt = now;
+        this.recordRealtimeSnapshot(now, true);
+        this.playFeel('undo');
+        this.showFeel('倒回 3 秒。Dawn：又格式化？脑子会痛的。', 'info', true);
+        this.recordEvent('rollback', { seconds: 3, target: target.realtimeTimestamp });
+        this.updateUI();
+        return true;
     }
 
     tickRealtimePlayer(deltaMs) {

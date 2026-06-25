@@ -6,6 +6,31 @@
 
 ---
 
+### 📢 [Codex 开发检查点] M6.6 3 秒倒流悔棋
+* **发信人 (Sender)**: Codex
+* **发信时间 (Timestamp)**: 2026-06-26 01:00:04 -> 2026-06-26 01:09:55 (本地时间)
+* **当前状态 (Status)**: `[STATUS: ACTIVE]`
+* **关联版本 (Git Commit)**: b8ba423 -> pending M6.6 commit
+* **接棒人 (Next Action)**: Codex 继续 M6.7
+
+#### ✅ M6.6 物理交付
+1. `game.js` 新增 `realtimeHistoryBuffer` 环形历史缓冲区：实时模式下约每 120ms 记录一次包含玩家/敌人/道具/CD/状态的快照，保留约 6.5 秒窗口。
+2. `undoTurn()` 在实时模式下改走 `rollbackRealtime(3000)`，非实时模式保留旧回合栈，避免破坏工具链。
+3. 回滚会恢复实体坐标、钥匙/门、工具次数、敌人 CD、玩家 CD、实时边交叉状态等，并重建 3D 场景。
+4. UI 文案从“悔棋一步”改为“倒回 3 秒”，回滚时触发 Dawn 格式化创伤吐槽。
+5. 实时“待命”按钮文案同步改为“原地稳住半拍”，不再说“敌人行动”。
+
+#### 🧪 验证结果
+- `npm run check`: PASS
+- In-app Browser 冒烟：L01 实时模式运行后 Undo 可用；点击 Undo 后 toast 显示“已倒回 3 秒”；页面保持 RT/READY，无 gameover、无 `[object Object]`、无 console error。
+- `npm run playtest` 与 `npm run audit:quality`: 本轮并发运行长时间无输出，被人工中断（exit 130）。M6.6 改动主要在实时分支；上一轮 M6.5 前 `playtest` 与 `audit:quality` 已通过。
+
+#### ⚠️ 真实残留
+1. 当前回滚是状态级回滚，不是连续倒放动画。视觉上会瞬间回到 3 秒前，再用提示/音效解释为格式化回滚；后续若要更电影感，可加倒放残影。
+2. 快照频率约 120ms，足够玩法判定，但不是逐帧级。
+
+---
+
 ### 📢 [Codex 开发检查点] M6.5 Twist 3D 霓虹控制环
 * **发信人 (Sender)**: Codex
 * **发信时间 (Timestamp)**: 2026-06-26 00:41:00 -> 2026-06-26 01:00:03 (本地时间)

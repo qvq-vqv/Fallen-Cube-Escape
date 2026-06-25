@@ -1338,8 +1338,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
     btnEndTurn.addEventListener('click', () => {
         if (!render.isAnimating && game.gameState === 'playing') {
-            feel.note('跳过回合，敌人行动', 'danger');
-            feel.flashScreen('danger');
+            feel.note(game.realtimeMode ? '原地稳住半拍' : '跳过回合，敌人行动', game.realtimeMode ? 'info' : 'danger');
+            if (!game.realtimeMode) feel.flashScreen('danger');
             game.skipTurn();
         }
     });
@@ -1347,7 +1347,7 @@ document.addEventListener('DOMContentLoaded', () => {
     btnUndo.addEventListener('click', () => {
         if (!render.isAnimating) {
             if (game.undoTurn()) {
-                feel.note('已悔棋一步', 'info');
+                feel.note(game.realtimeMode ? '已倒回 3 秒' : '已悔棋一步', 'info');
             }
         }
     });
@@ -1525,7 +1525,7 @@ document.addEventListener('DOMContentLoaded', () => {
     btnGameoverUndo.addEventListener('click', () => {
         if (!render.isAnimating && game.undoTurn()) {
             gameoverOverlay.classList.remove('active', 'jump-alert');
-            feel.note('回到上一步，重新推演', 'info');
+            feel.note(game.realtimeMode ? '倒回 3 秒，重新推演' : '回到上一步，重新推演', 'info');
         }
     });
 

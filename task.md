@@ -43,10 +43,11 @@
   - [x] 修复本地化缓存与通讯 `[object Object]` 残留：更新脚本版本查询串，并补齐 `textOf()` 读取。
   - [x] *Git Checkpoint*：`feat(control): implement 3D neon axis rings and bullet time slow-down during twist mode`
 
-- [ ] **M6.6 3 秒倒流悔棋机制 (3-Second Rollback Undo)**
-  - [ ] 彻底抛弃传统回合退步，改写为实时环形历史状态缓冲区。
-  - [ ] 点击 Undo 时，整个游戏世界的时间线精确倒卷回 3 秒前（包含玩家/怪物坐标、道具数、CD读条、状态等）。
-  - [ ] *Git Checkpoint*：`feat(engine): implement 3-second rollback time travel undo mechanism`
+- [x] **M6.6 3 秒倒流悔棋机制 (3-Second Rollback Undo)**
+  - [x] 真实游玩中抛弃传统回合退步，改写为实时环形历史状态缓冲区；旧回合 undo 保留给非实时接口。
+  - [x] 点击 Undo 时，整个游戏世界的时间线倒卷回 3 秒前（包含玩家/怪物坐标、道具数、CD读条、状态等）。
+  - [x] 回滚时触发 Dawn 的格式化创伤吐槽反馈，并在 UI 中显示“已倒回 3 秒”。
+  - [x] *Git Checkpoint*：`feat(engine): implement 3-second rollback time travel undo mechanism`
 
 - [ ] **M6.7 无缝中英切换、3D 气泡与文案地道化 (Seamless Lang Toggle & Copy Polish)**
   - [ ] 切换语言时彻底销毁历史打字机 Timer 并就地翻译文本，绝不重播序章。
