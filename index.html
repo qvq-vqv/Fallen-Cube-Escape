@@ -19,6 +19,27 @@
     <div id="screen-flash" class="screen-flash" aria-hidden="true"></div>
     <div id="feel-toast" class="feel-toast" aria-live="polite"></div>
 
+    <!-- 3D 初始界面 -->
+    <div id="landing-overlay" class="overlay landing-overlay active">
+        <section class="landing-panel glass-panel" aria-label="黎明魔方主菜单">
+            <p class="landing-kicker">SIGNAL READY / DAWN LINK</p>
+            <h1 class="landing-title" aria-label="DAWN CUBE / 黎明魔方">
+                DAWN CUBE
+                <span class="title-glyph key-glyph" aria-hidden="true">O</span>
+                <span class="title-glyph door-glyph" aria-hidden="true">U</span>
+                <small>黎明魔方</small>
+            </h1>
+            <p class="landing-subtitle">A cube keeps folding. Dawn still wants to go home.</p>
+            <div class="landing-actions">
+                <button id="landing-start-btn" class="landing-btn primary" type="button">开始逃亡</button>
+                <button id="landing-levels-btn" class="landing-btn" type="button">残局目录</button>
+                <button id="landing-archive-btn" class="landing-btn" type="button">档案矩阵</button>
+                <button id="landing-audio-btn" class="landing-btn" type="button">声音开关</button>
+                <button class="landing-btn" type="button" data-lang-toggle>中 / EN</button>
+            </div>
+        </section>
+    </div>
+
     <!-- 第一幕通讯序章 -->
     <div id="prologue-overlay" class="overlay story-overlay active">
         <div class="crt-prologue">
@@ -48,7 +69,7 @@
     </div>
 
     <!-- 开局配置面板 Overlay -->
-    <div id="setup-overlay" class="overlay active">
+    <div id="setup-overlay" class="overlay">
         <div class="glass-panel setup-panel">
             <button class="btn-lang-toggle setup-lang" type="button" data-lang-toggle>中 / EN</button>
             <h1 class="glitch-text" data-text="黎明魔方" data-i18n="setup.title">黎明魔方</h1>
@@ -90,7 +111,7 @@
     </div>
 
     <!-- 游戏主界面 -->
-    <div id="game-container" style="display:none;">
+    <div id="game-container" class="preplay-stage" style="display:grid;">
         <div class="meta-toolbar glass-panel">
             <button id="btn-esc-menu" class="meta-btn" type="button" aria-label="打开控制台">☰</button>
             <button id="btn-undo" class="meta-btn" type="button" aria-label="悔棋一步" disabled>↶</button>

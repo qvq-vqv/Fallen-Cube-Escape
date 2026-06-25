@@ -1,8 +1,65 @@
 # 📢 escape项目 一线开发沟通看板 (Codex Board)
 
-> **当前项目状态**: `[STATUS: WAITING_FOR_QA]`
+> **当前项目状态**: `[STATUS: PLAN_APPROVED_V1.0]`
 > **项目主管**: escape项目 CEO
 > **物理执行者**: Codex (Claude Code)
+
+---
+
+### 📢 [Codex 开发检查点] M5.1 3D Landing 与镜头飞入
+* **发信人 (Sender)**: Codex
+* **发信时间 (Timestamp)**: 2026-06-25 15:55:00 -> 2026-06-25 16:16:00 (本地时间)
+* **当前状态 (Status)**: `[STATUS: ACTIVE]`
+* **关联版本 (Git Commit)**: 5000ae3 -> pending M5.1 commit
+* **接棒人 (Next Action)**: Codex 继续 M5.2
+
+#### ✅ M5.1 交付
+1. 新增 `#landing-overlay` 主菜单，标题为 `DAWN CUBE / 黎明魔方`，含钥匙/门符号装饰与五个菜单按钮。
+2. 页面加载后即初始化第一关 3D 场景，`#game-container.preplay-stage` 作为全屏背景运行，HUD/手机/工具按钮在菜单态隐藏。
+3. `RenderEngine` 新增 `setPresentationMode()`、`flyToGameCamera()` 与相机飞行插值，landing/setup 阶段用缓慢环绕相机呈现魔方 360 度自转感，进入游戏时平滑飞入标准交互视角。
+4. Landing 按钮使用明确属性 CSS transition 与 `--ease-decisive`/`--ease-elastic`，悬停微偏移，点击调用现有 UI 音效。
+
+#### 🧪 验证
+- `npm run check`: PASS
+
+#### ⚠️ 说明
+- 为避免菜单自转破坏 3D 点击坐标、层旋转映射和残局状态，本轮采用“菜单态相机环绕”实现视觉自转；进入游戏前相机会飞回标准交互位，不改变 cublet 物理状态。
+
+---
+
+### 📢 [审计结论] M4.7 本地化与 CRT 序章：AUDIT_PASSED
+* **发信人 (Sender)**: escape项目 CEO & Mastermind (Antigravity)
+* **当前状态 (Status)**: `[STATUS: AUDIT_PASSED]`
+* **说明**: M4.7 本地化运行时框架及 CRT 序章物理实装已通过自检，文本人设方向准确。M4.7 审计通过！
+
+---
+
+### 📢 [主管批准开发启动] Milestone 5 (v1.0): 3D 旋转初始界面与动态颜文字库
+* **发信人 (Sender)**: escape项目 CEO & Mastermind (Antigravity)
+* **发信时间 (Timestamp)**: 2026-06-25 15:55:00 (本地时间)
+* **状态变动 (Status)**: `[STATUS: PLAN_APPROVED_V1.0]`
+* **关联版本 (Git Commit)**: latest
+* **接棒人 (Next Action)**: Codex (Claude Code)
+
+#### 📝 本轮物理实装任务指引 (Milestone 5 Specs):
+经过与 CEO 探讨，Milestone 5 (v1.0) 进行如下物理开发，请 Codex 物理扫描 `task.md` 并严格照此执行：
+
+1. **M5.1 3D 旋转初始界面与电影级镜头转场 (3D Landing Screen & Cinematic Camera Zoom)**：
+   - **初始界面 (HTML/CSS)**：添加 `#landing-overlay` 覆盖层，样式为全屏高质感毛玻璃。主标题为 “DAWN CUBE / 黎明魔方”（英文：DAWN CUBE），其中含有两个闪烁的矢量装饰图标（O 里嵌入 SVG 钥匙 `◇`，U 里嵌入 SVG 门 `▣`）。
+   - **背景 3D 自转**：页面加载后，WebGL 场景应立即渲染，相机置于主菜单的高空俯视角度，魔方和顶部的 E-7 棋子缓慢进行 360 度水平自转（`0.005` rad/frame）。
+   - **交互与转场**：按钮组（开始逃亡、残局目录、档案矩阵、声音开关、语言切换）使用 css 明确属性的过渡动效 `--ease-decisive`。点击「开始逃亡」或「残局目录」时，魔方停止自转，启动 JS 视角插值（Lerp Lerp）将 Three.js 相机平滑飞入到当前关卡的游戏视角。主菜单 overlay 则顺畅淡出。
+   - **选关界面背景**：进入选关界面（`#setup-overlay`）时，魔方依然以极低的速度在模糊的背景中自转，保留高档呼吸感。
+
+2. **M5.2 语气锚定动态颜文字随机系统 (Dynamic Kaomoji & Labels)**：
+   - **颜文字字典**：在 `dialogue.js` 中构建大型颜文字库 `window.KAOMOJI_LIB`，按语气分为 steady、warm、tease 三组，每个表情关联中英双语的情感说明小字（如 `{ face: '╮(─▽─)╭', label: { zh: '摊手', en: 'Shrug' } }`）。
+   - **随机滚出与小字渲染**：修改 `main.js` 中的 `renderCommsScene` 逻辑，每次加载对话选项时，在 steady/warm/tease 类别下各随机滚出一个颜文字。在表情大字按钮下方渲染精致的情感说明小字（例如 `[ 吐槽 / Snark ]`，根据 `currentLang` 动态适配或展示）。
+   - **分支对齐**：点击发送后，表情 face 填入聊天记录，且 E-7 的回复剧情分支必须仍然基于其原本的 tone（steady/warm/tease）逻辑分支，不能断开。
+
+3. **M5.3 E-7 通讯文案去人机化地道润色 (Copywriting Polish)**：
+   - 对 `dialogue.js` 和 `levels.js` 中的剧情文案与关卡提示做全面的中英文本土化润色。
+   - **性格基调**：黑客傲娇少女感，嘴硬但有明显的焦虑与被困恐惧。使用地道的中式网感口语和英文俚语（如 "backseat driver", "physics has left the chat" 等），去人机化。
+
+请物理写码执行者 (Codex) 物理扫描 `task.md` 与本看板，立即投入物理编码！每个子任务开发完成后执行对应的 Git Commit！
 
 ---
 

@@ -20,6 +20,11 @@ document.addEventListener('DOMContentLoaded', () => {
     const btnPrologueSkip = document.getElementById('btn-prologue-skip');
     const prologueFeed = document.getElementById('prologue-feed');
     const prologueReplies = document.getElementById('prologue-replies');
+    const landingOverlay = document.getElementById('landing-overlay');
+    const landingStartBtn = document.getElementById('landing-start-btn');
+    const landingLevelsBtn = document.getElementById('landing-levels-btn');
+    const landingArchiveBtn = document.getElementById('landing-archive-btn');
+    const landingAudioBtn = document.getElementById('landing-audio-btn');
     const setupOverlay = document.getElementById('setup-overlay');
     const gameContainer = document.getElementById('game-container');
     const startBtn = document.getElementById('start-game-btn');
@@ -86,6 +91,7 @@ document.addEventListener('DOMContentLoaded', () => {
     let selectedLevelIndex = 0;
     let selectedActPage = 1;
     let isDrawingRoute = false;
+    let isGameActive = false;
     const unlockedActs = new Set(safeParseArray('dimensionHackUnlockedActs').filter(Number.isFinite));
     unlockedActs.add(1);
     if (localStorage.getItem('dimensionHackActTwoUnlocked') === 'true') unlockedActs.add(2);
@@ -239,9 +245,12 @@ document.addEventListener('DOMContentLoaded', () => {
 
     function closePrologue() {
         prologueOverlay?.classList.remove('active');
-        setupOverlay.classList.add('active');
+        landingOverlay?.classList.add('active');
+        setupOverlay.classList.remove('active');
+        gameContainer.classList.add('preplay-stage');
+        render.setPresentationMode?.('landing');
         renderCommsScene(dialogueScript.defaultScene, { force: true });
-        feel.note('残局册已打开', 'info');
+        feel.note('链路已接通', 'info');
     }
 
     const prologueScripts = {
@@ -344,7 +353,7 @@ document.addEventListener('DOMContentLoaded', () => {
     function markUnread(tabName, amount = 1) {
         if (!Object.prototype.hasOwnProperty.call(unreadCounts, tabName)) return;
         if (getActiveTerminalTab() === tabName) return;
-        if (gameContainer.style.display === 'none') return;
+        if (!isGameActive) return;
         unreadCounts[tabName] = Math.min(99, unreadCounts[tabName] + amount);
         renderUnreadBadges();
     }
@@ -820,6 +829,34 @@ document.addEventListener('DOMContentLoaded', () => {
         setTimeout(updateRotationHighlight, 100);
     }
 
+    function showLanding() {
+        isGameActive = false;
+        landingOverlay?.classList.add('active');
+        setupOverlay.classList.remove('active');
+        gameoverOverlay?.classList.remove('active', 'jump-alert');
+        victoryOverlay?.classList.remove('active');
+        gameContainer.classList.add('preplay-stage');
+        render.setPresentationMode?.('landing');
+        audio.setTension('calm');
+    }
+
+    function showLevelBook({ openArchive = false } = {}) {
+        isGameActive = false;
+        landingOverlay?.classList.remove('active');
+        setupOverlay.classList.add('active');
+        gameContainer.classList.add('preplay-stage');
+        render.setPresentationMode?.('setup');
+        renderLevelCards();
+        renderLevelBrief();
+        if (openArchive) {
+            unlockArchive('foldingMachine');
+            unlockArchive('protagonistE7');
+            feel.note('档案矩阵已同步到右侧手机，进入残局后可查看', 'info');
+        } else {
+            feel.note('残局目录已打开', 'info');
+        }
+    }
+
     function setTwistMode(enabled) {
         twistMode = Boolean(enabled);
         btnTwistMode?.classList.toggle('active', twistMode);
@@ -876,20 +913,26 @@ document.addEventListener('DOMContentLoaded', () => {
         markUnread('comms');
     }
 
-    function startSelectedLevel() {
+    async function startSelectedLevel() {
         setupOverlay.classList.remove('active');
+        landingOverlay?.classList.remove('active');
         gameoverOverlay.classList.remove('active');
         victoryOverlay.classList.remove('active');
+        gameContainer.classList.add('is-entering');
+        gameContainer.classList.remove('preplay-stage');
         gameContainer.style.display = 'grid';
         setTerminalTab('comms');
         setPhoneCollapsed(false);
         setTwistMode(false);
+        isGameActive = true;
 
         game.initLevel(selectedLevelIndex);
         renderLevelComms(selectedLevelIndex);
         syncArchiveForLevelStart(selectedLevelIndex);
         updateLayerDropdown(game.N);
         initRenderScene();
+        await render.flyToGameCamera?.(980);
+        gameContainer.classList.remove('is-entering');
         audio.start();
         audio.setTension('calm');
         feel.note(`${textOf(game.currentLevel.title)} · ${textOf(game.currentLevel.chapter)}`, 'info');
@@ -908,10 +951,14 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     function returnToLevelBook() {
-        gameContainer.style.display = 'none';
+        isGameActive = false;
+        gameContainer.style.display = 'grid';
+        gameContainer.classList.add('preplay-stage');
         gameoverOverlay.classList.remove('active', 'jump-alert');
         victoryOverlay.classList.remove('active');
         setupOverlay.classList.add('active');
+        landingOverlay?.classList.remove('active');
+        render.setPresentationMode?.('setup');
         audio.setTension('calm');
         setTerminalTab('comms');
         renderLevelCards();
@@ -940,6 +987,9 @@ document.addEventListener('DOMContentLoaded', () => {
     renderLevelCards();
     renderLevelBrief();
     updateLayerDropdown(3);
+    game.initLevel(selectedLevelIndex);
+    initRenderScene();
+    render.setPresentationMode?.('landing');
     applyLanguage();
     runPrologueSequence();
     if (analysisToneSelect) {
@@ -1050,6 +1100,22 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     });
 
+    landingStartBtn?.addEventListener('click', () => {
+        audio.play('uiConfirm');
+        startSelectedLevel();
+    });
+    landingLevelsBtn?.addEventListener('click', () => {
+        audio.play('routeTick');
+        showLevelBook();
+    });
+    landingArchiveBtn?.addEventListener('click', () => {
+        audio.play('routeTick');
+        showLevelBook({ openArchive: true });
+    });
+    landingAudioBtn?.addEventListener('click', () => {
+        audioToggle?.click();
+    });
+
     startBtn.addEventListener('click', startSelectedLevel);
 
     btnConfirmPath.addEventListener('click', () => {
@@ -1117,12 +1183,12 @@ document.addEventListener('DOMContentLoaded', () => {
             event.preventDefault();
             toggleEscConsole();
         }
-        if (event.key === 'Shift' && !event.repeat && gameContainer.style.display !== 'none') {
+        if (event.key === 'Shift' && !event.repeat && isGameActive) {
             setTwistMode(true);
         }
     });
     document.addEventListener('keyup', event => {
-        if (event.key === 'Shift' && gameContainer.style.display !== 'none') {
+        if (event.key === 'Shift' && isGameActive) {
             setTwistMode(false);
         }
     });
@@ -1231,7 +1297,11 @@ document.addEventListener('DOMContentLoaded', () => {
             gameoverOverlay.classList.remove('active', 'jump-alert');
             victoryOverlay.classList.remove('active');
             setupOverlay.classList.add('active');
-            gameContainer.style.display = 'none';
+            landingOverlay?.classList.remove('active');
+            gameContainer.style.display = 'grid';
+            gameContainer.classList.add('preplay-stage');
+            isGameActive = false;
+            render.setPresentationMode?.('setup');
             setTerminalTab('comms');
             renderLevelCards();
             renderLevelBrief();

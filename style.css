@@ -209,6 +209,189 @@ body {
     z-index: 1150;
 }
 
+.landing-overlay {
+    z-index: 1080;
+    background:
+        radial-gradient(circle at 50% 38%, rgba(0, 240, 255, 0.13), transparent 34%),
+        radial-gradient(circle at 64% 56%, rgba(189, 0, 255, 0.12), transparent 36%),
+        rgba(2, 4, 9, 0.54);
+    backdrop-filter: blur(8px) saturate(165%);
+    -webkit-backdrop-filter: blur(8px) saturate(165%);
+}
+
+.landing-overlay.is-fading {
+    opacity: 0;
+}
+
+.landing-panel {
+    width: min(720px, calc(100vw - clamp(1.5rem, 1rem + 4vw, 5rem)));
+    padding: clamp(1.2rem, 0.85rem + 1.8vw, 2.4rem);
+    display: grid;
+    gap: clamp(0.85rem, 0.65rem + 0.7vw, 1.25rem);
+    justify-items: center;
+    text-align: center;
+    background:
+        linear-gradient(145deg, rgba(255, 255, 255, 0.09), transparent 24%),
+        rgba(4, 8, 15, 0.58);
+    border-color: rgba(0, 240, 255, 0.26);
+    box-shadow:
+        0 30px 80px rgba(0, 0, 0, 0.48),
+        0 10px 24px rgba(0, 0, 0, 0.32),
+        0 0 0 1px rgba(0, 240, 255, 0.12),
+        inset 0 1px 0 rgba(255, 255, 255, 0.22);
+}
+
+.landing-kicker {
+    font-family: var(--font-data);
+    font-size: clamp(0.7rem, 0.62rem + 0.25vw, 0.86rem);
+    letter-spacing: 0.18em;
+    color: var(--neon-blue);
+    text-transform: uppercase;
+}
+
+.landing-title {
+    font-family: var(--font-title);
+    font-size: clamp(2.45rem, 1.5rem + 4.6vw, 5.5rem);
+    line-height: 0.95;
+    letter-spacing: 0;
+    color: #f7fbff;
+    text-shadow:
+        0 0 16px rgba(0, 240, 255, 0.32),
+        0 0 42px rgba(189, 0, 255, 0.22);
+    position: relative;
+}
+
+.landing-title small {
+    display: block;
+    margin-top: clamp(0.35rem, 0.25rem + 0.4vw, 0.65rem);
+    font-family: var(--font-ui);
+    font-size: clamp(1rem, 0.76rem + 0.9vw, 1.55rem);
+    font-weight: 900;
+    letter-spacing: 0.16em;
+    color: var(--neon-green);
+}
+
+.title-glyph {
+    position: absolute;
+    display: inline-grid;
+    place-items: center;
+    width: 0.72em;
+    height: 0.72em;
+    color: rgba(255, 255, 255, 0.22);
+    text-shadow: none;
+    pointer-events: none;
+}
+
+.key-glyph {
+    right: 4.85em;
+    top: -0.26em;
+}
+
+.door-glyph {
+    right: 1.35em;
+    top: 0.3em;
+}
+
+.title-glyph::after {
+    position: absolute;
+    inset: 0;
+    display: grid;
+    place-items: center;
+    font-family: var(--font-data);
+    font-size: 0.48em;
+    color: var(--neon-yellow);
+    text-shadow: 0 0 14px rgba(255, 183, 0, 0.55);
+    animation: landingGlyphPulse 2.2s var(--ease-natural) infinite;
+}
+
+.key-glyph::after {
+    content: '◇';
+}
+
+.door-glyph::after {
+    content: '▣';
+    color: var(--neon-green);
+    text-shadow: 0 0 14px rgba(0, 255, 136, 0.5);
+    animation-delay: 0.45s;
+}
+
+@keyframes landingGlyphPulse {
+    0%, 100% {
+        opacity: 0.58;
+        transform: scale(0.95);
+    }
+    50% {
+        opacity: 1;
+        transform: scale(1.08);
+    }
+}
+
+.landing-subtitle {
+    max-width: 48ch;
+    color: rgba(226, 232, 240, 0.78);
+    font-size: clamp(0.86rem, 0.72rem + 0.35vw, 1rem);
+    line-height: 1.65;
+}
+
+.landing-actions {
+    width: min(520px, 100%);
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: clamp(0.55rem, 0.42rem + 0.45vw, 0.85rem);
+}
+
+.landing-btn {
+    min-height: clamp(2.8rem, 2.55rem + 0.85vw, 3.35rem);
+    border: 1px solid rgba(0, 240, 255, 0.18);
+    border-radius: 10px;
+    background:
+        linear-gradient(145deg, rgba(255, 255, 255, 0.08), transparent 55%),
+        rgba(4, 10, 18, 0.76);
+    color: var(--text-color);
+    font-family: var(--font-ui);
+    font-size: clamp(0.82rem, 0.72rem + 0.32vw, 0.98rem);
+    font-weight: 800;
+    letter-spacing: 0.04em;
+    cursor: pointer;
+    box-shadow:
+        0 10px 26px rgba(0, 0, 0, 0.22),
+        inset 0 1px 0 rgba(255, 255, 255, 0.12);
+    transition:
+        border-color var(--motion-base) var(--ease-decisive),
+        background var(--motion-base) var(--ease-decisive),
+        box-shadow var(--motion-base) var(--ease-decisive),
+        color var(--motion-base) var(--ease-decisive),
+        transform var(--motion-base) var(--ease-elastic);
+}
+
+.landing-btn.primary {
+    grid-column: 1 / -1;
+    color: #061018;
+    background:
+        linear-gradient(145deg, rgba(255, 255, 255, 0.42), transparent 42%),
+        var(--neon-blue);
+    box-shadow:
+        0 0 24px rgba(0, 240, 255, 0.22),
+        0 14px 32px rgba(0, 0, 0, 0.28);
+}
+
+.landing-btn:hover {
+    border-color: rgba(0, 240, 255, 0.58);
+    color: #fff;
+    transform: translateY(-2px) skewX(-1deg);
+    box-shadow:
+        0 18px 38px rgba(0, 0, 0, 0.32),
+        0 0 22px rgba(0, 240, 255, 0.18),
+        inset 0 1px 0 rgba(255, 255, 255, 0.18);
+}
+
+.landing-btn.primary:hover {
+    color: #02060a;
+    background:
+        linear-gradient(145deg, rgba(255, 255, 255, 0.62), transparent 42%),
+        #bdfaff;
+}
+
 /* 配置面板 & 结算面板 */
 .setup-panel, .end-panel {
     width: 720px;
@@ -967,6 +1150,47 @@ body {
     padding: clamp(0.55rem, 0.4rem + 0.55vw, 0.95rem);
     gap: clamp(0.55rem, 0.4rem + 0.55vw, 0.95rem);
     position: relative;
+}
+
+#game-container.preplay-stage {
+    position: fixed;
+    inset: 0;
+    z-index: 0;
+    grid-template-columns: 1fr;
+    padding: 0;
+    gap: 0;
+    pointer-events: none;
+}
+
+#game-container.preplay-stage .meta-toolbar,
+#game-container.preplay-stage .top-hud,
+#game-container.preplay-stage #phone-panel,
+#game-container.preplay-stage #canvas-overlay-ui,
+#game-container.preplay-stage #audio-toggle,
+#game-container.preplay-stage #btn-twist-mode {
+    opacity: 0;
+    pointer-events: none;
+}
+
+#game-container.preplay-stage #canvas-container {
+    grid-column: 1 / -1;
+    width: 100vw;
+    height: 100vh;
+    border-radius: 0;
+    border-color: transparent;
+    box-shadow: none;
+    filter: saturate(1.16) brightness(0.82);
+}
+
+#game-container.preplay-stage #canvas-container::before,
+#game-container.preplay-stage #canvas-container::after {
+    opacity: 0;
+}
+
+#game-container.is-entering #canvas-container {
+    transition:
+        filter 0.72s var(--ease-decisive),
+        transform 0.72s var(--ease-decisive);
 }
 
 .meta-toolbar {

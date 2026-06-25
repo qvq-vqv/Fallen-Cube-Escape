@@ -1,5 +1,32 @@
-# 🎬 Milestone 4: 3D Direct Interaction & UI Refactoring (2026-06-24 重组主线)
+# 🎬 Milestone 5: 3D Landing Screen & Dynamic Kaomoji System (2026-06-25)
 
+> 状态：`[PLAN_APPROVED_V1.0]`  
+> 执行者：Codex  
+> 红线：不使用占位图片；保持高端的毛玻璃和 3D 转场；保持 E-7 性格鲜明（傲娇、毒舌、想回家）。
+
+- [x] **M5.1 3D 旋转初始界面与镜头转场 (3D Landing Screen & Cinematic Camera Zoom)**
+  - [x] 在 `index.html` 添加 `#landing-overlay`，包含主标题 “DAWN CUBE / 黎明魔方” 和菜单按钮组。
+  - [x] 页面加载后立即初始化 3D 场景，相机处于主菜单俯视视角，魔方在背景中自动 360 度缓缓旋转。
+  - [x] 按钮组（开始逃亡、残局目录、档案矩阵、声音开关、切换语言）采用 CSS 动效（--ease-decisive），悬停有微偏和 tick 音效。
+  - [x] 实现从主菜单视角到当前关卡视角的 Three.js 相机平滑插值过渡（Lerp Lerp）。
+  - [x] 选关界面（`#setup-overlay`）激活时，魔方依然在背景中隐约自转。
+  - [x] *Git Checkpoint*：完成此项后 commit：`feat(ui): implement 3D landing screen, rotating background cube, and cinematic camera zoom fly-in`
+
+- [ ] **M5.2 动态颜文字表情包选择与双语小字标签 (Dynamic Kaomoji & Labels)**
+  - [ ] 在 `dialogue.js` 中构建大型颜文字库 `window.KAOMOJI_LIB`，按语气分为 steady、warm、tease，且每个表情均配有中英双语的感情注释小字。
+  - [ ] 修改 `main.js` 中的 `renderCommsScene`，每次渲染选项时，动态随机滚出 3 个表情（每个语气类别各 1 个）。
+  - [ ] 在表情按钮下方渲染出说明小字，如 `[ 吐槽 / Snark ]`，支持点击语言按钮即时中英翻译切换。
+  - [ ] 确保点击该表情能正常将 `face` 填入聊天记录，且 E-7 的回复仍然正确承接该语气的 response。
+  - [ ] *Git Checkpoint*：完成此项后 commit：`feat(comms): upgrade to dynamic tone-anchored kaomoji rolling with bilingual labels`
+
+- [ ] **M5.3 E-7 通讯文案去人机化地道润色 (Dialogue & Copywriting Polish)**
+  - [ ] 对 `dialogue.js` 和 `levels.js` 中的剧情文案与关卡提示做全面的中英文本土化润色，让 E-7 听起来更像一个嘴硬、恐惧却又傲娇想回家的真人女孩。
+  - [ ] 运行测试验证：`npm run check`，`npm run audit:levels` 和 `npm run playtest` 确保没有报错。
+  - [ ] *Git Checkpoint*：完成此项后 commit：`feat(copy): polish E-7 dialogue copywriting with sarcastic hacker-girl tone`
+
+---
+
+# 🎬 Milestone 4: 3D Direct Interaction & UI Refactoring (2026-06-24 重组主线)
 > 状态：`[WAITING_FOR_QA]`  
 > 执行者：Codex  
 > 红线：不使用任何 2D Net 展开图逻辑（彻底废弃 2D Net 画线，仅保留 3D 界面画线与 Twist 层）；保持极致的 UI 微动效与毛玻璃美学；不使用占位美术。

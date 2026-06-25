@@ -60,6 +60,10 @@ class RenderEngine {
         this.edgeColorScratch = null;
         this.laserFrame = 0;
         this.layerHighlightMaterial = null;
+        this.presentationMode = 'game';
+        this.presentationAngle = 0;
+        this.presentationSpeed = 0;
+        this.cameraFlight = null;
     }
 
     // 初始化 3D 场景
@@ -713,6 +717,81 @@ class RenderEngine {
         this.camera.position.set(8.4, 7.8, 12.4);
         this.controls.target.set(0, 0, 0);
         this.controls.update();
+    }
+
+    setPresentationMode(mode = 'game') {
+        this.presentationMode = ['landing', 'setup', 'game'].includes(mode) ? mode : 'game';
+        this.presentationSpeed = this.presentationMode === 'landing'
+            ? 0.005
+            : (this.presentationMode === 'setup' ? 0.0018 : 0);
+        if (this.controls) {
+            this.controls.enabled = this.presentationMode === 'game';
+            this.controls.enableRotate = this.presentationMode === 'game';
+        }
+        if (this.presentationMode !== 'game') {
+            this.cameraFlight = null;
+            this.applyPresentationCamera(true);
+        }
+    }
+
+    applyPresentationCamera(force = false) {
+        if (!this.camera || this.presentationMode === 'game') return;
+        if (!force) this.presentationAngle += this.presentationSpeed;
+        const radius = this.presentationMode === 'landing' ? 16.8 : 15.2;
+        const height = this.presentationMode === 'landing' ? 10.4 : 8.8;
+        const angle = this.presentationAngle;
+        this.camera.position.set(
+            Math.cos(angle) * radius,
+            height + Math.sin(angle * 0.7) * 0.45,
+            Math.sin(angle) * radius
+        );
+        this.camera.lookAt(0, 0, 0);
+        if (this.controls) {
+            this.controls.target.set(0, 0, 0);
+            this.controls.update();
+        }
+    }
+
+    flyToGameCamera(duration = 950) {
+        if (!this.camera) return Promise.resolve();
+        const targetPosition = new THREE.Vector3(8.4, 7.8, 12.4);
+        const targetLookAt = new THREE.Vector3(0, 0, 0);
+        const startPosition = this.camera.position.clone();
+        const startTime = performance.now();
+        this.presentationMode = 'game';
+        if (this.controls) {
+            this.controls.enabled = false;
+            this.controls.enableRotate = false;
+        }
+        return new Promise(resolve => {
+            this.cameraFlight = {
+                startPosition,
+                targetPosition,
+                targetLookAt,
+                startTime,
+                duration,
+                resolve
+            };
+        });
+    }
+
+    updateCameraFlight() {
+        if (!this.cameraFlight || !this.camera) return;
+        const { startPosition, targetPosition, targetLookAt, startTime, duration, resolve } = this.cameraFlight;
+        const raw = Math.min(1, (performance.now() - startTime) / duration);
+        const eased = 1 - Math.pow(1 - raw, 3);
+        this.camera.position.lerpVectors(startPosition, targetPosition, eased);
+        this.camera.lookAt(targetLookAt);
+        if (raw >= 1) {
+            this.cameraFlight = null;
+            if (this.controls) {
+                this.controls.target.copy(targetLookAt);
+                this.controls.enabled = true;
+                this.controls.enableRotate = true;
+                this.controls.update();
+            }
+            resolve?.();
+        }
     }
 
     disposeMaterial(material) {
@@ -2575,9 +2654,15 @@ class RenderEngine {
     // 渲染主循环
     animate() {
         this.animationFrameId = requestAnimationFrame(this.boundAnimate);
+
+        if (this.presentationMode !== 'game') {
+            this.applyPresentationCamera();
+        } else {
+            this.updateCameraFlight();
+        }
         
         // 更新 OrbitControls 摄像机控制器
-        if (this.controls) this.controls.update();
+        if (this.controls && !this.cameraFlight) this.controls.update();
         
         // 自转动画，增加精致感
         // A. 悬浮钥匙自转
