@@ -721,10 +721,10 @@ class RenderEngine {
     }
 
     setPresentationMode(mode = 'game') {
-        this.presentationMode = ['landing', 'setup', 'game'].includes(mode) ? mode : 'game';
+        this.presentationMode = ['landing', 'setup', 'constellation', 'game'].includes(mode) ? mode : 'game';
         this.presentationSpeed = this.presentationMode === 'landing'
             ? 0.005
-            : (this.presentationMode === 'setup' ? 0.0018 : 0);
+            : (this.presentationMode === 'constellation' ? 0.0024 : (this.presentationMode === 'setup' ? 0.0018 : 0));
         if (this.controls) {
             this.controls.enabled = this.presentationMode === 'game';
             this.controls.enableRotate = this.presentationMode === 'game';
@@ -738,16 +738,25 @@ class RenderEngine {
     applyPresentationCamera(force = false) {
         if (!this.camera || this.presentationMode === 'game') return;
         if (!force) this.presentationAngle += this.presentationSpeed;
-        const radius = this.presentationMode === 'landing' ? 16.8 : 15.2;
-        const height = this.presentationMode === 'landing' ? 10.4 : 8.8;
-        const lookAt = this.presentationMode === 'landing'
+        const isLanding = this.presentationMode === 'landing';
+        const isConstellation = this.presentationMode === 'constellation';
+        const radius = isLanding ? 16.8 : (isConstellation ? 24.2 : 15.2);
+        const height = isLanding ? 10.4 : (isConstellation ? 12.2 : 8.8);
+        const drift = isConstellation
+            ? new THREE.Vector3(
+                Math.sin(this.presentationAngle * 2.2) * 0.9,
+                Math.sin(this.presentationAngle * 1.45) * 0.36,
+                Math.cos(this.presentationAngle * 1.7) * 0.55
+            )
+            : new THREE.Vector3(0, 0, 0);
+        const lookAt = isLanding
             ? new THREE.Vector3(1.85, -0.62, 0.45)
-            : new THREE.Vector3(0.65, -0.28, 0.2);
+            : (isConstellation ? new THREE.Vector3(2.4, -0.5, 0.65).add(drift.multiplyScalar(0.35)) : new THREE.Vector3(0.65, -0.28, 0.2));
         const angle = this.presentationAngle;
         this.camera.position.set(
-            Math.cos(angle) * radius + lookAt.x * 0.48,
-            height + Math.sin(angle * 0.7) * 0.45,
-            Math.sin(angle) * radius + lookAt.z * 0.48
+            Math.cos(angle) * radius + lookAt.x * 0.48 + (isConstellation ? drift.x : 0),
+            height + Math.sin(angle * 0.7) * (isConstellation ? 0.95 : 0.45) + (isConstellation ? drift.y : 0),
+            Math.sin(angle) * radius + lookAt.z * 0.48 + (isConstellation ? drift.z : 0)
         );
         this.camera.lookAt(lookAt);
         if (this.controls) {

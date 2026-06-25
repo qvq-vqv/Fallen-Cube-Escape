@@ -18,11 +18,11 @@
   - [x] 实现自定义键位（点击按键输入绑定）：支持修改移动/画路、部署补片、部署信标、碎解、原地待命、Twist 拧层模式的按键。
   - [x] *Git Checkpoint*：`feat(settings): implement standalone settings panel, keybinding customization, and dev unlock mode`
 
-- [ ] **M6.3 星轨选关系统与零重力漂移魔方 (Constellation Level Selector & Drifting Cube)**
-  - [ ] 点击「关卡选择」时，利用 JS 缩放和位置差值，使魔方缩至 60% 尺寸，并开启零重力漂浮效果（极慢自转 + 随机正弦小幅曲线漂移，允许稍微超出屏缘但不脱屏）。
-  - [ ] 选关面板改为超高透明度，背景应用模糊，将 12 个关卡渲染为左右错落的霓虹连线星轨节点（通关=青色，当前=黄色呼吸，锁定=暗线框，Dev模式解锁全部）。
-  - [ ] 点击星点时，在下方弹出一个完全不透光的关卡信息板（包含进入链路按钮），并提供悬浮「返回主菜单」按钮。
-  - [ ] *Git Checkpoint*：`feat(ui): implement constellation level selector and zero-gravity drifting background cube`
+- [x] **M6.3 星轨选关系统与零重力漂移魔方 (Constellation Level Selector & Drifting Cube)**
+  - [x] 点击「关卡选择」时，利用 JS 缩放和位置差值，使魔方缩至 60% 尺寸，并开启零重力漂浮效果（极慢自转 + 随机正弦小幅曲线漂移，允许稍微超出屏缘但不脱屏）。
+  - [x] 选关面板改为超高透明度，背景应用模糊，将 12 个关卡渲染为左右错落的霓虹连线星轨节点（通关=青色，当前=黄色呼吸，锁定=暗线框，Dev模式解锁全部）。
+  - [x] 点击星点时，在下方弹出一个完全不透光的关卡信息板（包含进入链路按钮），并提供悬浮「返回主菜单」按钮。
+  - [x] *Git Checkpoint*：`feat(ui): implement constellation level selector and zero-gravity drifting background cube`
 
 - [ ] **M6.4 实时 CD 直控引擎与实体进度环倒计时 (Real-time CD Direct Control Engine & Entity Timers)**
   - [ ] 废弃回合制 AP 限制和“画线规划->发送”逻辑。玩家直接点击 E-7 邻格，E-7 立即平滑移动一格并触发 0.6s 移动 CD。

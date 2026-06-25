@@ -28,6 +28,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const setupOverlay = document.getElementById('setup-overlay');
     const gameContainer = document.getElementById('game-container');
     const startBtn = document.getElementById('start-game-btn');
+    const setupBackBtn = document.getElementById('setup-back-btn');
     const levelListEl = document.getElementById('level-list');
     const levelBriefEl = document.getElementById('level-brief');
     const actPageTabs = document.querySelectorAll('[data-act-page]');
@@ -813,6 +814,15 @@ document.addEventListener('DOMContentLoaded', () => {
             card.className = `level-card ${actClass} ${index === selectedLevelIndex ? 'active' : ''}`;
             card.type = 'button';
             card.dataset.levelIndex = index;
+            const localIndex = visibleLevels.findIndex(item => item.index === index);
+            const t = visibleLevels.length <= 1 ? 0.5 : localIndex / (visibleLevels.length - 1);
+            const side = localIndex % 2 === 0 ? 1 : -1;
+            const x = 50 + side * (22 + Math.sin(t * Math.PI * 2) * 8);
+            const y = 10 + t * 78 + Math.sin(localIndex * 1.35) * 5;
+            card.style.setProperty('--star-x', `${Math.max(12, Math.min(88, x)).toFixed(2)}%`);
+            card.style.setProperty('--star-y', `${Math.max(10, Math.min(90, y)).toFixed(2)}%`);
+            card.classList.toggle('completed', completedLevels.has(index));
+            card.classList.toggle('dev-unlocked', settingsState.devMode);
             card.innerHTML = `
                 <span class="level-card-title">${escapeHtml(textOf(level.title))}</span>
                 <span class="level-card-chapter">${escapeHtml(textOf(level.chapter))}</span>
@@ -919,7 +929,7 @@ document.addEventListener('DOMContentLoaded', () => {
         landingOverlay?.classList.remove('active');
         setupOverlay.classList.add('active');
         gameContainer.classList.add('preplay-stage');
-        render.setPresentationMode?.('setup');
+        render.setPresentationMode?.('constellation');
         renderLevelCards();
         renderLevelBrief();
         if (openArchive) {
@@ -1139,7 +1149,7 @@ document.addEventListener('DOMContentLoaded', () => {
         victoryOverlay.classList.remove('active');
         setupOverlay.classList.add('active');
         landingOverlay?.classList.remove('active');
-        render.setPresentationMode?.('setup');
+        render.setPresentationMode?.('constellation');
         audio.setTension('calm');
         setTerminalTab('comms');
         renderLevelCards();
@@ -1301,6 +1311,10 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 
     startBtn.addEventListener('click', startSelectedLevel);
+    setupBackBtn?.addEventListener('click', () => {
+        audio.play('routeTick');
+        showLanding();
+    });
 
     btnConfirmPath.addEventListener('click', () => {
         if (!render.isAnimating) {
@@ -1538,7 +1552,7 @@ document.addEventListener('DOMContentLoaded', () => {
             gameContainer.style.display = 'grid';
             gameContainer.classList.add('preplay-stage');
             isGameActive = false;
-            render.setPresentationMode?.('setup');
+            render.setPresentationMode?.('constellation');
             setTerminalTab('comms');
             renderLevelCards();
             renderLevelBrief();
