@@ -16,6 +16,30 @@
         quiet: '(。_。)'
     };
 
+    window.KAOMOJI_LIB = {
+        steady: [
+            { face: '(｀・ω・´)', label: { zh: '认真', en: 'Locked in' }, aria: { zh: '认真回应', en: 'Focused reply' } },
+            { face: '(ง •̀_•́)ง', label: { zh: '撑住', en: 'Hold steady' }, aria: { zh: '鼓劲回应', en: 'Encouraging reply' } },
+            { face: '(・∀・)b', label: { zh: '收到', en: 'Copy that' }, aria: { zh: '确认回应', en: 'Confirming reply' } },
+            { face: '( •̀ ω •́ )✧', label: { zh: '稳住', en: 'Stay sharp' }, aria: { zh: '稳住回应', en: 'Steady reply' } },
+            { face: '(`･ω･´)ゞ', label: { zh: '执行', en: 'On it' }, aria: { zh: '执行回应', en: 'Ready reply' } }
+        ],
+        warm: [
+            { face: '(´･ω･`)', label: { zh: '担心', en: 'Worried' }, aria: { zh: '担心回应', en: 'Worried reply' } },
+            { face: '(｡•́︿•̀｡)', label: { zh: '别怕', en: 'Stay with me' }, aria: { zh: '安慰回应', en: 'Comforting reply' } },
+            { face: '(´；ω；`)', label: { zh: '心疼', en: 'Ouch' }, aria: { zh: '心疼回应', en: 'Concerned reply' } },
+            { face: '(っ´ω`)ﾉ(╥ω╥)', label: { zh: '摸头', en: 'Soft support' }, aria: { zh: '温柔回应', en: 'Gentle reply' } },
+            { face: '(｡•́‿•̀｡)', label: { zh: '陪你', en: 'I am here' }, aria: { zh: '陪伴回应', en: 'Present reply' } }
+        ],
+        tease: [
+            { face: '(¬‿¬)', label: { zh: '吐槽', en: 'Snark' }, aria: { zh: '吐槽回应', en: 'Snarky reply' } },
+            { face: '╮(─▽─)╭', label: { zh: '摊手', en: 'Shrug' }, aria: { zh: '摊手回应', en: 'Shrug reply' } },
+            { face: '(￣▽￣*)ゞ', label: { zh: '装傻', en: 'Playing dumb' }, aria: { zh: '装傻回应', en: 'Playful reply' } },
+            { face: '(¬_¬ )', label: { zh: '斜眼', en: 'Side-eye' }, aria: { zh: '斜眼回应', en: 'Side-eye reply' } },
+            { face: '(。-`ω´-)', label: { zh: '嘴硬', en: 'Bluffing' }, aria: { zh: '嘴硬回应', en: 'Bluffing reply' } }
+        ]
+    };
+
     const commonReplies = {
         steady: {
             face: K.steady,

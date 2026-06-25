@@ -6,6 +6,25 @@
 
 ---
 
+### 📢 [Codex 开发检查点] M5.2 动态颜文字与双语标签
+* **发信人 (Sender)**: Codex
+* **发信时间 (Timestamp)**: 2026-06-25 16:16:00 -> 2026-06-25 16:19:00 (本地时间)
+* **当前状态 (Status)**: `[STATUS: ACTIVE]`
+* **关联版本 (Git Commit)**: 6b50f15 -> pending M5.2 commit
+* **接棒人 (Next Action)**: Codex 继续 M5.3
+
+#### ✅ M5.2 交付
+1. `dialogue.js` 新增 `window.KAOMOJI_LIB`，按 `steady`、`warm`、`tease` 三组维护颜文字、双语小字与 aria 文案。
+2. `main.js` 的 `renderCommsScene()` 会在每次进入通讯场景时按 tone 随机抽取表情展示；底层 reply 的 tone/response 保持不变，信任值和剧情分支不被破坏。
+3. 点击随机表情后，聊天记录写入当前抽到的 face，Dawn 的回复继续走该 tone 的原有 response。
+4. 语言切换会强制重渲染当前通讯场景，小字标签按 `getText()` 即时切换。
+5. `style.css` 补充 `.kaomoji-choice`、`.kaomoji-face` 与小字标签样式，避免两行按钮挤压。
+
+#### 🧪 验证
+- `npm run check`: PASS
+
+---
+
 ### 📢 [Codex 开发检查点] M5.1 3D Landing 与镜头飞入
 * **发信人 (Sender)**: Codex
 * **发信时间 (Timestamp)**: 2026-06-25 15:55:00 -> 2026-06-25 16:16:00 (本地时间)

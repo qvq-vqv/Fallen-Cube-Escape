@@ -12,12 +12,12 @@
   - [x] 选关界面（`#setup-overlay`）激活时，魔方依然在背景中隐约自转。
   - [x] *Git Checkpoint*：完成此项后 commit：`feat(ui): implement 3D landing screen, rotating background cube, and cinematic camera zoom fly-in`
 
-- [ ] **M5.2 动态颜文字表情包选择与双语小字标签 (Dynamic Kaomoji & Labels)**
-  - [ ] 在 `dialogue.js` 中构建大型颜文字库 `window.KAOMOJI_LIB`，按语气分为 steady、warm、tease，且每个表情均配有中英双语的感情注释小字。
-  - [ ] 修改 `main.js` 中的 `renderCommsScene`，每次渲染选项时，动态随机滚出 3 个表情（每个语气类别各 1 个）。
-  - [ ] 在表情按钮下方渲染出说明小字，如 `[ 吐槽 / Snark ]`，支持点击语言按钮即时中英翻译切换。
-  - [ ] 确保点击该表情能正常将 `face` 填入聊天记录，且 E-7 的回复仍然正确承接该语气的 response。
-  - [ ] *Git Checkpoint*：完成此项后 commit：`feat(comms): upgrade to dynamic tone-anchored kaomoji rolling with bilingual labels`
+- [x] **M5.2 动态颜文字表情包选择与双语小字标签 (Dynamic Kaomoji & Labels)**
+  - [x] 在 `dialogue.js` 中构建大型颜文字库 `window.KAOMOJI_LIB`，按语气分为 steady、warm、tease，且每个表情均配有中英双语的感情注释小字。
+  - [x] 修改 `main.js` 中的 `renderCommsScene`，每次渲染选项时，动态随机滚出 3 个表情（每个语气类别各 1 个）。
+  - [x] 在表情按钮下方渲染出说明小字，如 `[ 吐槽 / Snark ]`，支持点击语言按钮即时中英翻译切换。
+  - [x] 确保点击该表情能正常将 `face` 填入聊天记录，且 E-7 的回复仍然正确承接该语气的 response。
+  - [x] *Git Checkpoint*：完成此项后 commit：`feat(comms): upgrade to dynamic tone-anchored kaomoji rolling with bilingual labels`
 
 - [ ] **M5.3 E-7 通讯文案去人机化地道润色 (Dialogue & Copywriting Polish)**
   - [ ] 对 `dialogue.js` 和 `levels.js` 中的剧情文案与关卡提示做全面的中英文本土化润色，让 E-7 听起来更像一个嘴硬、恐惧却又傲娇想回家的真人女孩。

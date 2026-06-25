@@ -1532,6 +1532,32 @@ body {
         transform var(--motion-fast) var(--ease-elastic);
 }
 
+.terminal-choice.kaomoji-choice {
+    display: grid;
+    place-items: center;
+    gap: 3px;
+    min-height: 58px;
+    padding: 8px 6px 7px;
+}
+
+.kaomoji-face {
+    display: block;
+    font-size: clamp(1rem, 0.86rem + 0.52vw, 1.34rem);
+    line-height: 1;
+}
+
+.terminal-choice small {
+    display: block;
+    max-width: 100%;
+    color: rgba(226, 232, 240, 0.62);
+    font-family: var(--font-data);
+    font-size: clamp(0.54rem, 0.49rem + 0.18vw, 0.64rem);
+    line-height: 1.15;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
 .terminal-choice:hover {
     border-color: rgba(0, 240, 255, 0.4);
     background: rgba(0, 240, 255, 0.1);

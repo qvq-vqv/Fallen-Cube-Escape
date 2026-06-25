@@ -106,7 +106,8 @@ document.addEventListener('DOMContentLoaded', () => {
     const commsState = {
         ...storyState,
         activeSceneId: null,
-        lastReply: ''
+        lastReply: '',
+        currentChoices: []
     };
     if (!(commsState.seenEvents instanceof Set)) {
         commsState.seenEvents = new Set(commsState.seenEvents || []);
@@ -385,6 +386,19 @@ document.addEventListener('DOMContentLoaded', () => {
             .replaceAll("'", '&#039;');
     }
 
+    function pickKaomoji(tone, fallbackFace) {
+        const lib = window.KAOMOJI_LIB?.[tone] || [];
+        if (!lib.length) {
+            return {
+                face: fallbackFace,
+                label: { zh: tone || '回应', en: tone || 'Reply' },
+                aria: { zh: '颜文字回应', en: 'Emoji reply' }
+            };
+        }
+        const index = Math.floor(Math.random() * lib.length);
+        return lib[index];
+    }
+
     function applyLanguage() {
         document.documentElement.lang = window.currentLang === 'en' ? 'en' : 'zh-CN';
         document.querySelectorAll('[data-i18n]').forEach(node => {
@@ -476,6 +490,17 @@ document.addEventListener('DOMContentLoaded', () => {
 
         commsState.activeSceneId = sceneId;
         commsState.lastReply = '';
+        commsState.currentChoices = (scene.replies || []).map(reply => {
+            const tone = reply.tone || 'steady';
+            const emoji = pickKaomoji(tone, reply.face);
+            return {
+                ...reply,
+                originalFace: reply.face,
+                face: emoji.face || reply.face,
+                label: emoji.label || reply.label || { zh: tone, en: tone },
+                aria: emoji.aria || reply.aria || { zh: '颜文字回应', en: 'Emoji reply' }
+            };
+        });
 
         if (commsSceneTitle) commsSceneTitle.textContent = textOf(scene.title) || window.t?.('comms.scene') || '通讯';
         if (commsBondLabel) commsBondLabel.textContent = getBondLabel();
@@ -498,10 +523,11 @@ document.addEventListener('DOMContentLoaded', () => {
             commsLiveLine.className = 'comms-line system';
         }
         if (commsChoicesEl) {
-            commsChoicesEl.innerHTML = (scene.replies || [])
+            commsChoicesEl.innerHTML = commsState.currentChoices
                 .map((reply, index) => `
-                    <button class="terminal-choice" type="button" data-comms-choice="${index}" aria-label="${escapeHtml(reply.aria || '颜文字回应')}">
-                        ${escapeHtml(reply.face)}
+                    <button class="terminal-choice kaomoji-choice" type="button" data-comms-choice="${index}" aria-label="${escapeHtml(reply.aria || '颜文字回应')}">
+                        <span class="kaomoji-face">${escapeHtml(reply.face)}</span>
+                        <small>[ ${escapeHtml(reply.label || reply.tone || '回应')} ]</small>
                     </button>
                 `)
                 .join('');
@@ -511,7 +537,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     function chooseCommsReply(choiceIndex) {
         const scene = dialogueScript.scenes[commsState.activeSceneId];
-        const reply = scene?.replies?.[choiceIndex];
+        const reply = commsState.currentChoices?.[choiceIndex] || scene?.replies?.[choiceIndex];
         if (!reply) return;
 
         if (storyModule?.applyReply) {
@@ -1013,6 +1039,9 @@ document.addEventListener('DOMContentLoaded', () => {
         applyLanguage();
         if (prologueOverlay?.classList.contains('active')) {
             runPrologueSequence();
+        }
+        if (commsState.activeSceneId) {
+            renderCommsScene(commsState.activeSceneId, { force: true });
         }
     });
 
