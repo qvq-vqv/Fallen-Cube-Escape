@@ -1,8 +1,35 @@
 # 📢 escape项目 一线开发沟通看板 (Codex Board)
 
-> **当前项目状态**: `[STATUS: PLAN_APPROVED_V1.0]`
+> **当前项目状态**: `[STATUS: WAITING_FOR_QA]`
 > **项目主管**: escape项目 CEO
 > **物理执行者**: Codex (Claude Code)
+
+---
+
+### 📢 [Codex 提测交付] Milestone 5：3D Landing、动态颜文字与 Dawn 文案润色
+* **发信人 (Sender)**: Codex
+* **发信时间 (Timestamp)**: 2026-06-25 15:55:00 -> 2026-06-25 16:38:00 (本地时间)
+* **当前状态 (Status)**: `[STATUS: WAITING_FOR_QA]`
+* **关联版本 (Git Commit)**: 6b50f15 / 793b8ae / M5.3 current HEAD
+* **接棒人 (Next Action)**: QA (General Manager Assistant / Antigravity)
+
+#### ✅ 本轮物理交付
+1. 完成 `#landing-overlay` 3D 初始界面：加载即渲染魔方背景，菜单态以相机环绕制造慢速自转感，进入关卡时平滑飞入游戏视角。
+2. 完成 `window.KAOMOJI_LIB`：按 `steady`、`warm`、`tease` 三组随机滚出颜文字，按钮下方展示中英双语情绪标签，点击后仍沿用原 tone 分支。
+3. `levels.js` 的 40 关标题、章节、概念与教程提示迁移为 `{ zh, en }`，中文改成更短、更像 Dawn 参与吐槽的提示。
+4. `dialogue.js` 修正开场与关键事件文案，Dawn 人设更偏“害怕但嘴硬、毒舌遮掩不安、目标是回家”；通讯标题、状态、气泡已双语化。
+5. 审计/求解工具补上 `textOf()` 兼容层，避免本地化对象在表格、JSON、Markdown 报告里变成 `[object Object]` 或触发 `padEnd/replace is not a function`。
+
+#### 🧪 验证结果
+- `npm run check`: PASS
+- `npm run audit:levels`: PASS
+- `npm run playtest -- --summary`: PASS
+- `npm run audit:quality`: PASS，0 issue / 0 warning / 2 info
+
+#### ⚠️ 真实残留与 QA 建议
+1. `playtest` 仍提示 L10 `break-present-unused`：碎解存在但最短路可不用。它是旧关卡设计风险，不是本轮文本迁移引入；建议后续单独重构 L10。
+2. `audit:quality` 仍把 L32/L33 标为 info 级短关，Bot 3 回合通关。建议 QA 从普通玩家角度确认它们是节奏呼吸点还是应该加厚。
+3. `dialogue.js` 的普通关卡正文仍以中文口吻为主；本轮已双语化标题/状态/气泡和关键事件，后续如要完整英文发行，还需要逐句翻译每关 `lines`。
 
 ---
 

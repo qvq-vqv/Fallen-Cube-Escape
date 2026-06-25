@@ -10,6 +10,13 @@ vm.createContext(context);
 vm.runInContext(fs.readFileSync(path.join(root, 'levels.js'), 'utf8'), context, { filename: 'levels.js' });
 
 const levels = context.window.createLevelBook();
+
+function textOf(field) {
+    if (field && typeof field === 'object') {
+        return field.zh || field.en || '';
+    }
+    return field || '';
+}
 const strict = process.argv.includes('--strict');
 const targetCount = 100;
 
@@ -65,33 +72,33 @@ const fingerprintMap = new Map();
 levels.forEach(level => {
     requiredFields.forEach(field => {
         if (level[field] === undefined || level[field] === null || level[field] === '') {
-            missingMetadata.push(`${level.title}: missing ${field}`);
+            missingMetadata.push(`${textOf(level.title)}: missing ${field}`);
         }
     });
 
     const fingerprint = designFingerprint(level);
     const existing = fingerprintMap.get(fingerprint) || [];
-    existing.push(level.title);
+    existing.push(textOf(level.title));
     fingerprintMap.set(fingerprint, existing);
 
     const validation = level.validation || {};
     if (validation.bridgeTool && !validation.minBridgeTurnGain) {
-        softWarnings.push(`${level.title}: bridgeTool has no minBridgeTurnGain target`);
+        softWarnings.push(`${textOf(level.title)}: bridgeTool has no minBridgeTurnGain target`);
     }
     if (validation.patchTool && !validation.minPatchTurnGain) {
-        softWarnings.push(`${level.title}: patchTool has no minPatchTurnGain target`);
+        softWarnings.push(`${textOf(level.title)}: patchTool has no minPatchTurnGain target`);
     }
     if (validation.beaconTool && !validation.minBeaconTurnGain) {
-        softWarnings.push(`${level.title}: beaconTool has no minBeaconTurnGain target`);
+        softWarnings.push(`${textOf(level.title)}: beaconTool has no minBeaconTurnGain target`);
     }
     if (validation.patchTool && !level.patchCharges) {
-        weakToolLevels.push(`${level.title}: patchTool validation without patchCharges`);
+        weakToolLevels.push(`${textOf(level.title)}: patchTool validation without patchCharges`);
     }
     if (validation.beaconTool && !level.beaconCharges) {
-        weakToolLevels.push(`${level.title}: beaconTool validation without beaconCharges`);
+        weakToolLevels.push(`${textOf(level.title)}: beaconTool validation without beaconCharges`);
     }
     if ((level.mechanicTags || []).length === 0) {
-        missingMetadata.push(`${level.title}: empty mechanicTags`);
+        missingMetadata.push(`${textOf(level.title)}: empty mechanicTags`);
     }
 });
 

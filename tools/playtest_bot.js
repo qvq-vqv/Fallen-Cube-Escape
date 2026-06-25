@@ -39,6 +39,13 @@ if (outputIndex >= 0 && rawArgs[outputIndex + 1]) {
 const patternArg = rawArgs.find(arg => !arg.startsWith('--') && rawArgs[rawArgs.indexOf(arg) - 1] !== '--output');
 const targetPattern = patternArg ? new RegExp(patternArg, 'i') : null;
 
+function textOf(field) {
+    if (field && typeof field === 'object') {
+        return field.zh || field.en || '';
+    }
+    return field || '';
+}
+
 const COLORS = {
     reset: '\x1b[0m',
     dim: '\x1b[2m',
@@ -590,13 +597,13 @@ const failures = [];
 const summaries = [];
 const targets = allLevels
     .map((level, index) => ({ level, index }))
-    .filter(({ level }) => !targetPattern || targetPattern.test(level.title));
+    .filter(({ level }) => !targetPattern || targetPattern.test(textOf(level.title)));
 
 targets.forEach(({ level, index }) => {
     const result = solve(level, index);
     if (!result.state) {
         const failure = {
-            level: level.title,
+            level: textOf(level.title),
             reason: 'playtest_bot could not find a solution',
             expanded: result.expanded
         };
@@ -604,7 +611,7 @@ targets.forEach(({ level, index }) => {
         summaries.push({
             id: level.id,
             number: level.number,
-            title: level.title,
+            title: textOf(level.title),
             act: level.act,
             size: level.size || 3,
             solved: false,
@@ -612,7 +619,7 @@ targets.forEach(({ level, index }) => {
             risks: ['unsolved-by-playtest-bot']
         });
         if (!options.json && !options.markdown && !options.summary) {
-            console.log(`\n${COLORS.cyan}# ${level.title}${COLORS.reset}`);
+            console.log(`\n${COLORS.cyan}# ${textOf(level.title)}${COLORS.reset}`);
             console.log(`${COLORS.red}FAILED${COLORS.reset} expanded=${result.expanded}`);
         }
         return;
@@ -637,9 +644,9 @@ targets.forEach(({ level, index }) => {
     summaries.push({
         id: level.id,
         number: level.number,
-        title: level.title,
+        title: textOf(level.title),
         act: level.act,
-        chapter: level.chapter,
+        chapter: textOf(level.chapter),
         size: level.size || 3,
         solved: true,
         turns,
@@ -650,7 +657,7 @@ targets.forEach(({ level, index }) => {
     });
 
     if (!options.json && !options.markdown && !options.summary) {
-        console.log(`\n${COLORS.cyan}# ${level.title}${COLORS.reset}`);
+        console.log(`\n${COLORS.cyan}# ${textOf(level.title)}${COLORS.reset}`);
         console.log(`${COLORS.green}SOLVED${COLORS.reset} turns=${turns} expanded=${result.expanded}`);
         result.state.log.forEach((action, actionIndex) => {
             console.log(`${String(actionIndex + 1).padStart(2, '0')}. ${formatAction(result.engine, action)}`);
@@ -672,17 +679,17 @@ if (failures.length > 0) {
 function renderSummaryTable(rows) {
     const header = ['Level', 'Act', 'Turns', 'Used', 'Risks'];
     const body = rows.map(row => [
-        row.title,
+        textOf(row.title),
         String(row.act || 1),
         row.solved ? String(row.turns) : 'FAIL',
         row.solved ? Object.entries(row.used).filter(([, value]) => value).map(([key]) => key).join('+') || 'route' : '-',
         row.risks.join(', ') || 'ok'
     ]);
     const widths = header.map((item, index) =>
-        Math.max(item.length, ...body.map(row => row[index].length))
+        Math.max(item.length, ...body.map(row => String(row[index]).length))
     );
     return [header, ...body]
-        .map(row => row.map((cell, index) => cell.padEnd(widths[index])).join('  '))
+        .map(row => row.map((cell, index) => String(cell).padEnd(widths[index])).join('  '))
         .join('\n');
 }
 
@@ -699,11 +706,11 @@ function renderMarkdown(rows) {
         const used = row.solved
             ? Object.entries(row.used).filter(([, value]) => value).map(([key]) => key).join(' + ') || 'route'
             : '-';
-        lines.push(`| ${row.title} | ${row.act || 1} | ${row.solved ? row.turns : 'FAIL'} | ${used} | ${row.risks.join(', ') || 'ok'} |`);
+        lines.push(`| ${textOf(row.title)} | ${row.act || 1} | ${row.solved ? row.turns : 'FAIL'} | ${used} | ${row.risks.join(', ') || 'ok'} |`);
     });
     lines.push('');
     rows.forEach(row => {
-        lines.push(`## ${row.title}`);
+        lines.push(`## ${textOf(row.title)}`);
         lines.push('');
         lines.push(`- 幕/章节：Act ${row.act || 1} / ${row.chapter || '未标注'}`);
         lines.push(`- Bot 回合数：${row.solved ? row.turns : '未解出'}`);

@@ -17,6 +17,13 @@ vm.createContext(context);
 vm.runInContext(fs.readFileSync(path.join(root, 'levels.js'), 'utf8'), context, { filename: 'levels.js' });
 const levels = context.window.createLevelBook();
 
+function textOf(field) {
+    if (field && typeof field === 'object') {
+        return field.zh || field.en || '';
+    }
+    return field || '';
+}
+
 function runBotSummary() {
     const raw = execFileSync(process.execPath, [
         path.join(root, 'tools/playtest_bot.js'),
@@ -57,9 +64,9 @@ function buildReport() {
         return {
             id: row.id,
             number: row.number,
-            title: row.title,
+            title: textOf(row.title),
             act: level?.act || row.act || 1,
-            chapter: level?.chapter || '',
+            chapter: textOf(level?.chapter || ''),
             turns: row.turns,
             solved: row.solved,
             mechanic: mechanicSignature(row),

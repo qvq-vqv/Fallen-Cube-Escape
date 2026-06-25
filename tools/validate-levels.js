@@ -32,6 +32,13 @@ const levelBook = new GameEngine().levels;
 const topologyCache = new Map();
 const levelPattern = process.argv[2] ? new RegExp(process.argv[2], 'i') : null;
 
+function textOf(field) {
+    if (field && typeof field === 'object') {
+        return field.zh || field.en || '';
+    }
+    return field || '';
+}
+
 function createEngine(size = 3) {
     const engine = new GameEngine();
     engine.N = size;
@@ -805,7 +812,7 @@ const report = [];
 const failures = [];
 
 levelBook.forEach((level, index) => {
-    if (levelPattern && !levelPattern.test(level.title)) return;
+    if (levelPattern && !levelPattern.test(textOf(level.title))) return;
     const engine = createLevelEngine(level, index);
     const validation = level.validation || {};
     const solution = solveLevel(level, index);
@@ -882,7 +889,7 @@ levelBook.forEach((level, index) => {
         : null;
 
     const row = {
-        level: level.title,
+        level: textOf(level.title),
         size: engine.N,
         trackingEnabled: Boolean(level.trackingEnabled),
         bridgeCount: engine.bridges.length,
@@ -937,101 +944,101 @@ levelBook.forEach((level, index) => {
     report.push(row);
 
     if (level.validation && level.validation.solvable && !solution) {
-        failures.push(`${level.title}: marked solvable but no solution found`);
+        failures.push(`${textOf(level.title)}: marked solvable but no solution found`);
     }
     if (row.mustUseRotation && row.noRotationSolvable) {
         const rotationTurns = solution ? solution.log.length : Infinity;
         const bypassTurns = noRotationSolution ? noRotationSolution.log.length : Infinity;
         if (bypassTurns <= rotationTurns + 1) {
-            failures.push(`${level.title}: marked mustUseRotation but a competitive no-rotation solution exists`);
+            failures.push(`${textOf(level.title)}: marked mustUseRotation but a competitive no-rotation solution exists`);
         }
     }
     if (enemyOnKey) {
-        failures.push(`${level.title}: enemy starts on the key cell`);
+        failures.push(`${textOf(level.title)}: enemy starts on the key cell`);
     }
     if (enemyOnExit) {
-        failures.push(`${level.title}: enemy starts on the exit cell`);
+        failures.push(`${textOf(level.title)}: enemy starts on the exit cell`);
     }
     if (engine.N === 3 && level.validation && level.validation.guardianRage && keyAtFaceCenter) {
-        failures.push(`${level.title}: 3x3 rage-key level should not place the key on a face center`);
+        failures.push(`${textOf(level.title)}: 3x3 rage-key level should not place the key on a face center`);
     }
     if (level.validation && level.validation.noOpeningWait && row.openingWait) {
-        failures.push(`${level.title}: marked noOpeningWait but best solution starts with wait`);
+        failures.push(`${textOf(level.title)}: marked noOpeningWait but best solution starts with wait`);
     }
     if (level.validation && Number.isFinite(level.validation.maxKeyPickupAction) &&
         (row.keyPickupAction === null || row.keyPickupAction > level.validation.maxKeyPickupAction)) {
-        failures.push(`${level.title}: key pickup happens too late for this teaching beat`);
+        failures.push(`${textOf(level.title)}: key pickup happens too late for this teaching beat`);
     }
     if (level.validation && level.validation.guardianLure && !guardianCanLure) {
-        failures.push(`${level.title}: guardian should be lureable on the key face`);
+        failures.push(`${textOf(level.title)}: guardian should be lureable on the key face`);
     }
     if (level.validation && Number.isFinite(level.validation.guardianPreKeyStepBudget) &&
         preKeyGuardianBudget !== level.validation.guardianPreKeyStepBudget) {
-        failures.push(`${level.title}: guardian pre-key step budget mismatch`);
+        failures.push(`${textOf(level.title)}: guardian pre-key step budget mismatch`);
     }
     if (level.validation && Number.isFinite(level.validation.guardianPostKeyStepBudget) &&
         postKeyGuardianBudget !== level.validation.guardianPostKeyStepBudget) {
-        failures.push(`${level.title}: guardian post-key step budget mismatch`);
+        failures.push(`${textOf(level.title)}: guardian post-key step budget mismatch`);
     }
     if (level.validation && level.validation.secondActPrototype && engine.N !== 4) {
-        failures.push(`${level.title}: second act prototype should run on 4x4`);
+        failures.push(`${textOf(level.title)}: second act prototype should run on 4x4`);
     }
     if (level.validation && level.validation.trackingTool && !level.trackingEnabled) {
-        failures.push(`${level.title}: tracking tool validation requires trackingEnabled`);
+        failures.push(`${textOf(level.title)}: tracking tool validation requires trackingEnabled`);
     }
     if (level.validation && level.validation.trackingTool && engine.N < 4) {
-        failures.push(`${level.title}: tracking tool prototype should start on 4x4 or larger`);
+        failures.push(`${textOf(level.title)}: tracking tool prototype should start on 4x4 or larger`);
     }
     if (level.validation && level.validation.trackingTool && trackerFollowsRotation !== true) {
-        failures.push(`${level.title}: tracker should follow layer permutations`);
+        failures.push(`${textOf(level.title)}: tracker should follow layer permutations`);
     }
     if (level.validation && level.validation.bridgeTool && !level.bridges?.length) {
-        failures.push(`${level.title}: bridge tool validation requires at least one bridge`);
+        failures.push(`${textOf(level.title)}: bridge tool validation requires at least one bridge`);
     }
     if (level.validation && level.validation.bridgeTool && bridgeLinksValid !== true) {
-        failures.push(`${level.title}: bridge endpoints should be mutually adjacent`);
+        failures.push(`${textOf(level.title)}: bridge endpoints should be mutually adjacent`);
     }
     if (level.validation && level.validation.bridgeTool && !bridgeSolution) {
-        failures.push(`${level.title}: no solution found that uses a bridge`);
+        failures.push(`${textOf(level.title)}: no solution found that uses a bridge`);
     }
     if (level.validation && level.validation.patchTool && !patchSolution) {
-        failures.push(`${level.title}: no solution found that uses a patch`);
+        failures.push(`${textOf(level.title)}: no solution found that uses a patch`);
     }
     if (level.validation && level.validation.beaconTool && !beaconSolution) {
-        failures.push(`${level.title}: no solution found that uses a beacon`);
+        failures.push(`${textOf(level.title)}: no solution found that uses a beacon`);
     }
     if (level.validation && level.validation.breakTool && !breakSolution) {
-        failures.push(`${level.title}: no solution found that uses break`);
+        failures.push(`${textOf(level.title)}: no solution found that uses break`);
     }
     if (level.validation && level.validation.patchTool && level.validation.beaconTool && !patchBeaconSolution) {
-        failures.push(`${level.title}: no solution found that combines patch and beacon`);
+        failures.push(`${textOf(level.title)}: no solution found that combines patch and beacon`);
     }
     if (level.validation && Number.isFinite(level.validation.minBridgeTurnGain) &&
         noPlayerBridgeSolution && bridgeTurnGain < level.validation.minBridgeTurnGain) {
-        failures.push(`${level.title}: bridge should save at least ${level.validation.minBridgeTurnGain} turns`);
+        failures.push(`${textOf(level.title)}: bridge should save at least ${level.validation.minBridgeTurnGain} turns`);
     }
     if (level.validation && Number.isFinite(level.validation.minBridgeTurnGain) &&
         !noPlayerBridgeSolution && !solution) {
-        failures.push(`${level.title}: cannot evaluate bridge turn gain without a solution`);
+        failures.push(`${textOf(level.title)}: cannot evaluate bridge turn gain without a solution`);
     }
     if (level.validation && Number.isFinite(level.validation.minPatchTurnGain) &&
         noPatchSolution && patchTurnGain < level.validation.minPatchTurnGain) {
-        failures.push(`${level.title}: patch should save at least ${level.validation.minPatchTurnGain} turns`);
+        failures.push(`${textOf(level.title)}: patch should save at least ${level.validation.minPatchTurnGain} turns`);
     }
     if (level.validation && Number.isFinite(level.validation.minPatchTurnGain) &&
         !noPatchSolution && !patchSolution) {
-        failures.push(`${level.title}: cannot evaluate patch turn gain without a patch solution`);
+        failures.push(`${textOf(level.title)}: cannot evaluate patch turn gain without a patch solution`);
     }
     if (level.validation && Number.isFinite(level.validation.minBeaconTurnGain) &&
         noBeaconSolution && beaconTurnGain < level.validation.minBeaconTurnGain) {
-        failures.push(`${level.title}: beacon should save at least ${level.validation.minBeaconTurnGain} turns`);
+        failures.push(`${textOf(level.title)}: beacon should save at least ${level.validation.minBeaconTurnGain} turns`);
     }
     if (level.validation && Number.isFinite(level.validation.minBeaconTurnGain) &&
         !noBeaconSolution && !beaconSolution) {
-        failures.push(`${level.title}: cannot evaluate beacon turn gain without a beacon solution`);
+        failures.push(`${textOf(level.title)}: cannot evaluate beacon turn gain without a beacon solution`);
     }
     if (level.validation && level.validation.enemyUsesBridge && enemyUsesBridge !== true) {
-        failures.push(`${level.title}: enemy should use the bridge in the best found solution`);
+        failures.push(`${textOf(level.title)}: enemy should use the bridge in the best found solution`);
     }
 });
 

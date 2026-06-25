@@ -19,10 +19,10 @@
   - [x] 确保点击该表情能正常将 `face` 填入聊天记录，且 E-7 的回复仍然正确承接该语气的 response。
   - [x] *Git Checkpoint*：完成此项后 commit：`feat(comms): upgrade to dynamic tone-anchored kaomoji rolling with bilingual labels`
 
-- [ ] **M5.3 E-7 通讯文案去人机化地道润色 (Dialogue & Copywriting Polish)**
-  - [ ] 对 `dialogue.js` 和 `levels.js` 中的剧情文案与关卡提示做全面的中英文本土化润色，让 E-7 听起来更像一个嘴硬、恐惧却又傲娇想回家的真人女孩。
-  - [ ] 运行测试验证：`npm run check`，`npm run audit:levels` 和 `npm run playtest` 确保没有报错。
-  - [ ] *Git Checkpoint*：完成此项后 commit：`feat(copy): polish E-7 dialogue copywriting with sarcastic hacker-girl tone`
+- [x] **M5.3 E-7 通讯文案去人机化地道润色 (Dialogue & Copywriting Polish)**
+  - [x] 对 `dialogue.js` 和 `levels.js` 中的剧情文案与关卡提示做全面的中英文本土化润色，让 E-7 听起来更像一个嘴硬、恐惧却又傲娇想回家的真人女孩。
+  - [x] 运行测试验证：`npm run check`，`npm run audit:levels` 和 `npm run playtest` 确保没有报错。
+  - [x] *Git Checkpoint*：完成此项后 commit：`feat(copy): polish E-7 dialogue copywriting with sarcastic hacker-girl tone`
 
 ---
 
