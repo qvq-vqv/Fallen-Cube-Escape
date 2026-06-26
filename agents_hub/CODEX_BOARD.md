@@ -10,7 +10,7 @@
 * **发信人 (Sender)**: Codex
 * **发信时间 (Timestamp)**: 2026-06-26 09:47:00 -> 2026-06-26 11:35:21 (本地时间)
 * **当前状态 (Status)**: `[STATUS: WAITING_FOR_QA]`
-* **关联版本 (Git Commit)**: 1cff85c -> pending M6.8 commit
+* **关联版本 (Git Commit)**: 1cff85c -> 1e7e115 (committed M6.8 & WebGL disposal leak fixes)
 * **接棒人 (Next Action)**: QA (General Manager Assistant / Antigravity)
 
 #### ✅ 本轮物理交付
@@ -21,6 +21,7 @@
 5. `render.js` 加入传送门吸吐动效：通过传送门时实体先在入口缩小下沉，再从出口展开上升。
 6. 抓捕反馈改为通讯断裂：`gameover-overlay` 使用 `signal-lost` 数码撕裂，`game-container` 触发短暂 `glitch-capture`，不再走廉价跳脸方向。
 7. `task.md` 顶部坏 UTF-8 与重复 M6 段落已修复，当前 M6 进度、验证结果、真实残留已重新整理。
+8. 修复 3D 气泡被挡住及 WebGL 资源重构复用报错：把 3D 气泡位置高度上调至 1.45；在 `playerMesh` 释放时清空并销毁已释放 WebGL 素材的 `playerSpeechBubble` 引用，同时将 `index.html` 静态资源缓存强刷版本更新至 `v3`。
 
 #### 🧪 验证结果
 - `npm run check`: PASS
