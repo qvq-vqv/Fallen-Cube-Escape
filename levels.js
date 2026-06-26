@@ -77,18 +77,18 @@
             {
                 type: 'dialog',
                 text: {
-                    zh: '等下，我脚边真的出现了一条线。你真的在指挥我？',
-                    en: 'Wait, a line actually appeared by my feet. Are you really guiding me?'
+                    zh: '……我手机亮了。你是谁？算了，先别害我。',
+                    en: '...My phone lit up. Who are you? Fine, just do not get me killed.'
                 },
                 tone: 'steady'
             },
             {
                 type: 'move',
                 text: {
-                    zh: '点一下我前方的这一格，试着移动一步。',
-                    en: 'Click the cell next to me to take a step.'
+                    zh: '点我前面的亮格。先证明你不是来添乱的。',
+                    en: 'Click the lit cell ahead of me. Prove you are not making this worse.'
                 },
-                targetCell: { face: 0, row: 2, col: 1 },
+                targetCell: { face: 1, row: 0, col: 1 },
                 tone: 'steady'
             }
         ],
@@ -382,13 +382,13 @@
                         tip: { zh: '点击相邻格', en: 'Click adjacent tiles' },
                         visual: 'dragExit'
                     },
-                    bestTurns: 1,
+                    bestTurns: 5,
                     bestRotations: 0,
                     hasKeyStart: true,
-                    player: at(0, 1, 1),
+                    player: at(1, 1, 1),
                     key: null,
                     exit: at(0, 2, 1),
-                    rotationEnabled: true,
+                    rotationEnabled: false,
                     validation: { solvable: true, mustDrawRoute: true, mustUseRotation: false, hasThreats: false },
                     ais: []
                 },

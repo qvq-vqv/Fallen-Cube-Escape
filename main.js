@@ -85,6 +85,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const settingsAudioBtn = document.getElementById('settings-audio-btn');
     const settingsDevModeBtn = document.getElementById('settings-devmode-btn');
     const settingsResetTutorialsBtn = document.getElementById('settings-reset-tutorials-btn');
+    const settingsClearProgressBtn = document.getElementById('settings-clear-progress-btn');
     const settingsLangBtns = document.querySelectorAll('[data-settings-lang]');
     const settingsPrecisionBtns = document.querySelectorAll('[data-settings-precision]');
     const settingsDevTuning = document.getElementById('settings-dev-tuning');
@@ -96,6 +97,13 @@ document.addEventListener('DOMContentLoaded', () => {
     const loadingOverlay = document.getElementById('loading-overlay');
     const loadingLog = document.getElementById('loading-log');
     const loadingProgressFill = document.getElementById('loading-progress-fill');
+    const bulletTimeOverlay = document.getElementById('bullet-time-overlay');
+    const inspectOverlay = document.getElementById('inspect-overlay');
+    const inspectTitle = document.getElementById('inspect-title');
+    const inspectGoal = document.getElementById('inspect-goal');
+    const inspectMeta = document.getElementById('inspect-meta');
+    const inspectStartBtn = document.getElementById('inspect-start-btn');
+    const inspectBackBtn = document.getElementById('inspect-back-btn');
     const archiveOverlay = document.getElementById('archive-overlay');
     const archiveCloseBtn = document.getElementById('archive-close-btn');
     const archiveRoomAchievements = document.getElementById('archive-room-achievements');
@@ -158,6 +166,7 @@ document.addEventListener('DOMContentLoaded', () => {
     let selectedActPage = 1;
     let isDrawingRoute = false;
     let isGameActive = false;
+    const PHONE_COLLAPSED_KEY = 'dawnCubePhoneCollapsed';
     const unlockedActs = new Set(safeParseArray('dimensionHackUnlockedActs').filter(Number.isFinite));
     unlockedActs.add(1);
     if (localStorage.getItem('dimensionHackActTwoUnlocked') === 'true') unlockedActs.add(2);
@@ -1060,6 +1069,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 selectedLevelIndex = index;
                 renderLevelCards();
                 renderLevelBrief();
+                enterInspectPreview(index);
                 feel.note(`${textOf(level.title)} 已选中`, 'info');
             });
             levelListEl.appendChild(card);
@@ -1100,6 +1110,59 @@ document.addEventListener('DOMContentLoaded', () => {
                 ${renderLevelMetaIcons(level, selectedLevelIndex, { includeAlwaysTools: true })}
             </div>
         `;
+    }
+
+    function renderInspectOverlay() {
+        const level = game.levels[selectedLevelIndex];
+        if (!level) return;
+        if (inspectTitle) inspectTitle.textContent = textOf(level.title);
+        if (inspectGoal) inspectGoal.textContent = textOf(level.tutorial?.goal || level.concept);
+        if (inspectMeta) {
+            inspectMeta.innerHTML = `
+                <span>${escapeHtml(textOf(level.chapter))}</span>
+                <span>回合 ${Number(level.bestTurns || 0)}</span>
+                <span>旋转 ${Number(level.bestRotations || 0)}</span>
+                ${renderLevelMetaIcons(level, selectedLevelIndex, { includeAlwaysTools: true })}
+            `;
+        }
+    }
+
+    function enterInspectPreview(index = selectedLevelIndex) {
+        const level = game.levels[index];
+        if (!level) return;
+        selectedLevelIndex = index;
+        isGameActive = false;
+        setBulletTimeActive(false);
+        setTwistMode(false);
+        setupOverlay.classList.remove('active');
+        gameoverOverlay.classList.remove('active', 'jump-alert', 'signal-lost');
+        victoryOverlay.classList.remove('active');
+        gameContainer.style.display = 'grid';
+        gameContainer.classList.add('preplay-stage', 'inspect-stage');
+        game.initLevel(index);
+        game.setRealtimeMode?.(false);
+        game.stopRealtime?.();
+        game.gameState = 'setup';
+        updateLayerDropdown(game.N);
+        initRenderScene();
+        render.setPresentationMode?.('setup');
+        renderInspectOverlay();
+        inspectOverlay?.classList.add('active');
+        inspectOverlay?.setAttribute('aria-hidden', 'false');
+        audio.setTension('calm');
+    }
+
+    function exitInspectPreview() {
+        inspectOverlay?.classList.remove('active');
+        inspectOverlay?.setAttribute('aria-hidden', 'true');
+        game.stopRealtime?.();
+        game.gameState = 'menu';
+        gameContainer.classList.add('preplay-stage');
+        gameContainer.classList.remove('inspect-stage');
+        setupOverlay.classList.add('active');
+        render.setPresentationMode?.('constellation');
+        renderLevelCards();
+        renderLevelBrief();
     }
 
     function updateLayerDropdown(size) {
@@ -1159,9 +1222,12 @@ document.addEventListener('DOMContentLoaded', () => {
         isGameActive = false;
         landingOverlay?.classList.add('active');
         setupOverlay.classList.remove('active');
+        inspectOverlay?.classList.remove('active');
+        inspectOverlay?.setAttribute('aria-hidden', 'true');
         gameoverOverlay?.classList.remove('active', 'jump-alert', 'signal-lost');
         victoryOverlay?.classList.remove('active');
         gameContainer.classList.add('preplay-stage');
+        gameContainer.classList.remove('inspect-stage');
         render.setPresentationMode?.('landing');
         audio.setTension('calm');
     }
@@ -1170,7 +1236,10 @@ document.addEventListener('DOMContentLoaded', () => {
         isGameActive = false;
         landingOverlay?.classList.remove('active');
         setupOverlay.classList.add('active');
+        inspectOverlay?.classList.remove('active');
+        inspectOverlay?.setAttribute('aria-hidden', 'true');
         gameContainer.classList.add('preplay-stage');
+        gameContainer.classList.remove('inspect-stage');
         render.setPresentationMode?.('constellation');
         renderLevelCards();
         renderLevelBrief();
@@ -1204,6 +1273,7 @@ document.addEventListener('DOMContentLoaded', () => {
         escConsole?.classList.toggle('active', shouldOpen);
         escConsole?.setAttribute('aria-hidden', String(!shouldOpen));
         game.setRealtimePaused?.(shouldOpen);
+        if (shouldOpen) setBulletTimeActive(false);
         if (shouldOpen) {
             game.updateUI();
             audio.play('uiConfirm');
@@ -1274,6 +1344,7 @@ document.addEventListener('DOMContentLoaded', () => {
         listeningKeybindAction = null;
         settingsOverlay?.classList.add('active');
         settingsOverlay?.setAttribute('aria-hidden', 'false');
+        setBulletTimeActive(false);
         game.setRealtimePaused?.(true);
         renderSettingsPanel();
         audio.play('uiConfirm');
@@ -1307,6 +1378,33 @@ document.addEventListener('DOMContentLoaded', () => {
         feel.note(game.realtimeMode ? '原地稳住半拍' : '原地待命，敌人行动', game.realtimeMode ? 'info' : 'danger');
         if (!game.realtimeMode) feel.flashScreen('danger');
         game.skipTurn();
+        return true;
+    }
+
+    function canUseBulletTime() {
+        const level = game.currentLevel;
+        return Boolean(isGameActive && game.realtimeMode && game.gameState === 'playing' && level && (level.act >= 2 || game.currentLevelIndex >= 12));
+    }
+
+    function setBulletTimeActive(active) {
+        const enabled = Boolean(active && canUseBulletTime());
+        game.bulletTimeActive = enabled;
+        bulletTimeOverlay?.classList.toggle('active', enabled);
+        bulletTimeOverlay?.setAttribute('aria-hidden', enabled ? 'false' : 'true');
+        audio.setTension(enabled ? 'threat' : 'calm');
+    }
+
+    function triggerTemporalKeybind(phase = 'down') {
+        if (!isGameActive || render.isAnimating || game.gameState !== 'playing') return false;
+        if (!game.realtimeMode) {
+            if (phase === 'down') return triggerWaitKeybind();
+            return true;
+        }
+        if (!canUseBulletTime()) {
+            if (phase === 'down' && !game.tutorialActive) feel.note('第二幕才解锁慢放。', 'info');
+            return true;
+        }
+        setBulletTimeActive(phase === 'down');
         return true;
     }
 
@@ -1355,25 +1453,30 @@ document.addEventListener('DOMContentLoaded', () => {
             if (code === keybinds.patch) return applyToolKeybind('patch');
             if (code === keybinds.beacon) return applyToolKeybind('beacon');
             if (code === keybinds.break) return applyToolKeybind('break');
-            if (code === keybinds.wait) return triggerWaitKeybind();
+            if (code === keybinds.wait) return triggerTemporalKeybind('down');
             if (code === keybinds.twist && !event.repeat && isGameActive) {
                 setTwistMode(true);
                 return true;
             }
-        } else if (code === keybinds.twist && isGameActive) {
-            setTwistMode(false);
-            return true;
+        } else {
+            if (code === keybinds.wait) return triggerTemporalKeybind('up');
+            if (code === keybinds.twist && isGameActive) {
+                setTwistMode(false);
+                return true;
+            }
         }
         return false;
     }
 
-    function setPhoneCollapsed(collapsed) {
+    function setPhoneCollapsed(collapsed, options = {}) {
+        const { persist = true } = options;
         phonePanel?.classList.toggle('is-collapsed', collapsed);
         render.setGameViewportBias?.(!collapsed);
         if (phoneNotch) {
             phoneNotch.innerText = collapsed ? '◀' : '▶';
             phoneNotch.setAttribute('aria-label', collapsed ? '展开 E-7 手机' : '收起 E-7 手机');
         }
+        if (persist) localStorage.setItem(PHONE_COLLAPSED_KEY, collapsed ? 'true' : 'false');
     }
 
     function appendRouteBubble() {
@@ -1400,15 +1503,18 @@ document.addEventListener('DOMContentLoaded', () => {
 
     async function startSelectedLevel() {
         setupOverlay.classList.remove('active');
+        inspectOverlay?.classList.remove('active');
+        inspectOverlay?.setAttribute('aria-hidden', 'true');
         landingOverlay?.classList.remove('active');
         gameoverOverlay.classList.remove('active');
         victoryOverlay.classList.remove('active');
         gameContainer.classList.add('is-entering');
-        gameContainer.classList.remove('preplay-stage');
+        gameContainer.classList.remove('preplay-stage', 'inspect-stage');
         gameContainer.style.display = 'grid';
         setTerminalTab('comms');
-        setPhoneCollapsed(false);
+        setPhoneCollapsed(localStorage.getItem(PHONE_COLLAPSED_KEY) === 'true', { persist: false });
         setTwistMode(false);
+        setBulletTimeActive(false);
         isGameActive = true;
 
         await showLoadingSequence(game.levels[selectedLevelIndex]);
@@ -1440,6 +1546,7 @@ document.addEventListener('DOMContentLoaded', () => {
     function resetCurrentLevel() {
         const levelId = game.currentLevel?.id;
         if (levelId) localStorage.removeItem(`dawnCubeTutorialDismissed:${levelId}`);
+        setBulletTimeActive(false);
         game.initLevel(game.currentLevelIndex);
         game.setRealtimeMode?.(true);
         game.startRealtime?.();
@@ -1458,12 +1565,16 @@ document.addEventListener('DOMContentLoaded', () => {
 
     function returnToLevelBook() {
         isGameActive = false;
+        setBulletTimeActive(false);
         gameContainer.style.display = 'grid';
         gameContainer.classList.add('preplay-stage');
+        gameContainer.classList.remove('inspect-stage');
         escConsole?.classList.remove('active');
         escConsole?.setAttribute('aria-hidden', 'true');
         settingsOverlay?.classList.remove('active');
         settingsOverlay?.setAttribute('aria-hidden', 'true');
+        inspectOverlay?.classList.remove('active');
+        inspectOverlay?.setAttribute('aria-hidden', 'true');
         gameoverOverlay.classList.remove('active', 'jump-alert', 'signal-lost');
         victoryOverlay.classList.remove('active');
         game.stopRealtime?.();
@@ -1624,15 +1735,16 @@ document.addEventListener('DOMContentLoaded', () => {
         audio.play('routeTick');
         showLevelBook();
     });
-    landingArchiveBtn?.addEventListener('click', () => {
-        audio.play('routeTick');
-        showLevelBook({ openArchive: true });
-    });
     landingSettingsBtn?.addEventListener('click', () => {
         openSettings();
     });
 
     startBtn.addEventListener('click', startSelectedLevel);
+    inspectStartBtn?.addEventListener('click', startSelectedLevel);
+    inspectBackBtn?.addEventListener('click', () => {
+        audio.play('routeTick');
+        exitInspectPreview();
+    });
     setupBackBtn?.addEventListener('click', () => {
         audio.play('routeTick');
         showLanding();
@@ -1744,6 +1856,37 @@ document.addEventListener('DOMContentLoaded', () => {
                 render.initLevelVisuals();
             }
         }
+    });
+    settingsClearProgressBtn?.addEventListener('click', () => {
+        const confirmed = window.confirm('清除所有关卡进度、档案、成就和信任值？这个操作不能撤销。');
+        if (!confirmed) return;
+        [
+            'dimensionHackCompletedLevels',
+            'dimensionHackUnlockedActs',
+            'dimensionHackActTwoUnlocked',
+            'dimensionHackArchiveEntries',
+            'dimensionHackAchievements',
+            'dimensionHackTrust'
+        ].forEach(key => localStorage.removeItem(key));
+        completedLevels.clear();
+        unlockedActs.clear();
+        unlockedActs.add(1);
+        archiveState.entries.clear();
+        archiveState.achievements.clear();
+        commsState.seenEvents.clear?.();
+        game.trust = 80;
+        selectedActPage = 1;
+        selectedLevelIndex = 0;
+        persistUnlockedActs();
+        persistCompletedLevels();
+        persistArchive();
+        renderLevelCards();
+        renderLevelBrief();
+        renderArchive();
+        renderArchiveRoom();
+        renderSettingsPanel();
+        audio.play('uiConfirm');
+        feel.note('进度已清除，回到第一关。', 'warn');
     });
     keybindButtons.forEach(btn => {
         btn.addEventListener('click', () => {

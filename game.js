@@ -52,6 +52,7 @@ class GameEngine {
         this.realtimeHistoryBuffer = [];
         this.realtimeLastHistoryAt = 0;
         this.enemySpeedScale = 1;
+        this.bulletTimeActive = false;
         this.tutorialInputDismissed = false;
 
         this.DIR = { UP: 0, DOWN: 1, LEFT: 2, RIGHT: 3 };
@@ -160,6 +161,7 @@ class GameEngine {
         this.beaconTTL = 0;
         this.toolMode = 'route';
         this.trust = this.loadTrust();
+        this.bulletTimeActive = false;
         this.resetRealtimeState();
         this.gameState = 'setup';
         this.activeTutorialSteps = [];
@@ -1107,7 +1109,13 @@ class GameEngine {
 
     getRealtimeTimeScale() {
         if (this.realtimePaused || this.gameState !== 'playing') return 0;
+        if (this.tutorialActive) {
+            const step = this.activeTutorialSteps?.[this.currentTutorialStepIndex];
+            if (step?.type === 'dialog') return 0;
+        }
         if (typeof window !== 'undefined' && window.renderEngine?.interactionMode === 'twist') return 0.2;
+        const level = this.currentLevel;
+        if (this.bulletTimeActive && (level?.act >= 2 || this.currentLevelIndex >= 12)) return 0.2;
         return 1;
     }
 

@@ -1201,73 +1201,6 @@ class RenderEngine {
 
     drawFaceIdentityTexture(ctx, faceId, rgba) {
         ctx.save();
-        ctx.strokeStyle = `rgba(255,255,255,0.78)`;
-        ctx.fillStyle = `rgba(255,255,255,0.7)`;
-        ctx.lineWidth = 7;
-        ctx.lineCap = 'round';
-        ctx.lineJoin = 'round';
-
-        if (faceId === 0) {
-            // U: open chevron, unique upward signal
-            ctx.beginPath();
-            ctx.moveTo(32, 78);
-            ctx.lineTo(64, 42);
-            ctx.lineTo(96, 78);
-            ctx.stroke();
-            ctx.lineWidth = 4;
-            ctx.beginPath();
-            ctx.moveTo(46, 88);
-            ctx.lineTo(64, 68);
-            ctx.lineTo(82, 88);
-            ctx.stroke();
-        } else if (faceId === 1) {
-            // D: solid diamond
-            ctx.beginPath();
-            ctx.moveTo(64, 32);
-            ctx.lineTo(96, 64);
-            ctx.lineTo(64, 96);
-            ctx.lineTo(32, 64);
-            ctx.closePath();
-            ctx.fill();
-        } else if (faceId === 2) {
-            // L: barcode bars
-            [38, 52, 70, 90].forEach((x, index) => {
-                ctx.lineWidth = index === 2 ? 10 : 6;
-                ctx.beginPath();
-                ctx.moveTo(x, 34);
-                ctx.lineTo(x, 96);
-                ctx.stroke();
-            });
-        } else if (faceId === 3) {
-            // R: heavy X
-            ctx.lineWidth = 9;
-            ctx.beginPath();
-            ctx.moveTo(34, 34);
-            ctx.lineTo(94, 94);
-            ctx.moveTo(94, 34);
-            ctx.lineTo(34, 94);
-            ctx.stroke();
-        } else if (faceId === 4) {
-            // F: target ring, avoids looking like bars/X/diamond
-            ctx.lineWidth = 7;
-            ctx.beginPath();
-            ctx.arc(64, 64, 27, 0, Math.PI * 2);
-            ctx.stroke();
-            ctx.beginPath();
-            ctx.arc(64, 64, 9, 0, Math.PI * 2);
-            ctx.fill();
-        } else {
-            // B: wave bands
-            ctx.lineWidth = 6;
-            [48, 64, 80].forEach(y => {
-                ctx.beginPath();
-                ctx.moveTo(28, y);
-                ctx.bezierCurveTo(42, y - 12, 54, y + 12, 68, y);
-                ctx.bezierCurveTo(82, y - 12, 94, y + 12, 108, y);
-                ctx.stroke();
-            });
-        }
-
         ctx.fillStyle = `rgba(${rgba.r}, ${rgba.g}, ${rgba.b}, 0.88)`;
         ctx.strokeStyle = 'rgba(5,8,14,0.72)';
         ctx.lineWidth = 4;
@@ -1277,6 +1210,14 @@ class RenderEngine {
         const letters = ['U', 'D', 'L', 'R', 'F', 'B'];
         ctx.strokeText(letters[faceId] || '?', 22, 24);
         ctx.fillText(letters[faceId] || '?', 22, 24);
+
+        ctx.strokeStyle = `rgba(${rgba.r}, ${rgba.g}, ${rgba.b}, 0.24)`;
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.moveTo(12, 44);
+        ctx.lineTo(12, 14);
+        ctx.lineTo(44, 14);
+        ctx.stroke();
         ctx.restore();
     }
 
@@ -1827,27 +1768,36 @@ class RenderEngine {
         this.artGroup.add(makeRing(0xff0055, 0.12, { x: 0, y: Math.PI / 2, z: 0 }));
         this.artGroup.add(makeRing(0x00ff88, 0.13, { x: 0, y: 0, z: 0 }));
 
-        const makeLine = (points, color, opacity = 0.18) => {
-            const geo = new THREE.BufferGeometry().setFromPoints(points);
-            const mat = new THREE.LineBasicMaterial({
-                color,
-                transparent: true,
-                opacity
-            });
-            return new THREE.Line(geo, mat);
-        };
-
-        const railHeight = 5.1;
-        const rail = 4.85;
-        [
-            [rail, rail], [-rail, rail], [rail, -rail], [-rail, -rail]
-        ].forEach(([x, z], index) => {
-            const color = index % 2 === 0 ? 0x00f0ff : 0xbd00ff;
-            this.artGroup.add(makeLine([
-                new THREE.Vector3(x, -railHeight, z),
-                new THREE.Vector3(x, railHeight, z)
-            ], color, 0.18));
+        const particleCount = 220;
+        const positions = new Float32Array(particleCount * 3);
+        const colors = new Float32Array(particleCount * 3);
+        const colorA = new THREE.Color(0x00f0ff);
+        const colorB = new THREE.Color(0xbd00ff);
+        for (let i = 0; i < particleCount; i += 1) {
+            const radius = 5.2 + Math.random() * 1.6;
+            const angle = Math.random() * Math.PI * 2;
+            positions[i * 3] = Math.cos(angle) * radius;
+            positions[i * 3 + 1] = -4.8 + Math.random() * 9.6;
+            positions[i * 3 + 2] = Math.sin(angle) * radius;
+            const c = i % 3 === 0 ? colorB : colorA;
+            colors[i * 3] = c.r;
+            colors[i * 3 + 1] = c.g;
+            colors[i * 3 + 2] = c.b;
+        }
+        const particleGeo = new THREE.BufferGeometry();
+        particleGeo.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+        particleGeo.setAttribute('color', new THREE.BufferAttribute(colors, 3));
+        const particleMat = new THREE.PointsMaterial({
+            size: 0.038,
+            transparent: true,
+            opacity: 0.46,
+            vertexColors: true,
+            depthWrite: false,
+            blending: THREE.AdditiveBlending
         });
+        const dataRain = new THREE.Points(particleGeo, particleMat);
+        dataRain.userData.isDataRain = true;
+        this.artGroup.add(dataRain);
 
         this.scene.add(this.artGroup);
     }
@@ -3236,6 +3186,20 @@ class RenderEngine {
                 this.gameLookAt.lerp(this.gameLookAtTarget, 0.075);
                 this.controls.target.copy(this.gameLookAt);
             }
+        }
+
+        if (this.artGroup) {
+            this.artGroup.children.forEach(child => {
+                if (!child.userData?.isDataRain) return;
+                child.rotation.y += 0.0008;
+                const attr = child.geometry?.attributes?.position;
+                if (!attr) return;
+                for (let i = 1; i < attr.array.length; i += 3) {
+                    attr.array[i] -= 0.006;
+                    if (attr.array[i] < -4.9) attr.array[i] = 4.9;
+                }
+                attr.needsUpdate = true;
+            });
         }
         
         // 更新 OrbitControls 摄像机控制器

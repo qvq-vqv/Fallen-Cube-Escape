@@ -54,6 +54,40 @@
     pointer-events: auto;
 }
 
+.bullet-time-overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 1090;
+    pointer-events: none;
+    opacity: 0;
+    background:
+        radial-gradient(circle at 50% 48%, transparent 28%, rgba(0, 240, 255, 0.16) 62%, rgba(0, 6, 20, 0.42) 100%),
+        linear-gradient(115deg, rgba(0, 240, 255, 0.08), transparent 34%, rgba(70, 90, 255, 0.1));
+    box-shadow:
+        inset 0 0 clamp(3rem, 9vw, 9rem) rgba(0, 240, 255, 0.18),
+        inset 0 0 clamp(5rem, 14vw, 14rem) rgba(0, 32, 90, 0.42);
+    mix-blend-mode: screen;
+    transform: scale(1.02);
+    transition:
+        opacity var(--motion-fast) var(--ease-decisive),
+        transform var(--motion-base) var(--ease-decisive);
+}
+
+.bullet-time-overlay.active {
+    opacity: 1;
+    transform: scale(1);
+    animation: bullet-time-breathe 1.15s var(--ease-natural) infinite alternate;
+}
+
+@keyframes bullet-time-breathe {
+    from {
+        filter: saturate(125%) brightness(1);
+    }
+    to {
+        filter: saturate(180%) brightness(1.18);
+    }
+}
+
 .loading-panel,
 .archive-room,
 .credits-terminal {
@@ -926,9 +960,9 @@ body {
     background:
         radial-gradient(circle at 70% 42%, rgba(0, 240, 255, 0.06), transparent 34%),
         radial-gradient(circle at 26% 18%, rgba(255, 183, 0, 0.08), transparent 28%),
-        rgba(0, 2, 8, 0.28);
-    backdrop-filter: blur(12px) saturate(160%);
-    -webkit-backdrop-filter: blur(12px) saturate(160%);
+        rgba(0, 2, 8, 0.16);
+    backdrop-filter: blur(2px) saturate(132%);
+    -webkit-backdrop-filter: blur(2px) saturate(132%);
 }
 
 #setup-overlay .setup-panel {
@@ -945,6 +979,73 @@ body {
     box-shadow:
         0 clamp(1.2rem, 0.8rem + 2vw, 3rem) clamp(2rem, 1rem + 4vw, 5rem) rgba(0, 0, 0, 0.38),
         inset 0 1px 0 rgba(255, 255, 255, 0.18);
+}
+
+.inspect-overlay {
+    position: absolute;
+    left: clamp(0.8rem, 0.55rem + 1vw, 1.5rem);
+    top: clamp(0.8rem, 0.55rem + 1vw, 1.5rem);
+    z-index: 8;
+    width: min(24rem, calc(100vw - 2rem));
+    padding: clamp(0.9rem, 0.65rem + 0.9vw, 1.45rem);
+    display: grid;
+    gap: clamp(0.65rem, 0.42rem + 0.7vw, 1rem);
+    opacity: 0;
+    pointer-events: none;
+    transform: translateX(clamp(-1.4rem, -1vw, -0.6rem));
+    background:
+        linear-gradient(145deg, rgba(255, 255, 255, 0.14), transparent 38%),
+        rgba(3, 9, 18, 0.74);
+    border: 1px solid rgba(0, 240, 255, 0.24);
+    border-radius: 8px;
+    backdrop-filter: blur(22px) saturate(190%);
+    -webkit-backdrop-filter: blur(22px) saturate(190%);
+    box-shadow:
+        0 clamp(1.2rem, 0.8rem + 2vw, 2.8rem) clamp(2rem, 1rem + 4vw, 4.6rem) rgba(0, 0, 0, 0.48),
+        0 0 0 1px rgba(0, 240, 255, 0.08),
+        inset 0 1px 0 rgba(255, 255, 255, 0.25);
+    transition:
+        opacity var(--motion-base) var(--ease-decisive),
+        transform var(--motion-base) var(--ease-decisive);
+}
+
+.inspect-overlay.active {
+    opacity: 1;
+    pointer-events: auto;
+    transform: translateX(0);
+}
+
+.inspect-overlay h2 {
+    margin: 0;
+    font-family: var(--font-title);
+    font-size: clamp(1.35rem, 1rem + 1.3vw, 2.35rem);
+    letter-spacing: 0;
+}
+
+.inspect-overlay p {
+    margin: 0;
+    color: #c6d6e7;
+    line-height: 1.6;
+}
+
+.inspect-meta {
+    display: flex;
+    flex-wrap: wrap;
+    gap: clamp(0.35rem, 0.25rem + 0.4vw, 0.65rem);
+}
+
+.inspect-meta span {
+    padding: clamp(0.25rem, 0.18rem + 0.3vw, 0.4rem) clamp(0.48rem, 0.34rem + 0.45vw, 0.75rem);
+    border: 1px solid rgba(0, 240, 255, 0.18);
+    border-radius: 999px;
+    color: #d8f8ff;
+    background: rgba(0, 240, 255, 0.06);
+}
+
+.inspect-actions {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: clamp(0.5rem, 0.35rem + 0.45vw, 0.8rem);
 }
 
 #setup-overlay .setup-section:first-of-type {
@@ -3996,4 +4097,3 @@ body {
     background: rgba(77, 225, 255, 0.25);
     transform: scale(0.96);
 }
-

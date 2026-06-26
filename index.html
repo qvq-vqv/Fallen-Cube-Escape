@@ -129,9 +129,9 @@
     <!-- 游戏主界面 -->
     <div id="game-container" class="preplay-stage" style="display:grid;">
         <div class="meta-toolbar glass-panel">
-            <button id="btn-esc-menu" class="meta-btn" type="button" aria-label="打开控制台">☰</button>
-            <button id="btn-undo" class="meta-btn" type="button" aria-label="悔棋一步" disabled>↶</button>
-            <button id="btn-reset" class="meta-btn" type="button" aria-label="重置本局">⟲</button>
+            <button id="btn-esc-menu" class="meta-btn" type="button" aria-label="打开控制台" title="打开暂停控制台">☰</button>
+            <button id="btn-undo" class="meta-btn" type="button" aria-label="悔棋一步" title="悔棋一步：回到上一安全状态" disabled>↶</button>
+            <button id="btn-reset" class="meta-btn" type="button" aria-label="重置本局" title="重置本局：从当前残局重新开始">⟲</button>
         </div>
 
         <!-- 顶部极简 HUD -->
@@ -159,23 +159,33 @@
             <!-- 3D Canvas 将插入此处 -->
             <div id="canvas-overlay-ui">
                 <div id="route-tip" class="help-tooltip">点击 Dawn 周围的格子移动；按 Shift 进入 Twist 拧层模式。</div>
+                <aside id="inspect-overlay" class="inspect-overlay" aria-live="polite" aria-hidden="true">
+                    <span class="terminal-kicker">TACTICAL SCAN</span>
+                    <h2 id="inspect-title">残局检视</h2>
+                    <p id="inspect-goal">先观察棋面，再开始行动。</p>
+                    <div id="inspect-meta" class="inspect-meta"></div>
+                    <div class="inspect-actions">
+                        <button id="inspect-start-btn" class="btn btn-primary" type="button">开始行动</button>
+                        <button id="inspect-back-btn" class="btn btn-secondary" type="button">返回残局册</button>
+                    </div>
+                </aside>
                 <aside id="tutorial-helper-card" class="tutorial-helper-card" aria-live="polite">
                     <button id="tutorial-helper-close" class="tutorial-helper-close" type="button" aria-label="关闭提示">×</button>
                     <span id="tutorial-helper-icon" class="tutorial-helper-icon">➜</span>
                     <div>
                         <strong id="tutorial-helper-title">直接点下一格</strong>
                         <p id="tutorial-helper-body">点 Dawn 周围发亮的格子，她会立刻走过去。</p>
-                        <button id="btn-skip-tutorial" class="btn-skip-tutorial" type="button">跳过教程 / Skip Tutorial</button>
+                        <button id="btn-skip-tutorial" class="btn-skip-tutorial" type="button" title="跳过当前教学提示">跳过教程 / Skip Tutorial</button>
                     </div>
                 </aside>
             </div>
-            <button id="audio-toggle" class="audio-toggle" type="button" aria-pressed="true">声音 开</button>
-            <button id="btn-twist-mode" class="twist-toggle" type="button" aria-pressed="false">Twist</button>
+            <button id="audio-toggle" class="audio-toggle" type="button" aria-pressed="true" title="开启或关闭声音">声音 开</button>
+            <button id="btn-twist-mode" class="twist-toggle" type="button" aria-pressed="false" title="空间折叠：拖拽控制环旋转一层魔方">Twist</button>
         </div>
 
         <!-- 右侧 E-7 手机：抽屉式通讯 / 档案 -->
         <div id="phone-panel" class="hud-panel right-panel glass-panel escape-terminal phone-terminal">
-            <button id="phone-notch" class="phone-notch" type="button" aria-label="收起 E-7 手机">▶</button>
+            <button id="phone-notch" class="phone-notch" type="button" aria-label="收起 E-7 手机" title="收起或展开通讯手机">▶</button>
             <div class="terminal-header">
                 <div>
                     <span class="phone-statusbar"><b>D-LINK 9G</b><i id="phone-clock">09:46</i><em>87%</em></span>
@@ -193,19 +203,19 @@
             </div>
 
             <div class="terminal-tabs" role="tablist" aria-label="E-7 手机模块">
-                <button class="terminal-tab active" type="button" role="tab" aria-selected="true" data-terminal-tab="comms"><span data-i18n="phone.comms">通讯</span><span class="tab-badge is-hidden" data-tab-badge="comms">0</span></button>
-                <button class="terminal-tab" type="button" role="tab" aria-selected="false" data-terminal-tab="archive"><span data-i18n="phone.archive">档案</span><span class="tab-badge is-hidden" data-tab-badge="archive">0</span></button>
+                <button class="terminal-tab active" type="button" role="tab" aria-selected="true" data-terminal-tab="comms" title="查看 Dawn 的通讯和剧情反馈"><span data-i18n="phone.comms">通讯</span><span class="tab-badge is-hidden" data-tab-badge="comms">0</span></button>
+                <button class="terminal-tab" type="button" role="tab" aria-selected="false" data-terminal-tab="archive" title="查看档案、成就和已发现规则"><span data-i18n="phone.archive">档案</span><span class="tab-badge is-hidden" data-tab-badge="archive">0</span></button>
             </div>
 
             <div class="phone-action-dock">
-                <button id="btn-confirm-path" class="btn btn-primary phone-primary" disabled data-i18n="phone.sendRoute">发送路线</button>
-                <button id="btn-end-turn" class="btn btn-risk phone-secondary" data-i18n="phone.skip">跳过</button>
+                <button id="btn-confirm-path" class="btn btn-primary phone-primary" disabled data-i18n="phone.sendRoute" title="发送当前规划路线">发送路线</button>
+                <button id="btn-end-turn" class="btn btn-risk phone-secondary" data-i18n="phone.skip" title="跳过本次行动">跳过</button>
 
                 <div id="tool-section" class="phone-tool-row is-hidden" aria-label="场上工具">
-                    <button id="btn-tool-route" class="tool-mode-btn active" type="button" data-tool-mode="route" data-i18n="tool.route">移动</button>
-                    <button id="btn-tool-patch" class="tool-mode-btn" type="button" data-tool-mode="patch"><span data-i18n="tool.patch">补片</span> <b id="patch-count">0</b></button>
-                    <button id="btn-tool-beacon" class="tool-mode-btn" type="button" data-tool-mode="beacon"><span data-i18n="tool.beacon">诱饵</span> <b id="beacon-count">0</b></button>
-                    <button id="btn-tool-break" class="tool-mode-btn" type="button" data-tool-mode="break"><span data-i18n="tool.break">碎解</span> <b id="break-count">0</b></button>
+                    <button id="btn-tool-route" class="tool-mode-btn active" type="button" data-tool-mode="route" data-i18n="tool.route" title="移动：点击 Dawn 周围可走格">移动</button>
+                    <button id="btn-tool-patch" class="tool-mode-btn" type="button" data-tool-mode="patch" title="补片：铺一格临时路，踩过即碎"><span data-i18n="tool.patch">补片</span> <b id="patch-count">0</b></button>
+                    <button id="btn-tool-beacon" class="tool-mode-btn" type="button" data-tool-mode="beacon" title="诱饵：放在任意可用格吸引追击"><span data-i18n="tool.beacon">诱饵</span> <b id="beacon-count">0</b></button>
+                    <button id="btn-tool-break" class="tool-mode-btn" type="button" data-tool-mode="break" title="碎解：拆掉一个关键格阻断追路"><span data-i18n="tool.break">碎解</span> <b id="break-count">0</b></button>
                 </div>
 
                 <div class="action-section phone-fold-panel" id="rotation-section">
@@ -224,8 +234,8 @@
                         <select id="rotate-layer" class="cyber-select fold-select" aria-label="层数">
                             <!-- 根据 N 动态填充 -->
                         </select>
-                        <button id="btn-rotate-ccw" class="btn btn-action fold-arrow" aria-label="逆时针旋转">↶</button>
-                        <button id="btn-rotate-cw" class="btn btn-action fold-arrow" aria-label="顺时针旋转">↷</button>
+                        <button id="btn-rotate-ccw" class="btn btn-action fold-arrow" aria-label="逆时针旋转" title="逆时针旋转当前层">↶</button>
+                        <button id="btn-rotate-cw" class="btn btn-action fold-arrow" aria-label="顺时针旋转" title="顺时针旋转当前层">↷</button>
                     </div>
                     <div id="rotation-preview-chip" class="rotation-preview-chip is-compact">X 轴 · 第 1 层 · ↻ / ↺</div>
                 </div>
@@ -299,20 +309,22 @@
                     <div><span data-i18n="console.ap">剩余 AP</span><strong id="console-ap-display">2</strong></div>
                 </div>
                 <button class="btn-lang-toggle console-lang" type="button" data-lang-toggle>中 / EN</button>
-                <button id="btn-console-resume" class="btn btn-primary btn-large" type="button" data-i18n="console.resume">继续游戏</button>
-                <button id="btn-console-reset" class="btn btn-secondary btn-large" type="button" data-i18n="console.reset">重新开始</button>
-                <button id="btn-console-settings" class="btn btn-secondary btn-large" type="button" data-i18n="settings.title">游戏设置</button>
-                <button id="btn-main-menu" class="btn btn-danger btn-large" type="button" data-i18n="console.menu">返回菜单</button>
+                <button id="btn-console-resume" class="btn btn-primary btn-large" type="button" data-i18n="console.resume" title="关闭暂停控制台并继续">继续游戏</button>
+                <button id="btn-console-reset" class="btn btn-secondary btn-large" type="button" data-i18n="console.reset" title="重置当前关卡">重新开始</button>
+                <button id="btn-console-settings" class="btn btn-secondary btn-large" type="button" data-i18n="settings.title" title="打开游戏设置">游戏设置</button>
+                <button id="btn-main-menu" class="btn btn-danger btn-large" type="button" data-i18n="console.menu" title="退出本局并返回残局册">返回菜单</button>
             </section>
         </div>
     </div>
+
+    <div id="bullet-time-overlay" class="bullet-time-overlay" aria-hidden="true"></div>
 
     <div id="settings-overlay" class="settings-overlay" aria-hidden="true">
         <section class="settings-panel glass-panel" aria-label="游戏设置">
             <div class="settings-header">
                 <span class="terminal-kicker" data-i18n="settings.kicker">SYSTEM PATCH</span>
                 <h2 data-i18n="settings.title">游戏设置</h2>
-                <button id="settings-close-btn" class="settings-close-btn" type="button" aria-label="关闭设置">×</button>
+                <button id="settings-close-btn" class="settings-close-btn" type="button" aria-label="关闭设置" title="关闭设置">×</button>
             </div>
 
             <div class="settings-grid">
@@ -348,6 +360,11 @@
                 <article class="settings-card">
                     <span class="settings-label" data-i18n="settings.resetTutorials">重置教学</span>
                     <button id="settings-reset-tutorials-btn" class="settings-toggle danger" type="button" data-i18n="settings.resetTutorialsBtn">恢复所有教学提示</button>
+                </article>
+
+                <article class="settings-card">
+                    <span class="settings-label">清除存档</span>
+                    <button id="settings-clear-progress-btn" class="settings-toggle danger" type="button">删除所有进度</button>
                 </article>
 
                 <article id="settings-dev-tuning" class="settings-card dev-tuning-card is-hidden">

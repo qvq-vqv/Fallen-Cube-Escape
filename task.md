@@ -1,3 +1,38 @@
+# 🎬 Milestone 8: UI Noise Reduction, Spacebar Bullet Time, In-Level Inspect Mode & Hacker Fluid Particles (2026-06-27)
+
+> 状态：`[STATUS: WAITING_FOR_QA]`
+> 执行者：Codex (gpt5.5)
+> 红线：保持极简、极高画质的赛博霓虹美学；所有控制组件出界贴边逻辑必须准确；Spacebar 切换 Bullet Time（时慢 0.2 倍）状态仅在第二幕（L13+）生效，且时停（0倍）在教程对话中自动触发。
+
+- [x] **M8.1 3D 格子表面噪音清除与罗盘弱化 (`render.js`)**
+  - [x] 在 `render.js` 的 `drawFaceIdentityTexture` 中完全移除格子中央的大型背景图案（包括 U面的 Chevrons、R面的 Heavy X、L面的 barcode、D面的 diamond、F面的 target、B面的 waves）。
+  - [x] 仅保留角落处用于判别方向 Dios 字母（U, D, L, R, F, B）的渲染。
+- [x] **M8.2 游戏设置中新增“清除存档 (Delete Save)”按钮 (`index.html` & `main.js`)**
+  - [x] 在 `index.html` 的设置界面面板中新增一个“清除存档”按钮 `#settings-clear-progress-btn`，样式为 danger 红色霓虹。
+  - [x] 在 `main.js` 中实装点击事件：弹出 `confirm` 询问框（`“确定要抹去所有探索档案与关卡进度吗？此操作不可逆。”`）。确认后，清空 `localStorage` 的所有通关/成就/信任值记录，重置关卡选择状态到 L01，并立即重载选关卡片 UI。
+- [x] **M8.3 空格键（Spacebar）触发 5 倍慢动作子弹时间 (`game.js` & `main.js`)**
+  - [x] 将原本空格键绑定的“硬暂停”改写为“子弹时间（Bullet Time）”时空减速。
+  - [x] 在 `game.js` 中新增 `bulletTimeActive` 状态。当激活时，`getRealtimeTimeScale()` 返回 `0.2`。
+  - [x] 在 `index.html` 中新增全屏子弹时间渐变噪波阴影层 `#bullet-time-overlay`；在 `style.css` 中设计炫丽的蓝色脉冲渐变阴影。
+  - [x] 限制该子弹时间仅在第二幕实时关卡（L13+）生效，第一幕回合制中按空格键不做时空改变。
+- [x] **M8.4 教程对话“强引导时停”与手机隐藏状态记忆 (`game.js` & `main.js`)**
+  - [x] 在 `getRealtimeTimeScale()` 中，检测若 `this.tutorialActive` 为 true 且当前步骤是 `dialog`（对话）时，时间流速强制返回 `0`（绝对时停），防止玩家看台词时被怪吃掉。
+  - [x] 记忆手机折叠状态：当玩家手动折叠了手机后，重启关卡或换关将保持折叠状态，不再自动弹出，极大提升流畅性。
+- [x] **M8.5 进关 3D 战术检视模式（Inspect Mode）与自动旋转 (`index.html` & `main.js` & `render.js`)**
+  - [x] 废除星座图中的 `进入残局` 独立按钮，点击关卡卡片直接加载 3D 场景并进入 **Inspect Mode**。
+  - [x] 在 `render.js` 中实现检视模式：相机进入稍微拉远的特写位置，锁定 OrbitControls 旋转操作，方块组自动平滑缓慢旋转演示。
+  - [x] 在左侧弹出毛玻璃面板 `#inspect-overlay`，展现“本局提示”、“目标”等精简谜面数据，并放置一个发光的 **“开始行动 (Start Action)”** 按钮。
+  - [x] 点击“开始行动”后，隐藏检视面板，相机以 950ms 飞扑入正常游戏视角，停止魔方自转，正式解锁操作，展现右下角折叠悬浮球。
+- [x] **M8.6 选关星轨页面视觉纯化与双击/档案冲突修复 (`index.html` & `style.css` & `main.js`)**
+  - [x] 修复 `landingArchiveBtn` 的重复 click 事件冲突 Bug，确保主菜单关闭档案室时不会把选关界面露在背后。
+  - [x] 修改 `#setup-overlay` 背景，将 backdrop-filter 模糊降低到 `2px` 且提升透明度，使背景中自转展示的 3D 魔方晶莹剔透。
+  - [x] 在 `render.js` 中用 **`THREE.Points` 粒子流体粒子群** 代替原背景中死板的四根立柱，模拟向上流动、自发光的赛博黑客数据雨微尘。
+- [x] **M8.7 主角工具提示（Tooltip Title）与第一关教程重排 (`index.html` & `levels.js`)**
+  - [x] 为 meta 按钮（菜单/回退/重开）及底部悬浮工具按钮（移动/补片/信标/碎解/拧层）添加 `title` 中文注释，悬停显示作用。
+  - [x] 重新配置第一关：主角起点 `at(1,1,1)`，终点 `at(0,2,1)`，教程只包含 1 次 dialog 气泡和引导玩家点击相邻的 `at(1,0,1)` 的 move。第一步走完后引导卡片隐藏，余下路途由玩家独立走完。
+
+---
+
 # 🎬 Milestone 7: Interactive Tutorial Engine & Gated Onboarding (2026-06-26)
 
 > 状态：`[CODEX_IMPLEMENTED_M7_V1.0]`
