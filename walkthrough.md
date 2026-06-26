@@ -8,12 +8,12 @@
 | L02 钥匙在前 | 1 | 4 | route | ok |
 | L03 追击者 | 1 | 4 | route | ok |
 | L04 夹击拧门 | 1 | 4 | rotation | ok |
-| L05 钥匙也会动 | 1 | 4 | rotation | ok |
-| L06 守钥者 | 1 | 5 | rotation | ok |
-| L07 调离守钥者 | 1 | 7 | rotation | ok |
+| L05 钥匙也会动 | 1 | 5 | rotation | ok |
+| L06 守钥者 | 1 | 6 | route | ok |
+| L07 碎解阻断 | 1 | 5 | break | ok |
 | L08 取钥即逃 | 1 | 4 | rotation | ok |
 | L09 正式开跑 | 1 | 8 | rotation | ok |
-| L10 夹缝遛锁 | 1 | 5 | rotation | ok |
+| L10 隐藏考：碎解突围 | 1 | 5 | route | break-present-unused |
 | L11 守门预演 | 1 | 5 | rotation | ok |
 | L12 出口？ | 1 | 9 | rotation | ok |
 | L13 孤岛补片 | 2 | 5 | rotation + patch | ok |
@@ -47,7 +47,7 @@
 
 ## L01 逃生线
 
-- 幕/章节：Act 1 / 读图与画路
+- 幕/章节：Act 1 / 读图与点格
 - Bot 回合数：1
 - 设计风险：暂无
 
@@ -89,39 +89,39 @@
 ## L05 钥匙也会动
 
 - 幕/章节：Act 1 / 旋转目标
-- Bot 回合数：4
+- Bot 回合数：5
 - 设计风险：暂无
 
 1. `Y1CCW`
 2. `move U2-3>R1-2`
-3. `move R2-2>R3-2`
-4. `move D2-3>D2-2`
+3. `move R1-1>R2-1`
+4. `move R3-1>D1-3`
+5. `move D2-3>D2-2`
 
 ## L06 守钥者
 
 - 幕/章节：Act 1 / 守路不堵门
+- Bot 回合数：6
+- 设计风险：暂无
+
+1. `move U3-2>F1-2`
+2. `move F2-2>F3-2`
+3. `move F3-1`
+4. `move F2-1>L2-3`
+5. `move L3-3>L3-2`
+6. `move D2-1>D2-2`
+
+## L07 碎解阻断
+
+- 幕/章节：Act 1 / 主动拆路
 - Bot 回合数：5
 - 设计风险：暂无
 
-1. `X0CW`
-2. `move U2-1>U1-1`
-3. `move B1-3>B2-3`
-4. `move B3-3>D3-1`
+1. `break F2-2`
+2. `move U3-2>U3-1`
+3. `move F1-1>F2-1`
+4. `move F3-1>D1-1`
 5. `move D2-1>D2-2`
-
-## L07 调离守钥者
-
-- 幕/章节：Act 1 / 空间拆位
-- Bot 回合数：7
-- 设计风险：暂无
-
-1. `Y1CW`
-2. `move U3-2>U3-3`
-3. `move F1-3>F2-3`
-4. `move F3-3>F3-2`
-5. `move F2-2>F1-2`
-6. `move F2-2>F3-2`
-7. `move D1-2>D2-2`
 
 ## L08 取钥即逃
 
@@ -149,17 +149,17 @@
 7. `move L1-3>L1-2`
 8. `move L2-2`
 
-## L10 夹缝遛锁
+## L10 隐藏考：碎解突围
 
-- 幕/章节：Act 1 / 第一幕实战
+- 幕/章节：Act 1 / 隐藏疯狂关
 - Bot 回合数：5
-- 设计风险：暂无
+- 设计风险：break-present-unused
 
-1. `Y1CW`
-2. `move U3-2>F1-2`
-3. `move F2-2>F3-2`
-4. `move D1-2>D2-2`
-5. `move D3-2`
+1. `move U3-2`
+2. `move U3-1`
+3. `move F1-1>F2-1`
+4. `move F3-1>D1-1`
+5. `move D2-1>D2-2`
 
 ## L11 守门预演
 

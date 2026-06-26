@@ -795,6 +795,7 @@ class GameEngine {
         document.getElementById('victory-overlay')?.classList.remove('active');
 
         if (window.renderEngine) {
+            window.renderEngine.isAnimating = false;
             window.renderEngine.buildCube3D();
             window.renderEngine.spawnEntities3D();
             window.renderEngine.drawPlannedPath(this.plannedPath);

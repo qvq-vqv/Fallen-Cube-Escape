@@ -1832,6 +1832,7 @@ class RenderEngine {
         if (this.playerMesh) {
             this.scene.remove(this.playerMesh);
             this.disposeObject(this.playerMesh);
+            this.playerSpeechBubble = null;
         }
         Object.values(this.aiMeshes).forEach(m => {
             this.scene.remove(m);
@@ -2547,7 +2548,8 @@ class RenderEngine {
         this.spawnCellPulse(fromCellId, '#35e6ff', 0.72);
         this.spawnCellPulse(targetCellId, '#ffb700', 0.72);
 
-        const animateTransit = now => {
+        const animateTransit = () => {
+            const now = performance.now();
             const t = Math.min(1, (now - startedAt) / duration);
             const half = t < 0.5 ? t / 0.5 : (t - 0.5) / 0.5;
             const ease = half < 0.5
@@ -2746,7 +2748,7 @@ class RenderEngine {
         if (!this.playerMesh || !this.lastSpeechBubbleText) return;
         if (!this.playerSpeechBubble) {
             this.playerSpeechBubble = this.createSpeechBubbleSprite();
-            this.playerSpeechBubble.position.set(0, 0.86, 0);
+            this.playerSpeechBubble.position.set(0, 1.45, 0);
             this.playerSpeechBubble.scale.set(2.35, 0.72, 1);
             this.playerMesh.add(this.playerSpeechBubble);
         } else if (this.playerSpeechBubble.parent !== this.playerMesh) {
@@ -2859,7 +2861,8 @@ class RenderEngine {
 
         const start = performance.now();
         const duration = 420;
-        const animatePulse = (time) => {
+        const animatePulse = () => {
+            const time = performance.now();
             const progress = Math.min(1, (time - start) / duration);
             const eased = 1 - Math.pow(1 - progress, 3);
             const scale = 1 + eased * (0.9 + intensity * 0.35);
@@ -2901,7 +2904,8 @@ class RenderEngine {
         const duration = 200; // 动画时长 200ms
         const startTime = performance.now();
         
-        const animatePos = (time) => {
+        const animatePos = () => {
+            const time = performance.now();
             progress = (time - startTime) / duration;
             if (progress > 1) progress = 1;
             
@@ -3018,7 +3022,8 @@ class RenderEngine {
         // 顺时针/逆时针对应的弧度
         const totalAngle = (direction === 'CW') ? -Math.PI / 2 : Math.PI / 2;
         
-        const animateRotation = (time) => {
+        const animateRotation = () => {
+            const time = performance.now();
             progress = (time - startTime) / duration;
             if (progress > 1) progress = 1;
             
