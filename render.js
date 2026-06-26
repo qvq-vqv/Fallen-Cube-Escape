@@ -2601,8 +2601,8 @@ class RenderEngine {
         ring.rotation.x = Math.PI / 2;
         ring.position.y = 0.04;
         const labelSprite = this.createTimerLabelSprite(label, color);
-        labelSprite.position.set(0, kind === 'player' ? 0.92 : 0.84, 0);
-        labelSprite.scale.set(0.62, 0.22, 1);
+        labelSprite.position.set(0, kind === 'player' ? 1.22 : 1.08, 0);
+        labelSprite.scale.set(kind === 'player' ? 0.72 : 0.68, kind === 'player' ? 0.26 : 0.24, 1);
         group.add(ring);
         group.add(labelSprite);
         group.userData.realtimeTimer = {
@@ -2622,6 +2622,7 @@ class RenderEngine {
         const material = new THREE.SpriteMaterial({
             map: texture,
             transparent: true,
+            depthTest: false,
             depthWrite: false,
             opacity: 0.92
         });

@@ -1408,9 +1408,14 @@ document.addEventListener('DOMContentLoaded', () => {
         isGameActive = false;
         gameContainer.style.display = 'grid';
         gameContainer.classList.add('preplay-stage');
+        escConsole?.classList.remove('active');
+        escConsole?.setAttribute('aria-hidden', 'true');
+        settingsOverlay?.classList.remove('active');
+        settingsOverlay?.setAttribute('aria-hidden', 'true');
         gameoverOverlay.classList.remove('active', 'jump-alert', 'signal-lost');
         victoryOverlay.classList.remove('active');
         game.stopRealtime?.();
+        game.gameState = 'menu';
         render.setGameViewportBias?.(false);
         setupOverlay.classList.add('active');
         landingOverlay?.classList.remove('active');
