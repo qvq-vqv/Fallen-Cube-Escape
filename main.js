@@ -84,6 +84,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const settingsCloseBtn = document.getElementById('settings-close-btn');
     const settingsAudioBtn = document.getElementById('settings-audio-btn');
     const settingsDevModeBtn = document.getElementById('settings-devmode-btn');
+    const settingsResetTutorialsBtn = document.getElementById('settings-reset-tutorials-btn');
     const settingsLangBtns = document.querySelectorAll('[data-settings-lang]');
     const settingsPrecisionBtns = document.querySelectorAll('[data-settings-precision]');
     const settingsDevTuning = document.getElementById('settings-dev-tuning');
@@ -1437,6 +1438,8 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     function resetCurrentLevel() {
+        const levelId = game.currentLevel?.id;
+        if (levelId) localStorage.removeItem(`dawnCubeTutorialDismissed:${levelId}`);
         game.initLevel(game.currentLevelIndex);
         game.setRealtimeMode?.(true);
         game.startRealtime?.();
@@ -1725,6 +1728,22 @@ document.addEventListener('DOMContentLoaded', () => {
         renderLevelCards();
         renderLevelBrief();
         feel.note(settingsState.devMode ? '开发者模式：关卡全解锁' : '开发者模式已关闭', settingsState.devMode ? 'good' : 'info');
+    });
+    settingsResetTutorialsBtn?.addEventListener('click', () => {
+        Object.keys(localStorage).forEach(key => {
+            if (key.startsWith('dawnCubeTutorialDismissed:')) {
+                localStorage.removeItem(key);
+            }
+        });
+        audio.play('uiConfirm');
+        feel.note('所有教学提示已恢复', 'good');
+        if (game.currentLevel && game.currentLevel.tutorialSteps?.length > 0) {
+            game.initLevel(game.currentLevelIndex);
+            updateTutorialUI();
+            if (typeof render !== 'undefined') {
+                render.initLevelVisuals();
+            }
+        }
     });
     keybindButtons.forEach(btn => {
         btn.addEventListener('click', () => {
