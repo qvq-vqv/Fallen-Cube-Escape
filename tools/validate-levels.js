@@ -364,7 +364,7 @@ function generatePatchActions(state, options) {
 
 function generateBeaconActions(engine, state, options) {
     if (options.noBeacon || state.beaconCharges <= 0) return [];
-    if (state.usedBeacon || state.log.length > 3) return [];
+    if (state.log.length > 3) return [];
     const candidates = new Set();
     const addCandidate = cellId => {
         if (isLegalBeaconTarget(engine, state, cellId)) candidates.add(cellId);
@@ -405,7 +405,7 @@ function isLegalBreakTarget(engine, state, cellId) {
 }
 
 function generateBreakActions(engine, state, options) {
-    if (options.noBreak || state.breakCharges <= 0 || state.usedBreak) return [];
+    if (options.noBreak || state.breakCharges <= 0) return [];
     const candidates = new Set();
     const addCandidate = cellId => {
         if (isLegalBreakTarget(engine, state, cellId)) candidates.add(cellId);

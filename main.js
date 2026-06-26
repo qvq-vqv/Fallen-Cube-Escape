@@ -1288,9 +1288,13 @@ document.addEventListener('DOMContentLoaded', () => {
 
     function applyToolKeybind(action) {
         if (!isGameActive || render.isAnimating) return false;
+        if (game.realtimeMode) game.tutorialInputDismissed = true;
         const target = document.querySelector(`[data-tool-mode="${action}"]`);
         if (target && !target.disabled) {
             game.setToolMode(action);
+            if (game.realtimeMode && game.canAutoResumeRealtimeFromInput?.()) {
+                game.setRealtimePaused?.(false);
+            }
             feel.note(`${target.textContent.replace(/\s+/g, ' ').trim()} 模式`, 'info');
             return true;
         }
@@ -1307,6 +1311,42 @@ document.addEventListener('DOMContentLoaded', () => {
 
     function handleGameplayKeybind(event, phase = 'down') {
         if (settingsOverlay?.classList.contains('active')) return false;
+        if (escConsole?.classList.contains('active')) return false;
+
+        if (game.tutorialActive) {
+            const step = game.activeTutorialSteps[game.currentTutorialStepIndex];
+            if (step) {
+                const code = normalizeKeyCode(event);
+                const { keybinds } = settingsState;
+                if (step.type === 'dialog') {
+                    return false;
+                }
+                if (step.type === 'move') {
+                    if (code === keybinds.twist || code === keybinds.patch || code === keybinds.beacon || code === keybinds.break || code === keybinds.wait) {
+                        game.playFeel?.('invalid');
+                        game.showFeel?.('当前步骤强引导中。请按照指示移动！', 'warn');
+                        return true;
+                    }
+                }
+                if (step.type === 'twist') {
+                    if (code === keybinds.patch || code === keybinds.beacon || code === keybinds.break || code === keybinds.wait) {
+                        game.playFeel?.('invalid');
+                        game.showFeel?.('当前步骤强引导中。请按照指示进行空间旋转！', 'warn');
+                        return true;
+                    }
+                }
+                if (step.type === 'tool') {
+                    const targetTool = step.tool;
+                    if (code === keybinds.twist || code === keybinds.wait || (code === keybinds.patch && targetTool !== 'patch') || (code === keybinds.beacon && targetTool !== 'beacon') || (code === keybinds.break && targetTool !== 'break')) {
+                        game.playFeel?.('invalid');
+                        const toolNames = { patch: '补片', beacon: '信标', break: '碎解' };
+                        game.showFeel?.(`当前步骤强引导中。请使用 [${toolNames[targetTool] || targetTool}] 工具！`, 'warn');
+                        return true;
+                    }
+                }
+            }
+        }
+
         const { keybinds } = settingsState;
         const code = normalizeKeyCode(event);
         if (phase === 'down') {
@@ -1381,8 +1421,13 @@ document.addEventListener('DOMContentLoaded', () => {
         initRenderScene();
         await render.flyToGameCamera?.(980);
         game.startRealtime?.();
-        if (!document.getElementById('tutorial-helper-card')?.classList.contains('is-hidden')) {
+        if (game.tutorialActive) {
+            updateTutorialUI();
             game.setRealtimePaused?.(true);
+        } else {
+            if (!document.getElementById('tutorial-helper-card')?.classList.contains('is-hidden')) {
+                game.setRealtimePaused?.(true);
+            }
         }
         gameContainer.classList.remove('is-entering');
         audio.start();
@@ -1402,6 +1447,10 @@ document.addEventListener('DOMContentLoaded', () => {
         audio.setTension('calm');
         feel.note('残局已重置', 'warn');
         feel.flashScreen('warn');
+        if (game.tutorialActive) {
+            updateTutorialUI();
+            game.setRealtimePaused?.(true);
+        }
     }
 
     function returnToLevelBook() {
@@ -1702,15 +1751,30 @@ document.addEventListener('DOMContentLoaded', () => {
         setTwistMode(!twistMode);
     });
     tutorialHelperClose?.addEventListener('click', () => {
-        const card = document.getElementById('tutorial-helper-card');
-        const levelId = card?.dataset.levelId;
-        if (levelId) localStorage.setItem(`dawnCubeTutorialDismissed:${levelId}`, 'true');
-        card?.classList.add('is-hidden');
-        if (game.realtimeMode && !settingsOverlay?.classList.contains('active') && !escConsole?.classList.contains('active')) {
-            game.setRealtimePaused?.(false);
+        if (game.tutorialActive) {
+            skipTutorial();
+        } else {
+            const card = document.getElementById('tutorial-helper-card');
+            const levelId = card?.dataset.levelId;
+            if (levelId) localStorage.setItem(`dawnCubeTutorialDismissed:${levelId}`, 'true');
+            card?.classList.add('is-hidden');
+            if (game.realtimeMode && !settingsOverlay?.classList.contains('active') && !escConsole?.classList.contains('active')) {
+                game.setRealtimePaused?.(false);
+            }
         }
     });
     document.addEventListener('keydown', event => {
+        if (game.tutorialActive) {
+            const step = game.activeTutorialSteps[game.currentTutorialStepIndex];
+            if (step && step.type === 'dialog') {
+                if (event.key === ' ' || event.key === 'Enter') {
+                    event.preventDefault();
+                    event.stopPropagation();
+                    advanceTutorialStep();
+                    return;
+                }
+            }
+        }
         if (listeningKeybindAction) {
             event.preventDefault();
             if (event.code !== 'Escape') {
@@ -1867,6 +1931,158 @@ document.addEventListener('DOMContentLoaded', () => {
             audio.start().then(() => audio.play('uiConfirm'));
         }
     });
+
+    // ----------------------------------------------------
+    // MILESTONE 7: INTERACTIVE TUTORIAL ENGINE
+    // ----------------------------------------------------
+    function updateTutorialUI() {
+        const card = document.getElementById('tutorial-helper-card');
+        if (!card) return;
+
+        if (!game.tutorialActive) {
+            card.classList.add('is-hidden');
+            if (typeof render !== 'undefined') render.hideTutorialPointer?.();
+            return;
+        }
+
+        const step = game.activeTutorialSteps[game.currentTutorialStepIndex];
+        if (!step) {
+            skipTutorial();
+            return;
+        }
+
+        card.classList.remove('is-hidden');
+        card.dataset.levelId = game.currentLevel?.id;
+
+        const titleEl = document.getElementById('tutorial-helper-title');
+        const bodyEl = document.getElementById('tutorial-helper-body');
+        const iconEl = document.getElementById('tutorial-helper-icon');
+
+        if (iconEl) {
+            const icons = { dialog: '💬', move: '➜', twist: '⟳', tool: '⚙️' };
+            iconEl.textContent = icons[step.type] || '➜';
+        }
+
+        if (titleEl) {
+            const stepNum = game.currentTutorialStepIndex + 1;
+            const totalSteps = game.activeTutorialSteps.length;
+            titleEl.textContent = window.currentLang === 'en' 
+                ? `Tutorial Step ${stepNum}/${totalSteps}` 
+                : `教程步骤 ${stepNum}/${totalSteps}`;
+        }
+
+        if (bodyEl) {
+            const txt = step.text[window.currentLang || 'zh'] || step.text['zh'];
+            bodyEl.textContent = txt;
+            
+            // Re-render Skip Tutorial button if needed
+            let skipBtn = document.getElementById('btn-skip-tutorial');
+            if (!skipBtn) {
+                skipBtn = document.createElement('button');
+                skipBtn.id = 'btn-skip-tutorial';
+                skipBtn.className = 'btn-skip-tutorial';
+                skipBtn.type = 'button';
+                bodyEl.parentNode.appendChild(skipBtn);
+                skipBtn.addEventListener('click', skipTutorial);
+            }
+            skipBtn.textContent = window.currentLang === 'en' ? 'Skip Tutorial' : '跳过教程';
+        }
+
+        game.setRealtimePaused?.(true);
+
+        const stepText = step.text[window.currentLang || 'zh'] || step.text['zh'];
+        setCompanionBubble(stepText, step.tone || 'info');
+
+        if (commsStoryLines) {
+            const lastLine = commsStoryLines.lastElementChild;
+            if (!lastLine || lastLine.textContent !== stepText) {
+                const p = document.createElement('p');
+                p.className = 'comms-line protagonist';
+                p.textContent = stepText;
+                commsStoryLines.appendChild(p);
+                commsStoryLines.scrollTo?.({ top: commsStoryLines.scrollHeight, behavior: 'smooth' });
+            }
+        }
+
+        if (commsChoicesEl) {
+            const lockText = window.currentLang === 'en' 
+                ? '【System Protocol: Gated Onboarding】' 
+                : '【系统协议：强引导中】';
+            const subText = window.currentLang === 'en'
+                ? '[ Gated Onboarding ]'
+                : '[ 强引导中 ]';
+            commsChoicesEl.innerHTML = `
+                <button class="terminal-choice kaomoji-choice" type="button" disabled style="opacity: 0.6; cursor: not-allowed; width: 100%; border: 1px dashed rgba(255,255,255,0.2); background: rgba(0,0,0,0.25);">
+                    <span class="kaomoji-face" style="font-size: 13px; color: #8bdcff;">${lockText}</span>
+                    <small style="color: rgba(216,236,255,0.5);">${subText}</small>
+                </button>
+            `;
+        }
+
+        if (typeof render !== 'undefined') {
+            if (step.targetCellId !== undefined) {
+                render.showTutorialPointer?.(step.targetCellId);
+            } else {
+                render.hideTutorialPointer?.();
+            }
+        }
+    }
+
+    function advanceTutorialStep() {
+        if (!game.tutorialActive) return;
+        const step = game.activeTutorialSteps[game.currentTutorialStepIndex];
+        if (!step) return;
+
+        if (step.type === 'dialog') {
+            game.currentTutorialStepIndex++;
+            audio.play('uiConfirm');
+            updateTutorialUI();
+        }
+    }
+
+    function skipTutorial() {
+        if (!game.tutorialActive) return;
+        const levelId = game.currentLevel?.id;
+        if (levelId) localStorage.setItem(`dawnCubeTutorialDismissed:${levelId}`, 'true');
+        
+        game.tutorialActive = false;
+        game.setRealtimePaused?.(false);
+        if (typeof render !== 'undefined') render.hideTutorialPointer?.();
+        
+        const card = document.getElementById('tutorial-helper-card');
+        card?.classList.add('is-hidden');
+
+        if (game.currentLevelIndex !== undefined) {
+            renderLevelComms(game.currentLevelIndex);
+        }
+        audio.play('routeUndo');
+        feel.note('已跳过本关教程', 'warn');
+    }
+
+    window.updateTutorialUI = updateTutorialUI;
+    window.advanceTutorialStep = advanceTutorialStep;
+    window.skipTutorial = skipTutorial;
+
+    // Listen to global click/pointerup events to advance dialog step in capturing phase
+    document.addEventListener('pointerup', event => {
+        if (game.tutorialActive) {
+            const step = game.activeTutorialSteps[game.currentTutorialStepIndex];
+            if (step && step.type === 'dialog') {
+                const skipBtn = event.target.closest('#btn-skip-tutorial, #tutorial-helper-close');
+                const systemBtn = event.target.closest('#btn-esc-menu, #audio-toggle, #landing-settings-btn, #btn-console-resume, #btn-console-reset, #btn-console-settings');
+                if (skipBtn) {
+                    skipTutorial();
+                    return;
+                }
+                if (systemBtn) {
+                    return;
+                }
+                event.preventDefault();
+                event.stopPropagation();
+                advanceTutorialStep();
+            }
+        }
+    }, true);
 
     persistSettings();
     startPhoneWaveLoop();

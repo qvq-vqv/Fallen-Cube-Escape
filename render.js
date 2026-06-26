@@ -73,6 +73,9 @@ class RenderEngine {
         this.playerSpeechBubble = null;
         this.lastSpeechBubbleText = '';
         this.lastSpeechBubbleTone = 'info';
+        this.activeTutorialCellId = null;
+        this.tutorialPointerCone = null;
+        this.tutorialCellHighlightRing = null;
     }
 
     // 初始化 3D 场景
@@ -369,17 +372,17 @@ class RenderEngine {
                 const coord = (layer - H) * 2;
                 const group = new THREE.Group();
                 const visible = new THREE.Mesh(
-                    new THREE.TorusGeometry(radius, 0.018, 8, 96),
+                    new THREE.TorusGeometry(radius, 0.028, 10, 112),
                     new THREE.MeshBasicMaterial({
                         color: config.color,
                         transparent: true,
-                        opacity: 0.15,
+                        opacity: 0.2,
                         depthWrite: false,
                         blending: THREE.AdditiveBlending
                     })
                 );
                 const hitbox = new THREE.Mesh(
-                    new THREE.TorusGeometry(radius, 0.18, 8, 72),
+                    new THREE.TorusGeometry(radius, 0.34, 10, 96),
                     new THREE.MeshBasicMaterial({
                         color: config.color,
                         transparent: true,
@@ -397,8 +400,8 @@ class RenderEngine {
                     layer,
                     visible,
                     hitbox,
-                    baseOpacity: 0.15,
-                    hoverOpacity: 0.85,
+                    baseOpacity: 0.2,
+                    hoverOpacity: 0.95,
                     color: config.color
                 };
                 visible.userData.twistRingHost = group;
@@ -998,6 +1001,7 @@ class RenderEngine {
         const N = this.game.N;
         const cubletSize = this.getCubletSize(); // 子方块边长
         this.clearTwistControlRings();
+        this.hideTutorialPointer();
         
         // 材质库 (黑色底座 + 半透霓虹贴面)
         const createFaceMaterial = (colorHex, faceId) => {
@@ -2823,6 +2827,64 @@ class RenderEngine {
         return sprite;
     }
 
+    showTutorialPointer(cellId) {
+        if (cellId === null || cellId === undefined || !this.scene || !this.game) return;
+        this.activeTutorialCellId = cellId;
+
+        // Create Pointer Cone
+        if (!this.tutorialPointerCone) {
+            const geometry = new THREE.ConeGeometry(0.18, 0.45, 16);
+            geometry.rotateX(Math.PI); // tip points down (-Y)
+            const material = new THREE.MeshBasicMaterial({
+                color: 0x00f0ff,
+                transparent: true,
+                opacity: 0.85,
+                blending: THREE.AdditiveBlending,
+                depthTest: false,
+                depthWrite: false
+            });
+            this.tutorialPointerCone = new THREE.Mesh(geometry, material);
+            this.scene.add(this.tutorialPointerCone);
+        }
+        this.orientTokenToCell(this.tutorialPointerCone, cellId);
+
+        // Create Highlight Ring
+        if (!this.tutorialCellHighlightRing) {
+            const ringGeo = new THREE.RingGeometry(0.38, 0.45, 32);
+            const ringMat = new THREE.MeshBasicMaterial({
+                color: 0x00f0ff,
+                transparent: true,
+                opacity: 0.8,
+                side: THREE.DoubleSide,
+                depthWrite: false,
+                depthTest: false
+            });
+            this.tutorialCellHighlightRing = new THREE.Mesh(ringGeo, ringMat);
+        }
+        
+        const cell = this.game.cells[cellId];
+        if (cell) {
+            const normal = new THREE.Vector3(cell.normal.x, cell.normal.y, cell.normal.z);
+            const pos = this.getCellWorldPosition(cellId, 'pulse').clone().addScaledVector(normal, 0.02);
+            this.tutorialCellHighlightRing.position.copy(pos);
+            this.tutorialCellHighlightRing.quaternion.setFromUnitVectors(new THREE.Vector3(0, 0, 1), normal);
+            if (this.tutorialCellHighlightRing.parent !== this.scene) {
+                this.scene.add(this.tutorialCellHighlightRing);
+            }
+        }
+    }
+
+    hideTutorialPointer() {
+        this.activeTutorialCellId = null;
+        if (this.tutorialPointerCone) {
+            this.scene.remove(this.tutorialPointerCone);
+            this.tutorialPointerCone = null;
+        }
+        if (this.tutorialCellHighlightRing) {
+            this.scene.remove(this.tutorialCellHighlightRing);
+        }
+    }
+
     drawSpeechBubble(sprite, text, tone = 'info') {
         if (!sprite || (sprite.userData.speechText === text && sprite.userData.speechTone === tone)) return;
         const canvas = sprite.userData.speechCanvas;
@@ -3239,6 +3301,46 @@ class RenderEngine {
             const aiPulse = 1 + Math.sin(Date.now() * 0.0035 + index) * 0.012;
             mesh.scale.setScalar(aiPulse);
         });
+
+        // D. 教程引导动画
+        if (this.game && this.game.tutorialActive) {
+            const step = this.game.activeTutorialSteps[this.game.currentTutorialStepIndex];
+            
+            // 1. 3D 指针 Cone 旋转与起伏
+            if (this.tutorialPointerCone && this.activeTutorialCellId !== null) {
+                const bob = Math.sin(Date.now() * 0.006) * 0.15;
+                const basePos = this.getCellWorldPosition(this.activeTutorialCellId, 'token');
+                const normal = this.getCellNormalVector(this.activeTutorialCellId);
+                this.tutorialPointerCone.position.copy(basePos.clone().addScaledVector(normal, 0.9 + bob));
+                this.tutorialPointerCone.rotateY(0.02);
+            }
+
+            // 2. 目标单元格呼吸高亮环
+            if (this.tutorialCellHighlightRing) {
+                const pulseSpeed = Date.now() * 0.012;
+                const ringOpacity = 0.5 + 0.4 * Math.sin(pulseSpeed);
+                const ringScale = 1.0 + 0.08 * Math.sin(pulseSpeed);
+                this.tutorialCellHighlightRing.material.opacity = ringOpacity;
+                this.tutorialCellHighlightRing.scale.setScalar(ringScale);
+            }
+
+            // 3. Twist 旋转层高亮
+            if (step && step.type === 'twist' && this.twistRingMeshes?.length) {
+                const twistPulse = 0.5 + 0.45 * Math.sin(Date.now() * 0.012);
+                this.twistRingMeshes.forEach(group => {
+                    const data = group.userData.twistRing;
+                    if (data) {
+                        if (data.axis === step.axis && data.layer === step.layer) {
+                            data.visible.material.opacity = twistPulse;
+                        } else {
+                            if (group !== this.hoveredTwistRing) {
+                                data.visible.material.opacity = 0.05;
+                            }
+                        }
+                    }
+                });
+            }
+        }
 
         this.updateCubeLaserEdges();
         

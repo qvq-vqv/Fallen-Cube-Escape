@@ -1,3 +1,26 @@
+# 🎬 Milestone 7: Interactive Tutorial Engine & Gated Onboarding (2026-06-26)
+
+> 状态：`[CODEX_IMPLEMENTED_M7_V1.0]`
+> 执行者：Antigravity (Mastermind)
+> 红线：强引导时停与动作拦截，保证 3D 霓虹圆锥渲染优雅，绝对不与 offline 求解 Bot 冲突，跳过教学行为正常。
+
+- [x] **M7.1 数据驱动关卡教学配置与 schema (`levels.js`)**
+  - [x] 在 `levels.js` 中为 L01, L02, L03, L04, L06, L07 等教学关卡配置双语 `tutorialSteps`。
+  - [x] 定义纯对话及动作指向的具体数据结构。
+- [x] **M7.2 教学状态机与动作拦截网 (`game.js` & `main.js`)**
+  - [x] 实现 `currentTutorialStep` 状态，拦截时停下的用户输入与快捷键。
+  - [x] 对指定的动作进行门限校验，阻断其他无效或多余的网格与拧层操作。
+  - [x] 对接跳过教程逻辑并销毁当前引导。
+- [x] **M7.3 3D 霓虹圆锥指针与网格高频闪烁 (`render.js`)**
+  - [x] 在 3D 场景中渲染发光 Cone 箭头并增加上下起伏动画。
+  - [x] 根据当前步的目标网格物理位置自动挂载和旋转指针，使它垂直对齐格心。
+  - [x] 使目标单元格以高频呼吸灯效果闪动边框或填充。
+- [x] **M7.4 3D+手机端双端同步与 Kaomoji 协议锁定**
+  - [x] 台词同步推送到 3D 气泡和手机聊天气泡。
+  - [x] 锁定聊天选项为灰色，提示“系统协议：强引导中”。
+
+---
+
 # 🎬 Milestone 6: Real-time Movement Engine, Settings Modal & 星轨选关 (2026-06-26 Refactoring)
 
 > 状态：`[CODEX_IMPLEMENTED_M6_V2.2]`

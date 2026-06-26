@@ -108,6 +108,26 @@ class GameEngine {
             exitAt: this.exitPos
         });
 
+        // Initialize tutorial state
+        const dismissed = typeof localStorage !== 'undefined' &&
+            localStorage.getItem(`dawnCubeTutorialDismissed:${this.currentLevel.id}`) === 'true';
+        if (this.currentLevel.tutorialSteps && this.currentLevel.tutorialSteps.length > 0 && !dismissed && typeof document !== 'undefined') {
+            this.activeTutorialSteps = this.currentLevel.tutorialSteps.map(step => {
+                const s = { ...step };
+                if (step.targetCell) {
+                    s.targetCellId = this.resolveCoord(step.targetCell);
+                }
+                return s;
+            });
+            this.currentTutorialStepIndex = 0;
+            this.tutorialActive = true;
+            this.realtimePaused = true;
+        } else {
+            this.activeTutorialSteps = [];
+            this.currentTutorialStepIndex = -1;
+            this.tutorialActive = false;
+        }
+
         this.gameState = 'playing';
         this.updateUI();
     }
@@ -142,6 +162,9 @@ class GameEngine {
         this.trust = this.loadTrust();
         this.resetRealtimeState();
         this.gameState = 'setup';
+        this.activeTutorialSteps = [];
+        this.currentTutorialStepIndex = -1;
+        this.tutorialActive = false;
     }
 
     resetRealtimeState() {
@@ -867,6 +890,23 @@ class GameEngine {
 
     setToolMode(mode = 'route') {
         const nextMode = ['route', 'patch', 'beacon', 'break'].includes(mode) ? mode : 'route';
+        if (this.tutorialActive) {
+            const step = this.activeTutorialSteps[this.currentTutorialStepIndex];
+            if (step && step.type === 'tool') {
+                if (nextMode !== step.tool && nextMode !== 'route') {
+                    this.playFeel('invalid');
+                    const toolNames = { patch: '补片', beacon: '信标', break: '碎解' };
+                    this.showFeel(`当前步骤强引导中。请使用 [${toolNames[step.tool] || step.tool}] 工具。`, 'warn');
+                    return;
+                }
+            } else {
+                if (nextMode !== 'route') {
+                    this.playFeel('invalid');
+                    this.showFeel('当前步骤强引导中，暂时无法使用工具。', 'warn');
+                    return;
+                }
+            }
+        }
         if (nextMode === 'patch' && this.patchCharges <= 0) {
             this.playFeel('invalid');
             this.showFeel('没有可用补片', 'warn');
@@ -890,6 +930,16 @@ class GameEngine {
 
     placePatch(cellId) {
         if (this.gameState !== 'playing') return false;
+        if (this.tutorialActive) {
+            const step = this.activeTutorialSteps[this.currentTutorialStepIndex];
+            if (step && step.type === 'tool' && step.tool === 'patch' && cellId === step.targetCellId) {
+                // Allowed
+            } else {
+                this.playFeel('invalid');
+                this.showFeel('请按照指示使用补片！', 'warn');
+                return false;
+            }
+        }
         if (!this.isLegalPatchTarget(cellId)) {
             this.playFeel('invalid');
             this.showFeel('补片只能铺在黑色缺口上', 'warn');
@@ -908,11 +958,27 @@ class GameEngine {
             window.renderEngine.spawnCellPulse(cellId, '#8bdcff', 1.2);
         }
         this.updateUI();
+        if (this.tutorialActive) {
+            this.currentTutorialStepIndex++;
+            if (typeof window !== 'undefined' && window.updateTutorialUI) {
+                window.updateTutorialUI();
+            }
+        }
         return true;
     }
 
     placeBeacon(cellId) {
         if (this.gameState !== 'playing') return false;
+        if (this.tutorialActive) {
+            const step = this.activeTutorialSteps[this.currentTutorialStepIndex];
+            if (step && step.type === 'tool' && step.tool === 'beacon' && cellId === step.targetCellId) {
+                // Allowed
+            } else {
+                this.playFeel('invalid');
+                this.showFeel('请按照指示使用信标！', 'warn');
+                return false;
+            }
+        }
         if (!this.isLegalBeaconTarget(cellId)) {
             this.playFeel('invalid');
             this.showFeel('诱饵要放在空的安全格上', 'warn');
@@ -932,11 +998,27 @@ class GameEngine {
             window.renderEngine.spawnCellPulse(cellId, '#ffb700', 1.2);
         }
         this.updateUI();
+        if (this.tutorialActive) {
+            this.currentTutorialStepIndex++;
+            if (typeof window !== 'undefined' && window.updateTutorialUI) {
+                window.updateTutorialUI();
+            }
+        }
         return true;
     }
 
     placeBreak(cellId) {
         if (this.gameState !== 'playing') return false;
+        if (this.tutorialActive) {
+            const step = this.activeTutorialSteps[this.currentTutorialStepIndex];
+            if (step && step.type === 'tool' && step.tool === 'break' && cellId === step.targetCellId) {
+                // Allowed
+            } else {
+                this.playFeel('invalid');
+                this.showFeel('请按照指示碎解格子！', 'warn');
+                return false;
+            }
+        }
         if (!this.isLegalBreakTarget(cellId)) {
             this.playFeel('invalid');
             this.showFeel('不能碎解关键物、敌人、传送门或已缺失格', 'warn');
@@ -962,6 +1044,12 @@ class GameEngine {
             window.renderEngine.spawnCellPulse(cellId, '#ff0055', 1.25);
         }
         this.updateUI();
+        if (this.tutorialActive) {
+            this.currentTutorialStepIndex++;
+            if (typeof window !== 'undefined' && window.updateTutorialUI) {
+                window.updateTutorialUI();
+            }
+        }
         if (resumeRealtime && typeof window !== 'undefined') {
             window.setTimeout(() => {
                 if (this.gameState === 'playing') this.setRealtimePaused(false);
@@ -1046,6 +1134,27 @@ class GameEngine {
 
     requestRealtimeMove(targetId) {
         if (this.gameState !== 'playing') return false;
+        if (this.tutorialActive) {
+            const step = this.activeTutorialSteps[this.currentTutorialStepIndex];
+            if (step && step.type === 'move') {
+                if (targetId === step.targetCellId) {
+                    const res = this.movePlayerRealtime(targetId);
+                    if (res) {
+                        this.currentTutorialStepIndex++;
+                        if (typeof window !== 'undefined' && window.updateTutorialUI) {
+                            window.updateTutorialUI();
+                        }
+                    }
+                    return res;
+                } else {
+                    this.playFeel?.('invalid');
+                    this.showFeel?.('当前步骤强引导中。请按照指示移动！', 'warn');
+                    return false;
+                }
+            } else {
+                return false;
+            }
+        }
         if (this.realtimeMode && this.realtimePaused && this.canAutoResumeRealtimeFromInput()) {
             this.setRealtimePaused(false);
         }
@@ -1580,6 +1689,20 @@ class GameEngine {
 
     rotateLayer(axis, layerIdx, direction) {
         if (this.gameState !== 'playing') return;
+        if (this.tutorialActive) {
+            const step = this.activeTutorialSteps[this.currentTutorialStepIndex];
+            if (step && step.type === 'twist') {
+                if (axis === step.axis && layerIdx === step.layer && direction === step.direction) {
+                    // Allowed
+                } else {
+                    this.playFeel?.('invalid');
+                    this.showFeel?.('当前步骤强引导中。请按照指示进行空间旋转！', 'warn');
+                    return;
+                }
+            } else {
+                return;
+            }
+        }
         if (!this.rotationEnabled) {
             this.playFeel('invalid');
             this.showFeel('本关暂未引入旋转', 'warn', true);
@@ -1635,8 +1758,7 @@ class GameEngine {
             this.updateUI();
             this.playFeel('rotateLock');
             this.showFeel('空间已锁定', 'info');
-            if (window.renderEngine && this.voidCells.size > 0) {
-                window.renderEngine.buildCube3D();
+            if (window.renderEngine) {
                 window.renderEngine.spawnEntities3D();
             }
             if (resumeRealtime && this.gameState === 'playing') {
@@ -1645,6 +1767,16 @@ class GameEngine {
 
             if (!this.realtimeMode && this.playerAP === 0 && this.gameState === 'playing') {
                 this.triggerAITurn();
+            }
+
+            if (this.tutorialActive) {
+                const step = this.activeTutorialSteps[this.currentTutorialStepIndex];
+                if (step && step.type === 'twist') {
+                    this.currentTutorialStepIndex++;
+                    if (typeof window !== 'undefined' && window.updateTutorialUI) {
+                        window.updateTutorialUI();
+                    }
+                }
             }
         };
 
@@ -2266,6 +2398,12 @@ class GameEngine {
     }
 
     updateTutorialHelper() {
+        if (this.tutorialActive) {
+            if (typeof window !== 'undefined' && window.updateTutorialUI) {
+                window.updateTutorialUI();
+            }
+            return;
+        }
         const card = document.getElementById('tutorial-helper-card');
         if (!card || !this.currentLevel) return;
         const copy = this.getTutorialHelperCopy();

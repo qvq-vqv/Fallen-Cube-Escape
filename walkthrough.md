@@ -16,7 +16,7 @@
 | L10 隐藏考：碎解突围 | 1 | 5 | route | break-present-unused |
 | L11 守门预演 | 1 | 5 | rotation | ok |
 | L12 出口？ | 1 | 9 | rotation | ok |
-| L13 孤岛补片 | 2 | 5 | rotation + patch | ok |
+| L13 孤岛补片 | 2 | 4 | patch | ok |
 | L14 宽场夹击 | 2 | 8 | rotation | ok |
 | L15 宽场遛锁 | 2 | 6 | rotation | ok |
 | L16 偷门不遛锁 | 2 | 4 | rotation + bridge | ok |
@@ -192,14 +192,13 @@
 ## L13 孤岛补片
 
 - 幕/章节：Act 2 / 第二幕 · 外壳
-- Bot 回合数：5
+- Bot 回合数：4
 - 设计风险：暂无
 
-1. `X1CCW`
-2. `patch F4-3`
-3. `move F3-2>F3-3`
-4. `move F4-3>D1-3`
-5. `move D2-3>D3-3`
+1. `patch F2-3`
+2. `patch F3-2`
+3. `move F2-3>F3-3`
+4. `move F3-2>F3-1`
 
 ## L14 宽场夹击
 

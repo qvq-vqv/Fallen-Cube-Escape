@@ -72,6 +72,284 @@
         return field || '';
     }
 
+    const tutorialStepsConfig = {
+        L01: [
+            {
+                type: 'dialog',
+                text: {
+                    zh: '等下，我脚边真的出现了一条线。你真的在指挥我？',
+                    en: 'Wait, a line actually appeared by my feet. Are you really guiding me?'
+                },
+                tone: 'steady'
+            },
+            {
+                type: 'move',
+                text: {
+                    zh: '点一下我前方的这一格，试着移动一步。',
+                    en: 'Click the cell next to me to take a step.'
+                },
+                targetCell: { face: 0, row: 2, col: 1 },
+                tone: 'steady'
+            }
+        ],
+        L02: [
+            {
+                type: 'dialog',
+                text: {
+                    zh: '等下，远处有一个黄色发光的东西，那是钥匙？',
+                    en: 'Wait, there is a glowing yellow thing in the distance. Is that a key?'
+                },
+                tone: 'steady'
+            },
+            {
+                type: 'dialog',
+                text: {
+                    zh: '看来我得先拿到钥匙，门才能打开。你必须引我去拿钥匙。',
+                    en: 'Looks like I need the key before the exit opens. You must guide me to collect it first.'
+                },
+                tone: 'steady'
+            },
+            {
+                type: 'move',
+                text: {
+                    zh: '点一下前面的格子。',
+                    en: 'Click the cell in front of me.'
+                },
+                targetCell: { face: 0, row: 2, col: 1 },
+                tone: 'steady'
+            },
+            {
+                type: 'move',
+                text: {
+                    zh: '走下这个面，朝钥匙的方向移动。',
+                    en: 'Step onto the face below, moving towards the key.'
+                },
+                targetCell: { face: 4, row: 0, col: 1 },
+                tone: 'steady'
+            },
+            {
+                type: 'move',
+                text: {
+                    zh: '继续往前走。',
+                    en: 'Keep moving forward.'
+                },
+                targetCell: { face: 4, row: 1, col: 1 },
+                tone: 'steady'
+            },
+            {
+                type: 'move',
+                text: {
+                    zh: '踩在钥匙上！拿到它。',
+                    en: 'Step on the key! Grab it.'
+                },
+                targetCell: { face: 4, row: 1, col: 0 },
+                tone: 'steady'
+            }
+        ],
+        L03: [
+            {
+                type: 'dialog',
+                text: {
+                    zh: '警报！那个红色棋子是追击者，它会在我移动后跟着移动。',
+                    en: 'Warning! That red piece is a chaser. It moves every time I take a step.'
+                },
+                tone: 'panic'
+            },
+            {
+                type: 'dialog',
+                text: {
+                    zh: '它下一步要踩的格子会变成红色闪烁。绝对不能走到红色闪烁的格子里！',
+                    en: 'The cell it will step on next flashes red. Never walk into a flashing red cell!'
+                },
+                tone: 'panic'
+            },
+            {
+                type: 'move',
+                text: {
+                    zh: '朝左边移动，避开上方红色预告格。',
+                    en: 'Move to the left to avoid the red warning cell above.'
+                },
+                targetCell: { face: 0, row: 1, col: 0 },
+                tone: 'steady'
+            }
+        ],
+        L04: [
+            {
+                type: 'dialog',
+                text: {
+                    zh: '钥匙被虚空隔开了。我走不过去。',
+                    en: 'The key is cut off by voids. I cannot walk there.'
+                },
+                tone: 'worry'
+            },
+            {
+                type: 'dialog',
+                text: {
+                    zh: '但别慌，我们可以拧动魔方的某个层面，把钥匙转过来。',
+                    en: 'But don\'t panic. We can twist a layer of the cube to bring the key to us.'
+                },
+                tone: 'steady'
+            },
+            {
+                type: 'dialog',
+                text: {
+                    zh: '按 Shift 键（手机端点右下 Twist）进入旋转模式。',
+                    en: 'Press Shift (or tap Twist on mobile) to enter Twist mode.'
+                },
+                tone: 'steady'
+            },
+            {
+                type: 'twist',
+                text: {
+                    zh: '在魔方顶部，向右拖动顶层，或者使用界面上的旋转按钮将 Y 轴第 1 层 [顺时针] 旋转。',
+                    en: 'Swipe the top layer to the right, or use the UI rotation controls to rotate Y-axis layer 1 [CW].'
+                },
+                axis: 'Y',
+                layer: 0,
+                direction: 'CW',
+                tone: 'steady'
+            }
+        ],
+        L06: [
+            {
+                type: 'dialog',
+                text: {
+                    zh: '注意看！那是守钥者。它通常只呆在它想呆的地方。',
+                    en: 'Look! That is the Guardian. It usually stays where it wants to.'
+                },
+                tone: 'worry'
+            },
+            {
+                type: 'dialog',
+                text: {
+                    zh: '一旦我踏入钥匙所在的“前”面，它就会被引诱并跟着我移动。而且拿走钥匙后它会暴走（连走两格）。',
+                    en: 'Once I enter the "Front" face where the key is, it will be lured and follow me. It will rage (double-move) after key pickup.'
+                },
+                tone: 'panic'
+            },
+            {
+                type: 'move',
+                text: {
+                    zh: '走到前面底部的格子，把守钥者引离钥匙。',
+                    en: 'Walk to the bottom cell on the Front face to lure the Guardian away from the key.'
+                },
+                targetCell: { face: 4, row: 2, col: 1 },
+                tone: 'steady'
+            }
+        ],
+        L07: [
+            {
+                type: 'dialog',
+                text: {
+                    zh: '等等，守钥者守在必经之路上，我们没法走过去。',
+                    en: 'Wait, the Guardian is blocking the path. We cannot pass.'
+                },
+                tone: 'worry'
+            },
+            {
+                type: 'dialog',
+                text: {
+                    zh: '既然无路可走，那就把它的路拆了！我们可以使用碎解工具打破格子。',
+                    en: 'Since there is no path, let\'s break its path! We can use the Break tool to destroy a cell.'
+                },
+                tone: 'steady'
+            },
+            {
+                type: 'tool',
+                tool: 'break',
+                targetCell: { face: 4, row: 1, col: 1 },
+                text: {
+                    zh: '选择右侧手机下方的 [碎解] 工具，然后点击前侧中心格子。',
+                    en: 'Select the [Break] tool from the options, then click the Front center cell.'
+                },
+                tone: 'steady'
+            }
+        ],
+        L13: [
+            {
+                type: 'dialog',
+                text: {
+                    zh: '第二幕开启。这一关的钥匙被虚空包围了，我们没法直接走过去。',
+                    en: 'Act II begins. The key is surrounded by voids. We cannot walk over.'
+                },
+                tone: 'worry'
+            },
+            {
+                type: 'dialog',
+                text: {
+                    zh: '但我们可以使用补片工具在缺口上铺路。注意，补片被踩过后就会碎裂，只能踩一次。',
+                    en: 'But we can use the Patch tool to pave a road over the gap. Note that a patch breaks after one step.'
+                },
+                tone: 'steady'
+            },
+            {
+                type: 'tool',
+                tool: 'patch',
+                targetCell: { face: 4, row: 1, col: 2 },
+                text: {
+                    zh: '选择右侧手机下方的 [补片] 工具，然后在前侧的缺口处铺路。',
+                    en: 'Select the [Patch] tool from the options, and place it on the Front gap cell.'
+                },
+                tone: 'steady'
+            }
+        ],
+        L16: [
+            {
+                type: 'dialog',
+                text: {
+                    zh: '这是传送门。地表上旋转的蓝色微涡流就是入口与出口。',
+                    en: 'This is a Portal. The rotating blue vortex on the ground connects the entrance and exit.'
+                },
+                tone: 'steady'
+            },
+            {
+                type: 'dialog',
+                text: {
+                    zh: '踩在传送门上时，点击对应的另一端，就能瞬间穿过它，实现跨面传送。',
+                    en: 'When standing on a Portal, click its destination to teleport instantly across faces.'
+                },
+                tone: 'steady'
+            },
+            {
+                type: 'move',
+                targetCell: { face: 4, row: 3, col: 0 },
+                text: {
+                    zh: '点击前侧左下方的传送门出口（F4-1），体验传送。',
+                    en: 'Click the portal exit on the bottom-left of the Front face (F4-1) to teleport.'
+                },
+                tone: 'steady'
+            }
+        ],
+        L23: [
+            {
+                type: 'dialog',
+                text: {
+                    zh: '守钥者挡在前方，我们如果直接走过去，它会瞬间把我们抓住。',
+                    en: 'The Guardian is blocking the way. If we walk straight there, it will catch us immediately.'
+                },
+                tone: 'worry'
+            },
+            {
+                type: 'dialog',
+                text: {
+                    zh: '此时，可以使用信标（诱饵）工具。诱饵会发出假信号，将敌人的注意力引开。',
+                    en: 'This is where the Beacon (Decoy) tool comes in. It emits a fake signal to lure enemies away.'
+                },
+                tone: 'steady'
+            },
+            {
+                type: 'tool',
+                tool: 'beacon',
+                targetCell: { face: 1, row: 0, col: 0 },
+                text: {
+                    zh: '选择右侧手机下方的 [信标] 工具，然后点击下方（D面）的左上角格子。',
+                    en: 'Select the [Beacon] tool from the options, then click the top-left cell on the bottom (D) face.'
+                },
+                tone: 'steady'
+            }
+        ]
+    };
+
     function normalizeLevels(levels) {
         return levels.map((level, index) => {
             const number = Number(textOf(level.title).match(/L(\d+)/)?.[1] || index + 1);
@@ -84,6 +362,7 @@
                 mechanicTags,
                 difficulty: inferDifficulty({ ...level, mechanicTags }, number)
             };
+            normalized.tutorialSteps = tutorialStepsConfig[normalized.id] || [];
             normalized.fingerprint = level.fingerprint || createFingerprint(normalized);
             return normalized;
         });
@@ -465,12 +744,12 @@
                         visual: 'patch'
                     },
                     size: 4,
-                    bestTurns: 6,
+                    bestTurns: 4,
                     bestRotations: 0,
-                    player: at(0, 1, 1),
+                    player: at(4, 0, 2),
                     key: at(4, 2, 2),
-                    exit: at(1, 2, 2),
-                    rotationEnabled: true,
+                    exit: at(4, 2, 0),
+                    rotationEnabled: false,
                     patchCharges: 2,
                     voids: [
                         at(4, 1, 2),
@@ -481,11 +760,10 @@
                     validation: {
                         solvable: true,
                         patchTool: true,
-                        hasThreats: true
+                        minPatchTurnGain: 1,
+                        hasThreats: false
                     },
-                    ais: [
-                        { type: 'chaser', pos: at(5, 0, 3) }
-                    ]
+                    ais: []
                 },
                 {
                     title: { zh: 'L14 宽场夹击', en: 'L14 Wide Pincer' },

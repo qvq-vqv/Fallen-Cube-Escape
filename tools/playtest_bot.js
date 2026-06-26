@@ -264,7 +264,7 @@ function reservedBeaconCell(state, cellId) {
 }
 
 function generateBeaconActions(engine, state) {
-    if (state.beaconCharges <= 0 || state.usedBeacon || state.log.length > 4) return [];
+    if (state.beaconCharges <= 0 || state.log.length > 4) return [];
     const candidates = new Set();
     const add = cellId => {
         if (isPlayerWalkable(engine, state, cellId) && !reservedBeaconCell(state, cellId)) {
@@ -283,7 +283,7 @@ function generateBeaconActions(engine, state) {
 }
 
 function generatePatchActions(state) {
-    if (state.patchCharges <= 0 || state.usedPatch) return [];
+    if (state.patchCharges <= 0) return [];
     return [...state.voids]
         .filter(cell => !state.patches.has(cell))
         .map(cell => ({ type: 'patch', cell }));
@@ -304,7 +304,7 @@ function isLegalBreakTarget(engine, state, cellId) {
 }
 
 function generateBreakActions(engine, state) {
-    if (state.breakCharges <= 0 || state.usedBreak) return [];
+    if (state.breakCharges <= 0) return [];
     const candidates = new Set();
     const add = cellId => {
         if (isLegalBreakTarget(engine, state, cellId)) candidates.add(cellId);

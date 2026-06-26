@@ -1,15 +1,11 @@
 {
-  "createdAt": "2026-06-11T17:45:23.956Z",
-  "updatedAt": "2026-06-12T12:30:00+08:00",
-  "status": "resolved",
+  "createdAt": "2026-06-26T06:53:25.124Z",
   "tool": "tools/playtest_bot.js",
   "failures": [
     {
-      "level": "L04 夹击拧门",
-      "reason": "Successfully forced rotation and validated solvable status.",
-      "expanded": 142,
-      "resolution": "L04 was reworked into a solvable rotation-required layout using voids. Verified by validate-levels."
+      "level": "L13 孤岛补片",
+      "reason": "playtest_bot could not find a solution",
+      "expanded": 574
     }
-  ],
-  "activeBlockers": []
+  ]
 }
