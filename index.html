@@ -41,6 +41,7 @@
                 <button id="landing-levels-btn" class="landing-btn" type="button">关卡选择</button>
                 <button id="landing-archive-btn" class="landing-btn" type="button">档案矩阵</button>
                 <button id="landing-settings-btn" class="landing-btn" type="button">游戏设置</button>
+                <button id="landing-credits-btn" class="landing-btn subtle" type="button">制作名单</button>
             </div>
         </section>
     </div>
@@ -116,6 +117,15 @@
         </div>
     </div>
 
+    <div id="loading-overlay" class="overlay loading-overlay" aria-hidden="true">
+        <section class="loading-panel glass-panel">
+            <span class="terminal-kicker">D-LINK BOOT</span>
+            <h2>神经连接同步中</h2>
+            <div id="loading-log" class="loading-log" aria-live="polite"></div>
+            <div class="loading-progress"><i id="loading-progress-fill"></i></div>
+        </section>
+    </div>
+
     <!-- 游戏主界面 -->
     <div id="game-container" class="preplay-stage" style="display:grid;">
         <div class="meta-toolbar glass-panel">
@@ -167,8 +177,10 @@
             <button id="phone-notch" class="phone-notch" type="button" aria-label="收起 E-7 手机">▶</button>
             <div class="terminal-header">
                 <div>
+                    <span class="phone-statusbar"><b>D-LINK 9G</b><i id="phone-clock">09:46</i><em>87%</em></span>
                     <span class="terminal-kicker" data-i18n="phone.kicker">DAWN PHONE</span>
                     <h2 class="terminal-title" data-i18n="phone.title">黎明魔方</h2>
+                    <canvas id="voice-wave-canvas" class="voice-wave-canvas" width="360" height="76" aria-hidden="true"></canvas>
                 </div>
                 <div class="companion-dock" aria-live="polite">
                     <div class="companion-slot" aria-label="主角通讯位，立绘暂缺"></div>
@@ -331,6 +343,30 @@
                     <span class="settings-label" data-i18n="settings.devMode">开发者模式</span>
                     <button id="settings-devmode-btn" class="settings-toggle danger" type="button" aria-pressed="false" data-i18n="settings.devUnlock">解锁所有关卡</button>
                 </article>
+
+                <article id="settings-dev-tuning" class="settings-card dev-tuning-card is-hidden">
+                    <span class="settings-label">DEV TUNING</span>
+                    <label class="settings-slider-row">
+                        <span>E-7 移动速度</span>
+                        <input id="settings-player-speed" type="range" min="360" max="900" step="30" value="600">
+                        <b id="settings-player-speed-value">0.60s</b>
+                    </label>
+                    <label class="settings-slider-row">
+                        <span>怪物移动速度</span>
+                        <input id="settings-enemy-speed" type="range" min="50" max="180" step="5" value="100">
+                        <b id="settings-enemy-speed-value">1.00x</b>
+                    </label>
+                </article>
+            </div>
+
+            <div class="settings-guide">
+                <h3>玩法指南</h3>
+                <div class="guide-grid">
+                    <article><b>➜</b><span>点 Dawn 周围发亮格移动，途中只缓存下一步。</span></article>
+                    <article><b>⟳</b><span>按 Shift 进入 Twist，拖 3D 控制环拧层。</span></article>
+                    <article><b>▧</b><span>补片铺一次路，Dawn 踩过后碎掉。</span></article>
+                    <article><b>◇</b><span>诱饵拉偏追击压力，碎解切断必经格。</span></article>
+                </div>
             </div>
 
             <div class="settings-keybinds">
@@ -403,14 +439,49 @@
         </div>
     </div>
 
+    <div id="archive-overlay" class="overlay archive-overlay" aria-hidden="true">
+        <section class="archive-room glass-panel">
+            <button id="archive-close-btn" class="settings-close-btn" type="button" aria-label="关闭档案">×</button>
+            <span class="terminal-kicker">TROPHY ROOM</span>
+            <h2>档案与成就陈列室</h2>
+            <div class="archive-room-grid">
+                <section>
+                    <h3>成就徽章</h3>
+                    <div id="archive-room-achievements" class="archive-room-list"></div>
+                </section>
+                <section>
+                    <h3>剧情数据盘</h3>
+                    <div id="archive-room-entries" class="archive-room-list"></div>
+                </section>
+            </div>
+        </section>
+    </div>
+
+    <div id="credits-overlay" class="overlay credits-overlay" aria-hidden="true">
+        <section class="credits-terminal glass-panel">
+            <button id="credits-close-btn" class="settings-close-btn" type="button" aria-label="关闭致谢">×</button>
+            <span class="terminal-kicker">CREDITS</span>
+            <pre>
+DAWN CUBE / 黎明魔方
+
+Creative Direction ........ qcmorning
+System Design ............. Antigravity
+Physical Implementation ... Codex
+Special Thanks ............ Operating Agent
+
+> keep Dawn alive.
+            </pre>
+        </section>
+    </div>
+
     <!-- 载入脚本 -->
-    <script src="locales.js?v=20260626-m67-v1"></script>
+    <script src="locales.js?v=20260626-m68-v1"></script>
     <script src="audio.js?v=20260609-phone-v1"></script>
-    <script src="levels.js?v=20260626-m67-v1"></script>
-    <script src="game.js?v=20260626-m67-v1"></script>
-    <script src="render.js?v=20260626-m67-v1"></script>
-    <script src="dialogue.js?v=20260626-m67-v1"></script>
-    <script src="story.js?v=20260626-m67-v1"></script>
-    <script src="main.js?v=20260626-m67-v1"></script>
+    <script src="levels.js?v=20260626-m68-v1"></script>
+    <script src="game.js?v=20260626-m68-v1"></script>
+    <script src="render.js?v=20260626-m68-v1"></script>
+    <script src="dialogue.js?v=20260626-m68-v1"></script>
+    <script src="story.js?v=20260626-m68-v1"></script>
+    <script src="main.js?v=20260626-m68-v1"></script>
 </body>
 </html>

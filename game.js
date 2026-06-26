@@ -51,6 +51,7 @@ class GameEngine {
         this.realtimeEdges = { player: null, ai: {} };
         this.realtimeHistoryBuffer = [];
         this.realtimeLastHistoryAt = 0;
+        this.enemySpeedScale = 1;
 
         this.DIR = { UP: 0, DOWN: 1, LEFT: 2, RIGHT: 3 };
         this.rotationPermutations = { X: {}, Y: {}, Z: {} };
@@ -151,6 +152,25 @@ class GameEngine {
         this.realtimeEdges = { player: null, ai: {} };
         this.realtimeHistoryBuffer = [];
         this.realtimeLastHistoryAt = 0;
+    }
+
+    applyRealtimeTuning(settings = {}) {
+        const playerMoveMs = Number(settings.playerMoveMs);
+        const enemySpeedScale = Number(settings.enemySpeedScale);
+        if (Number.isFinite(playerMoveMs)) {
+            this.playerMoveCooldownMs = Math.max(360, Math.min(900, playerMoveMs));
+        }
+        if (Number.isFinite(enemySpeedScale)) {
+            this.enemySpeedScale = Math.max(0.5, Math.min(1.8, enemySpeedScale));
+        }
+        Object.entries(this.realtimeAIClocks || {}).forEach(([aiId, clock]) => {
+            if (!clock) return;
+            const progress = clock.intervalMs > 0 ? 1 - (clock.remainingMs / clock.intervalMs) : 0;
+            const numericId = Number(aiId);
+            const ai = this.ais.find(item => item.id === numericId);
+            clock.intervalMs = this.getAIRealtimeIntervalMs(ai || {});
+            clock.remainingMs = Math.max(0, clock.intervalMs * (1 - Math.max(0, Math.min(1, progress))));
+        });
     }
 
     loadTrust() {
@@ -771,7 +791,7 @@ class GameEngine {
         this.currentLevel = this.levels[this.currentLevelIndex] || this.currentLevel;
         this.lastInputCell = null;
 
-        document.getElementById('gameover-overlay')?.classList.remove('active', 'jump-alert');
+        document.getElementById('gameover-overlay')?.classList.remove('active', 'jump-alert', 'signal-lost');
         document.getElementById('victory-overlay')?.classList.remove('active');
 
         if (window.renderEngine) {
@@ -920,6 +940,11 @@ class GameEngine {
             return false;
         }
 
+        const resumeRealtime = this.realtimeMode && !this.realtimePaused;
+        if (this.realtimeMode) {
+            this.snapRealtimeEntitiesToGrid('break');
+            this.setRealtimePaused(true);
+        }
         this.pushHistory('break');
         this.breakCharges -= 1;
         this.activePatchCells.delete(cellId);
@@ -934,6 +959,13 @@ class GameEngine {
             window.renderEngine.spawnCellPulse(cellId, '#ff0055', 1.25);
         }
         this.updateUI();
+        if (resumeRealtime && typeof window !== 'undefined') {
+            window.setTimeout(() => {
+                if (this.gameState === 'playing') this.setRealtimePaused(false);
+            }, 420);
+        } else if (resumeRealtime) {
+            this.setRealtimePaused(false);
+        }
         return true;
     }
 
@@ -960,6 +992,7 @@ class GameEngine {
 
     startRealtime() {
         if (!this.realtimeMode) this.setRealtimeMode(true);
+        if (typeof window !== 'undefined') this.applyRealtimeTuning(window.dawnCubeSettings || {});
         this.realtimePaused = false;
         this.realtimeLastTick = this.nowMs();
         this.primeRealtimeClocks();
@@ -1002,9 +1035,10 @@ class GameEngine {
     getAIRealtimeIntervalMs(ai) {
         const difficulty = Number(this.currentLevel?.difficulty || 3);
         const base = difficulty <= 3 ? 2500 : (difficulty <= 7 ? 1500 : 900);
-        if (ai.type === 'guardian' && this.hasKey) return Math.max(700, base * 0.72);
-        if (ai.type === 'ambusher') return Math.max(750, base * 0.82);
-        return base;
+        const scaled = base / Math.max(0.5, Math.min(1.8, this.enemySpeedScale || 1));
+        if (ai.type === 'guardian' && this.hasKey) return Math.max(520, scaled * 0.72);
+        if (ai.type === 'ambusher') return Math.max(560, scaled * 0.82);
+        return Math.max(420, scaled);
     }
 
     requestRealtimeMove(targetId) {
@@ -1050,11 +1084,16 @@ class GameEngine {
             remainingAP: 'realtime',
             usedBridge: this.isBridgeStep(fromCell, targetId)
         });
-        this.playFeel(this.isBridgeStep(fromCell, targetId) ? 'bridgeStep' : 'playerStep');
+        const usedBridge = this.isBridgeStep(fromCell, targetId);
+        this.playFeel(usedBridge ? 'bridgeStep' : 'playerStep');
         this.consumePatchBehind(fromCell, targetId);
         this.checkKeyCollection();
         if (typeof window !== 'undefined' && window.renderEngine) {
-            window.renderEngine.movePlayer(targetId);
+            if (usedBridge && window.renderEngine.animateBridgeTransit) {
+                window.renderEngine.animateBridgeTransit('player', null, fromCell, targetId);
+            } else {
+                window.renderEngine.movePlayer(targetId);
+            }
             window.renderEngine.drawPlannedPath([]);
             window.renderEngine.spawnCellPulse(targetId, '#8bdcff', 0.45);
         }
@@ -1140,11 +1179,17 @@ class GameEngine {
             .filter(snapshot => snapshot.realtimeTimestamp <= target.realtimeTimestamp)
             .map(snapshot => ({ ...snapshot }));
         this.restoreSnapshot(target);
+        this.playerPos = Number.isFinite(target.playerPos) ? target.playerPos : this.playerPos;
+        this.playerLastPos = this.playerPos;
+        this.ais = this.ais.map(ai => ({ ...ai, lastPos: ai.pos }));
         this.realtimeMode = true;
         this.realtimePaused = false;
         this.realtimeLastTick = now;
         this.realtimeHistoryBuffer = retained;
         this.realtimeLastHistoryAt = now;
+        this.playerCooldownRemaining = 0;
+        this.bufferedMoveCell = null;
+        this.realtimeEdges = { player: null, ai: {} };
         this.recordRealtimeSnapshot(now, true);
         this.playFeel('undo');
         this.showFeel('倒回 3 秒。Dawn：又格式化？脑子会痛的。', 'info', true);
@@ -1210,7 +1255,11 @@ class GameEngine {
         });
         this.playFeel(ai.type === 'guardian' && ai.state === 'rage' ? 'guardianRage' : 'enemyStep');
         if (typeof window !== 'undefined' && window.renderEngine) {
-            window.renderEngine.moveAI(ai.id, nextCell);
+            if (this.isBridgeStep(fromCell, nextCell) && window.renderEngine.animateBridgeTransit) {
+                window.renderEngine.animateBridgeTransit('ai', ai.id, fromCell, nextCell);
+            } else {
+                window.renderEngine.moveAI(ai.id, nextCell);
+            }
             window.renderEngine.spawnCellPulse(nextCell, ai.color || '#ff0055', 0.75);
         }
         if (this.beaconCell !== null && nextCell === this.beaconCell) {
@@ -1224,6 +1273,21 @@ class GameEngine {
         this.checkCollisions();
         this.updateUI();
         return true;
+    }
+
+    snapRealtimeEntitiesToGrid(reason = 'stun') {
+        if (!this.realtimeMode) return;
+        this.playerCooldownRemaining = 0;
+        this.bufferedMoveCell = null;
+        this.playerLastPos = this.playerPos;
+        this.realtimeEdges.player = null;
+        this.ais = this.ais.map(ai => ({ ...ai, lastPos: ai.pos }));
+        this.realtimeEdges.ai = {};
+        if (typeof window !== 'undefined' && window.renderEngine) {
+            window.renderEngine.movePlayer(this.playerPos);
+            this.ais.forEach(ai => window.renderEngine.moveAI(ai.id, ai.pos));
+            if (reason === 'break') window.renderEngine.spawnCellPulse(this.playerPos, '#ffb700', 0.42);
+        }
     }
 
     checkRealtimeCollisions() {
@@ -1511,6 +1575,11 @@ class GameEngine {
             return;
         }
 
+        const resumeRealtime = this.realtimeMode && !this.realtimePaused;
+        if (this.realtimeMode) {
+            this.snapRealtimeEntitiesToGrid('rotate');
+            this.setRealtimePaused(true);
+        }
         this.pushHistory('rotate');
         this.playFeel('rotateStart');
         this.showFeel(this.realtimeMode
@@ -1548,6 +1617,9 @@ class GameEngine {
             if (window.renderEngine && this.voidCells.size > 0) {
                 window.renderEngine.buildCube3D();
                 window.renderEngine.spawnEntities3D();
+            }
+            if (resumeRealtime && this.gameState === 'playing') {
+                this.setRealtimePaused(false);
             }
 
             if (!this.realtimeMode && this.playerAP === 0 && this.gameState === 'playing') {
@@ -2020,10 +2092,17 @@ class GameEngine {
         }
         const overlay = document.getElementById('gameover-overlay');
         if (overlay) {
-            overlay.classList.remove('jump-alert');
+            overlay.classList.remove('jump-alert', 'signal-lost');
             void overlay.offsetWidth;
-            overlay.classList.add('active', 'jump-alert');
-            setTimeout(() => overlay.classList.remove('jump-alert'), 700);
+            overlay.classList.add('active', 'signal-lost');
+            setTimeout(() => overlay.classList.remove('signal-lost'), 900);
+        }
+        const container = document.getElementById('game-container');
+        if (container) {
+            container.classList.remove('glitch-capture');
+            void container.offsetWidth;
+            container.classList.add('glitch-capture');
+            setTimeout(() => container.classList.remove('glitch-capture'), 820);
         }
         this.updateCompanionTerminal();
     }

@@ -25,6 +25,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const landingLevelsBtn = document.getElementById('landing-levels-btn');
     const landingArchiveBtn = document.getElementById('landing-archive-btn');
     const landingSettingsBtn = document.getElementById('landing-settings-btn');
+    const landingCreditsBtn = document.getElementById('landing-credits-btn');
     const setupOverlay = document.getElementById('setup-overlay');
     const gameContainer = document.getElementById('game-container');
     const startBtn = document.getElementById('start-game-btn');
@@ -85,7 +86,23 @@ document.addEventListener('DOMContentLoaded', () => {
     const settingsDevModeBtn = document.getElementById('settings-devmode-btn');
     const settingsLangBtns = document.querySelectorAll('[data-settings-lang]');
     const settingsPrecisionBtns = document.querySelectorAll('[data-settings-precision]');
+    const settingsDevTuning = document.getElementById('settings-dev-tuning');
+    const settingsPlayerSpeed = document.getElementById('settings-player-speed');
+    const settingsEnemySpeed = document.getElementById('settings-enemy-speed');
+    const settingsPlayerSpeedValue = document.getElementById('settings-player-speed-value');
+    const settingsEnemySpeedValue = document.getElementById('settings-enemy-speed-value');
     const keybindButtons = document.querySelectorAll('[data-keybind-action]');
+    const loadingOverlay = document.getElementById('loading-overlay');
+    const loadingLog = document.getElementById('loading-log');
+    const loadingProgressFill = document.getElementById('loading-progress-fill');
+    const archiveOverlay = document.getElementById('archive-overlay');
+    const archiveCloseBtn = document.getElementById('archive-close-btn');
+    const archiveRoomAchievements = document.getElementById('archive-room-achievements');
+    const archiveRoomEntries = document.getElementById('archive-room-entries');
+    const creditsOverlay = document.getElementById('credits-overlay');
+    const creditsCloseBtn = document.getElementById('credits-close-btn');
+    const phoneClock = document.getElementById('phone-clock');
+    const voiceWaveCanvas = document.getElementById('voice-wave-canvas');
 
     const safeParseArray = (key) => {
         try {
@@ -126,6 +143,8 @@ document.addEventListener('DOMContentLoaded', () => {
     const settingsState = {
         precision: Math.max(0, Math.min(2, Number(localStorage.getItem('dawnCubeTimerPrecision') || 1))),
         devMode: localStorage.getItem('dimensionHackDevMode') === 'true',
+        playerMoveMs: Math.max(360, Math.min(900, Number(localStorage.getItem('dawnCubePlayerMoveMs') || 600))),
+        enemySpeedScale: Math.max(0.5, Math.min(1.8, Number(localStorage.getItem('dawnCubeEnemySpeedScale') || 1))),
         keybinds: {
             ...defaultKeybinds,
             ...safeParseObject('dawnCubeKeybinds', defaultKeybinds)
@@ -195,6 +214,22 @@ document.addEventListener('DOMContentLoaded', () => {
         if (settingsState.devMode) return true;
         return !level.hiddenUntilActOneClear || isHiddenCrazyUnlocked();
     }
+
+    function isLevelUnlockedForStar(index) {
+        if (settingsState.devMode) return true;
+        if (completedLevels.has(index)) return true;
+        const sameAct = game.levels[index]?.act || 1;
+        const visibleActLevels = game.levels
+            .map((level, levelIndex) => ({ level, index: levelIndex }))
+            .filter(item => (item.level.act || 1) === sameAct && isLevelVisible(item.level));
+        const firstIncomplete = visibleActLevels.find(item => !completedLevels.has(item.index));
+        return firstIncomplete?.index === index;
+    }
+
+    const leoStarMap = [
+        [14, 54], [23, 38], [34, 27], [47, 22], [61, 30], [72, 44],
+        [63, 58], [50, 63], [40, 75], [27, 80], [18, 70], [36, 48]
+    ];
 
     function unlockActPage(act) {
         if (!Number.isFinite(act) || act <= 1) return false;
@@ -494,6 +529,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const line = textOf(text) || '';
         if (companionBubble) companionBubble.textContent = line;
         render.setPlayerSpeechBubble?.(line, tone);
+        pulsePhoneVoice(tone === 'danger' ? 1300 : 900);
     }
 
     function pickKaomoji(tone, fallbackFace) {
@@ -562,6 +598,126 @@ document.addEventListener('DOMContentLoaded', () => {
                 })
                 .join('');
         }
+        renderArchiveRoom();
+    }
+
+    function renderArchiveRoom() {
+        if (archiveRoomAchievements) {
+            archiveRoomAchievements.innerHTML = achievements
+                .map(achievement => {
+                    const unlocked = archiveState.achievements.has(achievement.id);
+                    return `<article class="archive-room-item ${unlocked ? 'unlocked' : 'locked'}">
+                        <strong>${unlocked ? '◆' : '◇'} ${escapeHtml(achievement.title)}</strong>
+                        <p>${escapeHtml(unlocked ? achievement.body : (window.t?.('archive.locked') || '未解锁'))}</p>
+                    </article>`;
+                })
+                .join('');
+        }
+        if (archiveRoomEntries) {
+            const unlockedEntries = archiveEntries.filter(entry => archiveState.entries.has(entry.id));
+            archiveRoomEntries.innerHTML = unlockedEntries
+                .map(entry => `<article class="archive-room-item">
+                    <strong>▣ ${escapeHtml(entry.title)}</strong>
+                    <p>${escapeHtml(entry.body)}</p>
+                </article>`)
+                .join('') || `<p class="archive-empty">${escapeHtml(window.t?.('archive.empty') || '还没有新档案。先活过这一局。')}</p>`;
+        }
+    }
+
+    function openArchiveRoom() {
+        renderArchiveRoom();
+        archiveOverlay?.classList.add('active');
+        archiveOverlay?.setAttribute('aria-hidden', 'false');
+        audio.play('uiConfirm');
+    }
+
+    function closeArchiveRoom() {
+        archiveOverlay?.classList.remove('active');
+        archiveOverlay?.setAttribute('aria-hidden', 'true');
+    }
+
+    function openCredits() {
+        creditsOverlay?.classList.add('active');
+        creditsOverlay?.setAttribute('aria-hidden', 'false');
+        audio.play('uiConfirm');
+    }
+
+    function closeCredits() {
+        creditsOverlay?.classList.remove('active');
+        creditsOverlay?.setAttribute('aria-hidden', 'true');
+    }
+
+    function updatePhoneClock() {
+        if (!phoneClock) return;
+        const now = new Date();
+        phoneClock.textContent = now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    }
+
+    function drawVoiceWave(talking = false) {
+        const canvas = voiceWaveCanvas;
+        const ctx = canvas?.getContext?.('2d');
+        if (!ctx) return;
+        const width = canvas.width;
+        const height = canvas.height;
+        const time = performance.now() / 1000;
+        ctx.clearRect(0, 0, width, height);
+        ctx.lineWidth = talking ? 5 : 3;
+        const gradient = ctx.createLinearGradient(0, 0, width, 0);
+        gradient.addColorStop(0, '#00f0ff');
+        gradient.addColorStop(0.55, '#00ff88');
+        gradient.addColorStop(1, '#ff00a1');
+        ctx.strokeStyle = gradient;
+        ctx.shadowColor = talking ? '#ff00a1' : '#00f0ff';
+        ctx.shadowBlur = talking ? 16 : 9;
+        ctx.beginPath();
+        const amp = talking ? 16 : 7;
+        const freq = talking ? 0.075 : 0.04;
+        for (let x = 0; x <= width; x += 4) {
+            const y = height / 2
+                + Math.sin(x * freq + time * (talking ? 7 : 2.2)) * amp
+                + Math.sin(x * freq * 0.43 + time * 1.7) * amp * 0.35;
+            if (x === 0) ctx.moveTo(x, y);
+            else ctx.lineTo(x, y);
+        }
+        ctx.stroke();
+    }
+
+    function pulsePhoneVoice(duration = 950) {
+        phonePanel?.classList.add('is-talking');
+        window.clearTimeout(pulsePhoneVoice.timer);
+        pulsePhoneVoice.timer = window.setTimeout(() => phonePanel?.classList.remove('is-talking'), duration);
+    }
+
+    function startPhoneWaveLoop() {
+        updatePhoneClock();
+        drawVoiceWave(phonePanel?.classList.contains('is-talking'));
+        requestAnimationFrame(startPhoneWaveLoop);
+    }
+
+    async function showLoadingSequence(level) {
+        if (!loadingOverlay || !loadingLog || !loadingProgressFill) return;
+        const lines = [
+            '> ESTABLISHING D-LINK TO E-7... [OK]',
+            `> TARGET: ${textOf(level?.title) || 'UNKNOWN'} ... [SYNC]`,
+            '> SYNCHRONIZING SPATIAL MATRIX... 67%',
+            '> WARNING: TRACKING THREAT ENGINES...',
+            '> HANDOFF READY.'
+        ];
+        loadingLog.innerHTML = '';
+        loadingProgressFill.style.setProperty('--loading-progress', '0%');
+        loadingOverlay.classList.add('active');
+        loadingOverlay.setAttribute('aria-hidden', 'false');
+        for (let i = 0; i < lines.length; i += 1) {
+            const row = document.createElement('p');
+            row.textContent = lines[i];
+            loadingLog.appendChild(row);
+            loadingProgressFill.style.setProperty('--loading-progress', `${Math.round(((i + 1) / lines.length) * 100)}%`);
+            audio.play(i === lines.length - 1 ? 'uiConfirm' : 'routeTick');
+            await new Promise(resolve => window.setTimeout(resolve, 110));
+        }
+        await new Promise(resolve => window.setTimeout(resolve, 120));
+        loadingOverlay.classList.remove('active');
+        loadingOverlay.setAttribute('aria-hidden', 'true');
     }
 
     function unlockArchive(id) {
@@ -860,12 +1016,13 @@ document.addEventListener('DOMContentLoaded', () => {
 
         const visibleLevels = game.levels
             .map((level, index) => ({ level, index }))
-            .filter(item => (item.level.act || 1) === selectedActPage && isLevelVisible(item.level));
+            .filter(item => (item.level.act || 1) === selectedActPage && isLevelVisible(item.level) && isLevelUnlockedForStar(item.index));
         if (!visibleLevels.some(item => item.index === selectedLevelIndex)) {
             selectedLevelIndex = visibleLevels[0]?.index || 0;
         }
         updateActPageTabs();
 
+        const starPoints = [];
         visibleLevels.forEach(({ level, index }) => {
             const actClass = `act-${level.act || 1}`;
             const card = document.createElement('button');
@@ -874,13 +1031,22 @@ document.addEventListener('DOMContentLoaded', () => {
             card.dataset.levelIndex = index;
             const localIndex = visibleLevels.findIndex(item => item.index === index);
             const t = visibleLevels.length <= 1 ? 0.5 : localIndex / (visibleLevels.length - 1);
-            const side = localIndex % 2 === 0 ? 1 : -1;
-            const x = 50 + side * (22 + Math.sin(t * Math.PI * 2) * 8);
-            const y = 10 + t * 78 + Math.sin(localIndex * 1.35) * 5;
-            card.style.setProperty('--star-x', `${Math.max(12, Math.min(88, x)).toFixed(2)}%`);
-            card.style.setProperty('--star-y', `${Math.max(10, Math.min(90, y)).toFixed(2)}%`);
+            const leo = leoStarMap[localIndex % leoStarMap.length];
+            const x = leo ? leo[0] : 50 + Math.sin(t * Math.PI * 2) * 30;
+            const y = leo ? leo[1] : 12 + t * 76;
+            const starX = Math.max(12, Math.min(88, x));
+            const starY = Math.max(10, Math.min(90, y));
+            card.style.setProperty('--star-x', `${starX.toFixed(2)}%`);
+            card.style.setProperty('--star-y', `${starY.toFixed(2)}%`);
             card.classList.toggle('completed', completedLevels.has(index));
+            card.classList.toggle('frontier', !completedLevels.has(index));
             card.classList.toggle('dev-unlocked', settingsState.devMode);
+            starPoints.push({
+                x: starX,
+                y: starY,
+                completed: completedLevels.has(index),
+                frontier: !completedLevels.has(index)
+            });
             card.innerHTML = `
                 <span class="level-card-title">${escapeHtml(textOf(level.title))}</span>
                 <span class="level-card-chapter">${escapeHtml(textOf(level.chapter))}</span>
@@ -896,6 +1062,23 @@ document.addEventListener('DOMContentLoaded', () => {
                 feel.note(`${textOf(level.title)} 已选中`, 'info');
             });
             levelListEl.appendChild(card);
+        });
+
+        starPoints.slice(1).forEach((point, i) => {
+            const previous = starPoints[i];
+            const line = document.createElement('span');
+            line.className = 'leo-star-line';
+            const dx = point.x - previous.x;
+            const dy = point.y - previous.y;
+            const length = Math.hypot(dx, dy);
+            const angle = Math.atan2(dy, dx) * 180 / Math.PI;
+            line.style.setProperty('--line-x', `${previous.x.toFixed(2)}%`);
+            line.style.setProperty('--line-y', `${previous.y.toFixed(2)}%`);
+            line.style.setProperty('--line-length', `${length.toFixed(2)}%`);
+            line.style.setProperty('--line-angle', `${angle.toFixed(2)}deg`);
+            line.classList.toggle('completed', previous.completed && point.completed);
+            line.classList.toggle('frontier', previous.completed && point.frontier);
+            levelListEl.prepend(line);
         });
     }
 
@@ -975,7 +1158,7 @@ document.addEventListener('DOMContentLoaded', () => {
         isGameActive = false;
         landingOverlay?.classList.add('active');
         setupOverlay.classList.remove('active');
-        gameoverOverlay?.classList.remove('active', 'jump-alert');
+        gameoverOverlay?.classList.remove('active', 'jump-alert', 'signal-lost');
         victoryOverlay?.classList.remove('active');
         gameContainer.classList.add('preplay-stage');
         render.setPresentationMode?.('landing');
@@ -1043,8 +1226,11 @@ document.addEventListener('DOMContentLoaded', () => {
     function persistSettings() {
         localStorage.setItem('dawnCubeTimerPrecision', String(settingsState.precision));
         localStorage.setItem('dimensionHackDevMode', String(settingsState.devMode));
+        localStorage.setItem('dawnCubePlayerMoveMs', String(settingsState.playerMoveMs));
+        localStorage.setItem('dawnCubeEnemySpeedScale', String(settingsState.enemySpeedScale));
         localStorage.setItem('dawnCubeKeybinds', JSON.stringify(settingsState.keybinds));
         window.dawnCubeSettings = settingsState;
+        game.applyRealtimeTuning?.(settingsState);
     }
 
     function renderSettingsPanel() {
@@ -1076,6 +1262,11 @@ document.addEventListener('DOMContentLoaded', () => {
             settingsDevModeBtn.classList.toggle('active', settingsState.devMode);
             settingsDevModeBtn.setAttribute('aria-pressed', String(settingsState.devMode));
         }
+        settingsDevTuning?.classList.toggle('is-hidden', !settingsState.devMode);
+        if (settingsPlayerSpeed) settingsPlayerSpeed.value = String(settingsState.playerMoveMs);
+        if (settingsEnemySpeed) settingsEnemySpeed.value = String(Math.round(settingsState.enemySpeedScale * 100));
+        if (settingsPlayerSpeedValue) settingsPlayerSpeedValue.textContent = `${(settingsState.playerMoveMs / 1000).toFixed(2)}s`;
+        if (settingsEnemySpeedValue) settingsEnemySpeedValue.textContent = `${settingsState.enemySpeedScale.toFixed(2)}x`;
     }
 
     function openSettings() {
@@ -1137,6 +1328,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     function setPhoneCollapsed(collapsed) {
         phonePanel?.classList.toggle('is-collapsed', collapsed);
+        render.setGameViewportBias?.(!collapsed);
         if (phoneNotch) {
             phoneNotch.innerText = collapsed ? '◀' : '▶';
             phoneNotch.setAttribute('aria-label', collapsed ? '展开 E-7 手机' : '收起 E-7 手机');
@@ -1178,14 +1370,20 @@ document.addEventListener('DOMContentLoaded', () => {
         setTwistMode(false);
         isGameActive = true;
 
+        await showLoadingSequence(game.levels[selectedLevelIndex]);
         game.initLevel(selectedLevelIndex);
+        game.applyRealtimeTuning?.(settingsState);
         game.setRealtimeMode?.(true);
-        game.startRealtime?.();
+        game.stopRealtime?.();
         renderLevelComms(selectedLevelIndex);
         syncArchiveForLevelStart(selectedLevelIndex);
         updateLayerDropdown(game.N);
         initRenderScene();
         await render.flyToGameCamera?.(980);
+        game.startRealtime?.();
+        if (!document.getElementById('tutorial-helper-card')?.classList.contains('is-hidden')) {
+            game.setRealtimePaused?.(true);
+        }
         gameContainer.classList.remove('is-entering');
         audio.start();
         audio.setTension('calm');
@@ -1210,9 +1408,10 @@ document.addEventListener('DOMContentLoaded', () => {
         isGameActive = false;
         gameContainer.style.display = 'grid';
         gameContainer.classList.add('preplay-stage');
-        gameoverOverlay.classList.remove('active', 'jump-alert');
+        gameoverOverlay.classList.remove('active', 'jump-alert', 'signal-lost');
         victoryOverlay.classList.remove('active');
         game.stopRealtime?.();
+        render.setGameViewportBias?.(false);
         setupOverlay.classList.add('active');
         landingOverlay?.classList.remove('active');
         render.setPresentationMode?.('constellation');
@@ -1449,6 +1648,16 @@ document.addEventListener('DOMContentLoaded', () => {
             audio.play('routeTick');
         });
     });
+    settingsPlayerSpeed?.addEventListener('input', () => {
+        settingsState.playerMoveMs = Math.max(360, Math.min(900, Number(settingsPlayerSpeed.value || 600)));
+        persistSettings();
+        renderSettingsPanel();
+    });
+    settingsEnemySpeed?.addEventListener('input', () => {
+        settingsState.enemySpeedScale = Math.max(0.5, Math.min(1.8, Number(settingsEnemySpeed.value || 100) / 100));
+        persistSettings();
+        renderSettingsPanel();
+    });
     settingsAudioBtn?.addEventListener('click', () => {
         audio.setMuted(!audio.muted);
         renderSettingsPanel();
@@ -1472,6 +1681,16 @@ document.addEventListener('DOMContentLoaded', () => {
     });
     phoneNotch?.addEventListener('click', () => {
         setPhoneCollapsed(!phonePanel?.classList.contains('is-collapsed'));
+    });
+    landingArchiveBtn?.addEventListener('click', openArchiveRoom);
+    landingCreditsBtn?.addEventListener('click', openCredits);
+    archiveCloseBtn?.addEventListener('click', closeArchiveRoom);
+    archiveOverlay?.addEventListener('click', event => {
+        if (event.target === archiveOverlay) closeArchiveRoom();
+    });
+    creditsCloseBtn?.addEventListener('click', closeCredits);
+    creditsOverlay?.addEventListener('click', event => {
+        if (event.target === creditsOverlay) closeCredits();
     });
     btnTwistMode?.addEventListener('click', () => {
         if (render.isAnimating) return;
@@ -1585,7 +1804,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     btnGameoverUndo.addEventListener('click', () => {
         if (!render.isAnimating && game.undoTurn()) {
-            gameoverOverlay.classList.remove('active', 'jump-alert');
+            gameoverOverlay.classList.remove('active', 'jump-alert', 'signal-lost');
             feel.note(game.realtimeMode ? '倒回 3 秒，重新推演' : '回到上一步，重新推演', 'info');
         }
     });
@@ -1618,7 +1837,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     selectedLevelIndex = Math.max(0, game.currentLevelIndex);
                 }
             }
-            gameoverOverlay.classList.remove('active', 'jump-alert');
+            gameoverOverlay.classList.remove('active', 'jump-alert', 'signal-lost');
             victoryOverlay.classList.remove('active');
             setupOverlay.classList.add('active');
             landingOverlay?.classList.remove('active');
@@ -1626,6 +1845,7 @@ document.addEventListener('DOMContentLoaded', () => {
             gameContainer.classList.add('preplay-stage');
             isGameActive = false;
             render.setPresentationMode?.('constellation');
+            render.setGameViewportBias?.(false);
             setTerminalTab('comms');
             renderLevelCards();
             renderLevelBrief();
@@ -1642,4 +1862,8 @@ document.addEventListener('DOMContentLoaded', () => {
             audio.start().then(() => audio.play('uiConfirm'));
         }
     });
+
+    persistSettings();
+    startPhoneWaveLoop();
+    window.setInterval(updatePhoneClock, 30000);
 });

@@ -65,6 +65,8 @@ class RenderEngine {
         this.presentationSpeed = 0;
         this.cameraFlight = null;
         this.presentationLookAt = new THREE.Vector3(0, 0, 0);
+        this.gameLookAt = new THREE.Vector3(0, 0, 0);
+        this.gameLookAtTarget = new THREE.Vector3(0, 0, 0);
         this.threatPreviewMeshes = {};
         this.twistRingMeshes = [];
         this.hoveredTwistRing = null;
@@ -832,7 +834,14 @@ class RenderEngine {
         if (!this.camera || !this.controls) return;
         this.camera.position.set(8.4, 7.8, 12.4);
         this.controls.target.set(0, 0, 0);
+        this.gameLookAt.set(0, 0, 0);
+        this.gameLookAtTarget.set(0, 0, 0);
         this.controls.update();
+    }
+
+    setGameViewportBias(phoneOpen = true) {
+        const targetX = phoneOpen ? -1.55 : 0;
+        this.gameLookAtTarget.set(targetX, 0, 0);
     }
 
     setPresentationMode(mode = 'game') {
@@ -883,7 +892,7 @@ class RenderEngine {
     flyToGameCamera(duration = 950) {
         if (!this.camera) return Promise.resolve();
         const targetPosition = new THREE.Vector3(8.4, 7.8, 12.4);
-        const targetLookAt = new THREE.Vector3(0, 0, 0);
+        const targetLookAt = this.gameLookAtTarget?.clone?.() || new THREE.Vector3(0, 0, 0);
         const startPosition = this.camera.position.clone();
         const startTime = performance.now();
         this.presentationMode = 'game';
@@ -2522,6 +2531,59 @@ class RenderEngine {
         }
     }
 
+    animateBridgeTransit(kind, aiId, fromCellId, targetCellId) {
+        if (this.renderMode === 'fallback') {
+            this.drawFallbackScene();
+            return;
+        }
+        const mesh = kind === 'player' ? this.playerMesh : this.aiMeshes[aiId];
+        if (!mesh) return;
+
+        const from = this.getCellWorldPosition(fromCellId, 'token');
+        const to = this.getCellWorldPosition(targetCellId, 'token');
+        const originalScale = mesh.scale.clone();
+        const duration = 560;
+        const startedAt = performance.now();
+        this.spawnCellPulse(fromCellId, '#35e6ff', 0.72);
+        this.spawnCellPulse(targetCellId, '#ffb700', 0.72);
+
+        const animateTransit = now => {
+            const t = Math.min(1, (now - startedAt) / duration);
+            const half = t < 0.5 ? t / 0.5 : (t - 0.5) / 0.5;
+            const ease = half < 0.5
+                ? 4 * half * half * half
+                : 1 - Math.pow(-2 * half + 2, 3) / 2;
+
+            if (t < 0.5) {
+                mesh.position.copy(from);
+                const scale = 1 - ease * 0.76;
+                mesh.scale.set(
+                    originalScale.x * scale,
+                    originalScale.y * Math.max(0.12, scale * 0.72),
+                    originalScale.z * scale
+                );
+            } else {
+                mesh.position.copy(to);
+                this.orientTokenToCell(mesh, targetCellId);
+                const scale = 0.24 + ease * 0.76;
+                mesh.scale.set(
+                    originalScale.x * scale,
+                    originalScale.y * Math.max(0.12, originalScale.y * scale),
+                    originalScale.z * scale
+                );
+            }
+
+            if (t < 1) {
+                requestAnimationFrame(animateTransit);
+            } else {
+                mesh.position.copy(to);
+                this.orientTokenToCell(mesh, targetCellId);
+                mesh.scale.copy(originalScale);
+            }
+        };
+        requestAnimationFrame(animateTransit);
+    }
+
     attachRealtimeTimerVisual(group, color, label, kind) {
         if (!group) return;
         const ring = new THREE.Mesh(
@@ -2702,6 +2764,7 @@ class RenderEngine {
         const material = new THREE.SpriteMaterial({
             map: texture,
             transparent: true,
+            depthTest: false,
             depthWrite: false,
             opacity: 0.96
         });
@@ -3052,6 +3115,10 @@ class RenderEngine {
             this.applyPresentationCamera();
         } else {
             this.updateCameraFlight();
+            if (this.controls && !this.cameraFlight) {
+                this.gameLookAt.lerp(this.gameLookAtTarget, 0.075);
+                this.controls.target.copy(this.gameLookAt);
+            }
         }
         
         // 更新 OrbitControls 摄像机控制器
