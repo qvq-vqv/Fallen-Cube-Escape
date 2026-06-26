@@ -290,9 +290,7 @@ class RenderEngine {
             if (!layer) return;
             const dx = event.clientX - down.x;
             const dy = event.clientY - down.y;
-            const direction = Math.abs(dx) >= Math.abs(dy)
-                ? (dx > 0 ? 'CW' : 'CCW')
-                : (dy > 0 ? 'CCW' : 'CW');
+            const direction = this.getScreenProjectedTwistDirection(layer, down.x, down.y, dx, dy);
             this.game.rotateLayer(layer.axis, layer.layer, direction);
             return;
         }
@@ -324,6 +322,35 @@ class RenderEngine {
             axis,
             layer: Math.min(this.game.N - 1, Math.max(0, idx))
         };
+    }
+
+    getScreenProjectedTwistDirection(layer, startX, startY, dx, dy) {
+        if (!this.camera || !this.renderer) {
+            return Math.abs(dx) >= Math.abs(dy)
+                ? (dx > 0 ? 'CW' : 'CCW')
+                : (dy > 0 ? 'CCW' : 'CW');
+        }
+        const axisVector = new THREE.Vector3(
+            layer.axis === 'X' ? 1 : 0,
+            layer.axis === 'Y' ? 1 : 0,
+            layer.axis === 'Z' ? 1 : 0
+        );
+        const H = ((this.game?.N || 3) - 1) / 2;
+        const coord = (layer.layer - H) * 2;
+        const center = axisVector.clone().multiplyScalar(coord).project(this.camera);
+        const rect = this.renderer.domElement.getBoundingClientRect();
+        const centerX = rect.left + (center.x + 1) * 0.5 * rect.width;
+        const centerY = rect.top + (1 - (center.y + 1) * 0.5) * rect.height;
+        const radiusX = startX - centerX;
+        const radiusY = startY - centerY;
+        const cross = radiusX * dy - radiusY * dx;
+        if (Math.abs(cross) < 0.01) {
+            return Math.abs(dx) >= Math.abs(dy)
+                ? (dx > 0 ? 'CW' : 'CCW')
+                : (dy > 0 ? 'CCW' : 'CW');
+        }
+        const cameraFacing = axisVector.dot(this.camera.position.clone().normalize()) >= 0 ? 1 : -1;
+        return cross * cameraFacing > 0 ? 'CCW' : 'CW';
     }
 
     ensureTwistControlRings() {
@@ -2601,15 +2628,16 @@ class RenderEngine {
         ring.rotation.x = Math.PI / 2;
         ring.position.y = 0.04;
         const labelSprite = this.createTimerLabelSprite(label, color);
-        labelSprite.position.set(0, kind === 'player' ? 1.22 : 1.08, 0);
-        labelSprite.scale.set(kind === 'player' ? 0.72 : 0.68, kind === 'player' ? 0.26 : 0.24, 1);
+        labelSprite.position.set(0, kind === 'player' ? 1.34 : 1.24, 0);
+        labelSprite.scale.set(kind === 'player' ? 0.96 : 0.9, kind === 'player' ? 0.34 : 0.32, 1);
         group.add(ring);
         group.add(labelSprite);
         group.userData.realtimeTimer = {
             ring,
             labelSprite,
             color,
-            label
+            label,
+            kind
         };
     }
 
@@ -2634,26 +2662,37 @@ class RenderEngine {
         return sprite;
     }
 
-    updateTimerLabelSprite(sprite, text) {
-        if (!sprite || sprite.userData.timerText === text) return;
+    updateTimerLabelSprite(sprite, text, urgency = 0) {
+        const urgencyKey = Math.round(urgency * 10);
+        if (!sprite || (sprite.userData.timerText === text && sprite.userData.timerUrgencyKey === urgencyKey)) return;
         const canvas = sprite.userData.timerCanvas;
         const texture = sprite.userData.timerTexture;
         const color = sprite.userData.timerColor || '#8bdcff';
         const ctx = canvas?.getContext?.('2d');
         if (!ctx) return;
         ctx.clearRect(0, 0, canvas.width, canvas.height);
-        ctx.font = '700 30px Inter, system-ui, sans-serif';
+        const danger = urgency > 0.72;
+        const hot = danger ? '#ff2d73' : color;
+        ctx.font = '900 38px Inter, system-ui, sans-serif';
         ctx.textAlign = 'center';
         ctx.textBaseline = 'middle';
-        ctx.shadowColor = color;
-        ctx.shadowBlur = 14;
-        ctx.fillStyle = 'rgba(4, 10, 18, 0.72)';
-        this.roundRect(ctx, 18, 12, 124, 40, 16);
+        ctx.shadowColor = hot;
+        ctx.shadowBlur = danger ? 24 : 18;
+        ctx.fillStyle = danger ? 'rgba(38, 0, 16, 0.9)' : 'rgba(1, 8, 16, 0.88)';
+        this.roundRect(ctx, 10, 8, 140, 48, 18);
         ctx.fill();
-        ctx.fillStyle = color;
+        ctx.lineWidth = danger ? 4 : 3;
+        ctx.strokeStyle = hot;
+        this.roundRect(ctx, 10, 8, 140, 48, 18);
+        ctx.stroke();
+        ctx.lineWidth = 5;
+        ctx.strokeStyle = 'rgba(0, 0, 0, 0.86)';
+        ctx.strokeText(text, canvas.width / 2, canvas.height / 2 + 1);
+        ctx.fillStyle = danger ? '#fff2f6' : '#f5fbff';
         ctx.fillText(text, canvas.width / 2, canvas.height / 2 + 1);
         texture.needsUpdate = true;
         sprite.userData.timerText = text;
+        sprite.userData.timerUrgencyKey = urgencyKey;
     }
 
     roundRect(ctx, x, y, width, height, radius) {
@@ -2685,9 +2724,16 @@ class RenderEngine {
         const scale = 0.78 + urgency * 0.34;
         visual.ring.scale.set(scale, scale, scale);
         visual.ring.rotation.z += 0.018 + urgency * 0.03;
-        this.updateTimerLabelSprite(visual.labelSprite, state.label);
-        visual.labelSprite.material.opacity = state.remainingMs > 0 ? 0.95 : 0.72;
+        this.updateTimerLabelSprite(visual.labelSprite, state.label, urgency);
+        visual.labelSprite.material.opacity = state.remainingMs > 0 ? 1 : 0.78;
         visual.labelSprite.userData.timerColor = color;
+        const labelScale = visual.kind === 'player' ? 1.04 : 1;
+        const pulse = 1 + urgency * 0.18;
+        visual.labelSprite.scale.set(
+            (visual.kind === 'player' ? 0.96 : 0.9) * labelScale * pulse,
+            (visual.kind === 'player' ? 0.34 : 0.32) * labelScale * pulse,
+            1
+        );
     }
 
     updateThreatPreviewMeshes(aiStates) {
