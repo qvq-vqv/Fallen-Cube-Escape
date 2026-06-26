@@ -2748,8 +2748,8 @@ class RenderEngine {
         if (!this.playerMesh || !this.lastSpeechBubbleText) return;
         if (!this.playerSpeechBubble) {
             this.playerSpeechBubble = this.createSpeechBubbleSprite();
-            this.playerSpeechBubble.position.set(0, 1.45, 0);
-            this.playerSpeechBubble.scale.set(2.35, 0.72, 1);
+            this.playerSpeechBubble.position.set(0, 2.05, 0);
+            this.playerSpeechBubble.scale.set(2.55, 0.78, 1);
             this.playerMesh.add(this.playerSpeechBubble);
         } else if (this.playerSpeechBubble.parent !== this.playerMesh) {
             this.playerMesh.add(this.playerSpeechBubble);
@@ -2888,8 +2888,6 @@ class RenderEngine {
             return;
         }
 
-        this.isAnimating = true;
-        
         const startPos = mesh.position.clone();
         const endPos = this.getCellWorldPosition(targetCellId, 'token');
         
@@ -2903,8 +2901,11 @@ class RenderEngine {
         let progress = 0;
         const duration = 200; // 动画时长 200ms
         const startTime = performance.now();
+        const animationToken = Symbol('moveAnimation');
+        mesh.userData.moveAnimationToken = animationToken;
         
         const animatePos = () => {
+            if (mesh.userData.moveAnimationToken !== animationToken) return;
             const time = performance.now();
             progress = (time - startTime) / duration;
             if (progress > 1) progress = 1;
@@ -2919,7 +2920,9 @@ class RenderEngine {
                 requestAnimationFrame(animatePos);
             } else {
                 mesh.position.copy(endPos);
-                this.isAnimating = false;
+                if (mesh.userData.moveAnimationToken === animationToken) {
+                    delete mesh.userData.moveAnimationToken;
+                }
             }
         };
         

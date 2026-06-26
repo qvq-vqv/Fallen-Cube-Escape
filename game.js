@@ -1044,6 +1044,9 @@ class GameEngine {
 
     requestRealtimeMove(targetId) {
         if (this.gameState !== 'playing') return false;
+        if (this.realtimeMode && this.realtimePaused && this.canAutoResumeRealtimeFromInput()) {
+            this.setRealtimePaused(false);
+        }
         if (targetId === this.playerPos) return false;
         if (!this.isWalkableForPlayer(targetId)) {
             this.playFeel('invalid');
@@ -1063,6 +1066,15 @@ class GameEngine {
             return true;
         }
         return this.movePlayerRealtime(targetId);
+    }
+
+    canAutoResumeRealtimeFromInput() {
+        if (typeof document === 'undefined') return true;
+        const settingsOpen = document.getElementById('settings-overlay')?.classList.contains('active');
+        const consoleOpen = document.getElementById('esc-console')?.classList.contains('active');
+        const gameoverOpen = document.getElementById('gameover-overlay')?.classList.contains('active');
+        const victoryOpen = document.getElementById('victory-overlay')?.classList.contains('active');
+        return !settingsOpen && !consoleOpen && !gameoverOpen && !victoryOpen;
     }
 
     movePlayerRealtime(targetId) {
@@ -1573,6 +1585,11 @@ class GameEngine {
         if (!this.realtimeMode && this.playerAP < 1) {
             this.playFeel('invalid');
             this.showFeel('Twist 需要 1 AP', 'warn', true);
+            return;
+        }
+        if (typeof window !== 'undefined' && window.renderEngine?.isAnimating) {
+            this.playFeel('invalid');
+            this.showFeel('空间还没锁定，等这一拧结束', 'warn', true);
             return;
         }
 
