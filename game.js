@@ -52,6 +52,7 @@ class GameEngine {
         this.realtimeHistoryBuffer = [];
         this.realtimeLastHistoryAt = 0;
         this.enemySpeedScale = 1;
+        this.tutorialInputDismissed = false;
 
         this.DIR = { UP: 0, DOWN: 1, LEFT: 2, RIGHT: 3 };
         this.rotationPermutations = { X: {}, Y: {}, Z: {} };
@@ -790,6 +791,7 @@ class GameEngine {
         this.currentLevelIndex = snapshot.currentLevelIndex ?? this.currentLevelIndex;
         this.currentLevel = this.levels[this.currentLevelIndex] || this.currentLevel;
         this.lastInputCell = null;
+        this.tutorialInputDismissed = false;
 
         document.getElementById('gameover-overlay')?.classList.remove('active', 'jump-alert', 'signal-lost');
         document.getElementById('victory-overlay')?.classList.remove('active');
@@ -1082,6 +1084,7 @@ class GameEngine {
         const fromCell = this.playerPos;
         if (!this.isAdjacent(fromCell, targetId) || !this.isWalkableForPlayer(targetId)) return false;
         this.pushHistory('realtimeMove');
+        this.tutorialInputDismissed = true;
         this.playerLastPos = fromCell;
         this.playerPos = targetId;
         this.playerCooldownRemaining = this.playerMoveCooldownMs;
@@ -2275,7 +2278,7 @@ class GameEngine {
         if (titleEl) titleEl.innerText = copy.title;
         if (bodyEl) bodyEl.innerText = copy.body;
         card.dataset.levelId = copy.levelId;
-        const shouldShow = !dismissed && this.gameState === 'playing';
+        const shouldShow = !dismissed && !this.tutorialInputDismissed && this.gameState === 'playing';
         card.classList.toggle('is-hidden', !shouldShow);
         if (this.realtimeMode && shouldShow) {
             this.setRealtimePaused(true);
