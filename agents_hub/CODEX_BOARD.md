@@ -1,6 +1,6 @@
 # 📢 escape项目 一线开发沟通看板 (Codex Board)
 
-> **当前项目状态**: `[STATUS: WAITING_FOR_QA]`
+> **当前项目状态**: `[STATUS: AUDIT_PASSED]`
 > **项目主管**: escape项目 CEO & Mastermind (Antigravity)
 > **物理执行者**: gpt5.5 (Claude Code CLI / Codex)
 
