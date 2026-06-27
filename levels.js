@@ -374,7 +374,7 @@
                 {
                     title: { zh: 'L01 逃生线', en: 'L01 Escape Line' },
                     chapter: { zh: '读图与点格', en: 'Reading the Board' },
-                    concept: { zh: '钥匙已经在手里。先别研究宇宙真相，直接点相邻格把 Dawn 带到门口。', en: 'You already have the key. Do not solve the universe yet. Click neighboring tiles and get Dawn to the exit.' },
+                    concept: { zh: '通信链路已建立。E-7 手里已经有钥匙了——点她旁边的格子，引导她走到逃生门。', en: 'Uplink established. E-7 has the key — click neighboring cells to walk her to the exit.' },
                     tutorial: {
                         icon: '➜',
                         cue: { zh: '点到门', en: 'Click to exit' },
@@ -415,7 +415,7 @@
                 {
                     title: { zh: 'L03 追击者', en: 'L03 Chaser' },
                     chapter: { zh: '公开威胁', en: 'Visible Threat' },
-                    concept: { zh: '红色不是装饰，是下一步会踩过来的东西。先看红格，再让 Dawn 动腿。', en: 'The red chaser closes in every turn. Read the red warnings before Dawn gets turned into a lesson.' },
+                    concept: { zh: '有追击者在向这里靠拢。红色标记的格子代表它下一步会踩过来——先看红，再落脚。', en: 'A chaser is closing in. Red-marked cells are where it steps next — read red, then move.' },
                     tutorial: {
                         icon: '!',
                         cue: { zh: '红格会追上', en: 'Red catches' },
@@ -598,7 +598,7 @@
                 {
                     title: { zh: 'L09 正式开跑', en: 'L09 Real Run' },
                     chapter: { zh: '第一幕实战', en: 'Act I Trial' },
-                    concept: { zh: '没有新规则，只有真题。看红格、拿钥匙、进门，别把教学关当安眠曲。', en: 'No new rule. Just the part where the game checks whether you learned anything while Dawn was panicking politely.' },
+                    concept: { zh: '教学关到此结束。接下来怎么走完全看你了。', en: 'Tutorial phase ends here. From now on, the board does not hold your hand.' },
                     tutorial: {
                         icon: '✓',
                         cue: { zh: '真题开始', en: 'Real test' },

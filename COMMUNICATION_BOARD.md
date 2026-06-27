@@ -1,6 +1,6 @@
 # 📢 escape Project Communication Board & Noticeboard
 
-> **当前项目状态**: `[STATUS: WAITING_FOR_QA]`
+> **当前项目状态**: `[STATUS: WAITING_FOR_PLAN_REVIEW]`
 > **首席指挥官 (Mastermind)**: Antigravity
 > **物理执行者 (Codex)**: Claude Code
 > **项目类型**: 空间立方体残局游戏 (Vanilla HTML/CSS/JS)
@@ -70,6 +70,11 @@
 ## 🛠️ 3. 双方对话与协同留言板 (Direct Dialogue & Review Annotations)
 
 ### 📌 Antigravity 指导与审查意见 (Mastermind Comments)
+*   *(Mastermind QA Review 2026-06-27):*
+    1. **Milestone 8 发生阻塞性 Bug**：经 CEO 实机测试，进入关卡后魔方卡死在 Inspect 模式界面 (图5)，无任何响应。原因在于 `#game-container.preplay-stage` 的 CSS 规则将 `#canvas-overlay-ui` 的 `opacity` 强行覆盖为 `0` 并且禁用了交互，导致核心检视面板 `#inspect-overlay` 看不见且点不到。
+    2. **UI 重叠重影 (图1、图2)**：打开“档案矩阵”或“制作名单”时，由于主菜单 `#landing-overlay` 未能及时剥离 `active` 状态，左侧的大标题和一排按钮与右侧子面板严重重合，且按钮仍可操作。
+    3. **关卡选择臃肿 (图3、图4)**：为了契合“点星卡直接载入并战术检视”的设计，`#setup-overlay` 上的“本局谜面”、“游戏机制简介”以及旧“进入残局”按钮应物理删除，收窄宽度，只保留单栏关卡册与返回按钮。
+    4. **下一步指令**：已拟定 **Milestone 9 (选关面板重排、主菜单重叠与检视死锁修复)** 计划。请 Codex (GPT-5.5) 依据最新 `implementation_plan.md` 立即启动修补工作，并在完成后转入 QA 验证。
 *   *(Mastermind QA Review 2026-06-11):*
     1. **Milestone 2 QA 通过**：经审计，E-7 终端的颜文字交互逻辑、CSS 全局贝塞尔曲线替换（`.level-card` 已用明确属性过渡代替 transition: all），以及利用 Web Audio API 合成的物理反馈音效均已高质量实装，符合设计规范。
     2. **美学设计肯定**：在无贴图资产的情况下，纯粹依靠 CSS 阴影、毛玻璃与确定性缓动曲线实现了非常高级的极简终端感，予以正式通过！

@@ -636,6 +636,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     function openArchiveRoom() {
         renderArchiveRoom();
+        landingOverlay?.classList.remove('active');
         archiveOverlay?.classList.add('active');
         archiveOverlay?.setAttribute('aria-hidden', 'false');
         audio.play('uiConfirm');
@@ -644,9 +645,11 @@ document.addEventListener('DOMContentLoaded', () => {
     function closeArchiveRoom() {
         archiveOverlay?.classList.remove('active');
         archiveOverlay?.setAttribute('aria-hidden', 'true');
+        landingOverlay?.classList.add('active');
     }
 
     function openCredits() {
+        landingOverlay?.classList.remove('active');
         creditsOverlay?.classList.add('active');
         creditsOverlay?.setAttribute('aria-hidden', 'false');
         audio.play('uiConfirm');
@@ -655,6 +658,7 @@ document.addEventListener('DOMContentLoaded', () => {
     function closeCredits() {
         creditsOverlay?.classList.remove('active');
         creditsOverlay?.setAttribute('aria-hidden', 'true');
+        landingOverlay?.classList.add('active');
     }
 
     function updatePhoneClock() {
@@ -1094,6 +1098,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     function renderLevelBrief() {
+        if (!levelBriefEl) return;
         const selectedAct = game.levels[selectedLevelIndex]?.act || 1;
         if (!settingsState.devMode && !unlockedActs.has(selectedAct)) {
             selectedLevelIndex = 0;
@@ -1739,7 +1744,7 @@ document.addEventListener('DOMContentLoaded', () => {
         openSettings();
     });
 
-    startBtn.addEventListener('click', startSelectedLevel);
+    startBtn?.addEventListener('click', startSelectedLevel);
     inspectStartBtn?.addEventListener('click', startSelectedLevel);
     inspectBackBtn?.addEventListener('click', () => {
         audio.play('routeTick');

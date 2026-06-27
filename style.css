@@ -940,13 +940,6 @@ body {
     overflow-y: auto;
 }
 
-.setup-panel #start-game-btn {
-    position: sticky;
-    bottom: -2px;
-    z-index: 3;
-    margin-top: 2px;
-    padding: 11px 24px;
-}
 
 .setup-panel::-webkit-scrollbar {
     width: 6px;
@@ -966,7 +959,7 @@ body {
 }
 
 #setup-overlay .setup-panel {
-    width: min(55rem, 92vw);
+    width: min(38rem, 92vw);
     max-height: min(48rem, 92vh);
     padding: clamp(0.9rem, 0.6rem + 1.4vw, 1.9rem);
     gap: clamp(0.75rem, 0.55rem + 0.7vw, 1.2rem);
@@ -1961,6 +1954,17 @@ body {
 #game-container.preplay-stage #canvas-container::before,
 #game-container.preplay-stage #canvas-container::after {
     opacity: 0;
+}
+
+/* M9.1: Inspect Mode — restore canvas-overlay-ui so #inspect-overlay is visible & clickable */
+#game-container.inspect-stage #canvas-overlay-ui {
+    opacity: 1 !important;
+    pointer-events: auto !important;
+}
+#game-container.inspect-stage #route-tip,
+#game-container.inspect-stage #tutorial-helper-card {
+    opacity: 0 !important;
+    pointer-events: none !important;
 }
 
 #game-container.is-entering #canvas-container {

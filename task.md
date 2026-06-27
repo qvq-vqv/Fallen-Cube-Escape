@@ -1,8 +1,30 @@
+# 🎬 Milestone 9: Overlays Z-Index, Inspect Mode Lock & Level Setup Refactoring (2026-06-27)
+
+> 状态：`[STATUS: WAITING_FOR_PLAN_REVIEW]`
+> 执行者：Codex (gpt5.5)
+> 红线：彻底清除主菜单大字标题与子 Overlay（档案矩阵/制作名单）重叠；恢复 Inspect 检视模式下的 `#canvas-overlay-ui` 显示与交互，解决玩家进关卡死；物理删除 `#setup-overlay` 右半侧多余元素，保证窄屏下自适应居中。
+
+- [ ] **M9.1 检视模式 UI 遮挡与死锁修复 (`style.css`)**
+  - [ ] 在 `style.css` 中，为 `#game-container.inspect-stage` 样式下的 `#canvas-overlay-ui` 增加覆盖样式，恢复其 `opacity: 1` 和 `pointer-events: auto`，解决因为 `.preplay-stage` 导致的左侧检视面板看不见且无法点击的 Bug。
+  - [ ] 在该模式下，将 `#route-tip` 和 `#tutorial-helper-card` 设为 `opacity: 0` 和 `pointer-events: none` 以免抢戏。
+- [ ] **M9.2 主菜单大字与子 Overlay 重合清除 (`main.js` & `style.css`)**
+  - [ ] 在 `main.js` 中，当打开“档案矩阵” (`openArchiveRoom`) 或“制作名单” (`openCredits`) 时，移除 `#landing-overlay` 的 `active` 类；当关闭时加回，确保主菜单左侧的巨大标题和可点击按钮不会重叠在子面板前方。
+  - [ ] 顺便检查 `#settings-overlay` 与 `#landing-overlay` 的配合，确保转场流畅。
+- [ ] **M9.3 关卡选择面板去臃肿与版面重排 (`index.html` & `style.css` & `main.js`)**
+  - [ ] 在 `index.html` 中彻底删除 `#setup-overlay` 下的 `#selected-level-panel`（本局谜面）以及底部的游戏机制简介、`进入残局` 确认按钮。
+  - [ ] 在 `style.css` 中重设 `.setup-panel` 的最大宽度（如 `min(36rem, 90vw)`），使其成为自适应居中的单栏关卡册布局。
+  - [ ] 在 `main.js` 中移除对 `renderLevelBrief()` 的任何渲染或事件调用（因为 DOM 节点已删除）。
+- [ ] **M9.4 概念谜面地道化润色 (`levels.js`)**
+  - [ ] 润色 `levels.js` 中各关卡的 `concept` 描述，去除刻板的说明书味，将其重新编辑为更地道的傲娇战术日志或 AI 终端备忘录风格，让它在 Inspect Mode 的卡片中显示得更加自然。
+
+---
+
 # 🎬 Milestone 8: UI Noise Reduction, Spacebar Bullet Time, In-Level Inspect Mode & Hacker Fluid Particles (2026-06-27)
 
 > 状态：`[STATUS: WAITING_FOR_QA]`
 > 执行者：Codex (gpt5.5)
 > 红线：保持极简、极高画质的赛博霓虹美学；所有控制组件出界贴边逻辑必须准确；Spacebar 切换 Bullet Time（时慢 0.2 倍）状态仅在第二幕（L13+）生效，且时停（0倍）在教程对话中自动触发。
+
 
 - [x] **M8.1 3D 格子表面噪音清除与罗盘弱化 (`render.js`)**
   - [x] 在 `render.js` 的 `drawFaceIdentityTexture` 中完全移除格子中央的大型背景图案（包括 U面的 Chevrons、R面的 Heavy X、L面的 barcode、D面的 diamond、F面的 target、B面的 waves）。
