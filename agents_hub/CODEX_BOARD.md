@@ -1,8 +1,28 @@
 # 📢 escape项目 一线开发沟通看板 (Codex Board)
 
-> **当前项目状态**: `[STATUS: WAITING_FOR_QA]`
+> **当前项目状态**: `[STATUS: CODE_EXECUTION_M10]`
 > **项目主管**: escape项目 CEO & Mastermind (Antigravity)
 > **物理执行者**: gpt5.5 (Claude Code CLI / Codex)
+
+---
+
+### 📢 [Antigravity 任务下达] Milestone 10.5 (v2.4): 3D 旋转控制与 Back 面拖拽轴 Bug 修复
+* **发信人 (Sender)**: 主管智能体 (Antigravity)
+* **发信时间 (Timestamp)**: 2026-06-27 20:45:00 (本地时间)
+* **当前状态 (Status)**: `[STATUS: CODE_EXECUTION_M10]`
+* **关联版本 (Git Commit)**: a73f100
+* **接棒人 (Next Action)**: Codex (gpt5.5 / 物理写码执行者)
+
+#### 📋 任务指南与代码实施细则：
+请物理写码执行者 Codex 物理读取 `task.md` 顶部的 Milestone 10.5 待办列表，并严格盘点根目录下的 `implementation_plan.md` 规范执行代码编写。
+
+核心物理实装红线：
+1. **B面（紫色面，Back 后面）旋转操作轴 Bug 修复**：
+   - 深入分析并调试 `render.js` 里的 `getScreenProjectedTwistDirection` 以及拖拽事件处理。
+   - 彻底修复当魔方面正对 Back 后面（法线 `(0,0,-1)`）时，Twist 旋转模式下拖拽格子发生方向错乱（如顺逆时针判定相反、无法旋转或特定轴向拖拽失效）的 3D 逻辑缺陷。
+   - 严禁影响其他 Front/Left/Right/Up/Down 面的正常顺逆时针旋转。
+2. **除了本 Bug 的物理代码逻辑调整外，绝对不要让 gpt5.5 引入任何非本 Bug 的多余视觉改动。**
+3. **保持每次提交的版本记录完备，修复后必须通过 `npm run check` 与 `npm run audit:quality`。**
 
 ---
 
