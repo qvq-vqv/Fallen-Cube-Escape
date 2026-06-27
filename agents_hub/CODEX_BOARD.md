@@ -1,8 +1,37 @@
 # 📢 escape项目 一线开发沟通看板 (Codex Board)
 
-> **当前项目状态**: `[STATUS: AUDIT_PASSED]`
+> **当前项目状态**: `[STATUS: CODE_EXECUTION_M11]`
 > **项目主管**: escape项目 CEO & Mastermind (Antigravity)
 > **物理执行者**: gpt5.5 (Claude Code CLI / Codex)
+
+---
+
+### 📢 [Antigravity 任务下达] Milestone 11 (v2.5): Danganronpa 对话 UI, 动态 LED 点阵像素 Mascot 与 运镜教程系统
+* **发信人 (Sender)**: 主管智能体 (Antigravity)
+* **发信时间 (Timestamp)**: 2026-06-27 23:05:00 (本地时间)
+* **当前状态 (Status)**: `[STATUS: CODE_EXECUTION_M11]`
+* **关联版本 (Git Commit)**: 847e979
+* **接棒人 (Next Action)**: Codex (gpt5.5 / 物理写码执行者)
+
+#### 📋 任务指南与代码实施细则：
+请物理写码执行者 Codex 物理读取 `task.md` 顶部的 Milestone 11 待办列表，并严格遵照根目录下的 `implementation_plan.md` 规范执行代码调试与编写。
+
+核心物理实装红线：
+1. **📲 弹丸风对话 UI 与 LED 点阵像素 Mascot 实装**：
+   - 屏幕底部 25% 实现毛玻璃、倾斜 (`skewX(-6deg)`) 对话框与反倾斜名字标签。
+   - 开发一个 Canvas 或 CSS 网格驱动的 **E-7 动态 LED 点阵像素表情头像**。通过控制 `24x24` 的像素亮灭来渲染 E-7 当前表情（如 `( •_• )`, `( 0_0 )`, `( ｀_´ )`, `( ´･ω･` )`），说话时伴随高频闪烁微颤。
+   - 物理移除原 3D 主角头顶的说教气泡。
+2. **📸 分步暗色遮罩与镜头焦点运镜系统**：
+   - 实现 `.tutorial-blackout` 遮罩（去饱和、灰度、暗色），仅高亮所讲机制。
+   - **第一关 (L01)**：开局强制玩家拖动旋转视角一定角度才解锁下一步；分步执行主角问号 -> 门特写 -> 第一步格特写（高亮呼吸圆锥）；拉远并画出绿色指引线。
+   - **第二关 (L02)**：开局高亮右侧通话框与 Trust 按钮介绍；引导捡钥匙与出门。
+   - **第三关 (L03)**：红怪特写并在其头上生成 3D 浮空警示框 `⚠️ 追踪者：你动一步它动一步`。
+   - **第四关 (L04) 旋转无怪化**：物理清除 L04 敌人（ais置空，hasThreats置false）；运镜指示滑动箭头并高亮 Twist 按钮。
+   - **第六关 (L06) 碎解格子高亮**：聚焦裂缝高亮，讲解碎解惩罚。
+3. **🛠️ 实时 Trust 叛逆失效 Bug 修复**：
+   - 在 `game.js:requestRealtimeMove` 移动路径中补全 `maybeRefuseRoute()` 判定，确保低 Trust 时叛逆游荡逻辑在实时模式下起效。
+4. **除了本阶段的逻辑调整外，绝对不要让 gpt5.5 引入任何非任务关联的多余视觉改动。**
+5. **保持每次提交的版本记录完备，修复后必须通过 `npm run check` 与 `npm run audit:quality`。**
 
 ---
 

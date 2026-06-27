@@ -1,15 +1,38 @@
+# 🎬 Milestone 11: Danganronpa Dialogue UI, LED Dot-Matrix Mascot, and Camera Vignette Tutorial System (2026-06-27)
+
+> 状态：`[STATUS: CODE_EXECUTION_M11]`
+> 执行者：Codex (gpt5.5 / 物理写码)
+> 红线：彻底重构进关引导系统，加入底部弹丸风毛玻璃对话框与动态 LED 点阵像素 Mascot，第一关视角旋转强约束，L04 无怪且带滑动箭头，修复实时下 Trust 叛逆失效 Bug。
+
+- [ ] **M11.1 弹丸风对话 UI 与 LED 点阵像素 Mascot 实装 (`index.html` & `style.css` & `main.js`)**
+  - [ ] 在屏幕底部 25% 区域实装一个带 `skewX(-6deg)` 倾斜的半透明毛玻璃对话框与反倾斜名字标签。
+  - [ ] 利用 HTML5 Canvas / CSS 像素格子，开发一个高对比度自发光的 `24x24` **E-7 动态 LED 点阵像素表情头像**。
+  - [ ] 用 JS 将 `normal`, `panic`, `angry`, `sad` 表情状态渲染为点阵颜文字并伴随打字机颤动。
+  - [ ] 移除旧版飘在 3D 主角头顶的局促气泡框。
+- [ ] **M11.2 分步暗色遮罩与镜头焦点运镜系统 (`render.js` & `style.css` & `main.js`)**
+  - [ ] 实现 `.tutorial-blackout` 机制。讲解新机制时，暗化并去饱和其余一切不相关画面。
+  - [ ] **第一关 (L01) 分步约束**：开局强制玩家拖动旋转视角一定角度才解锁下一步；分步执行主角问号 -> 终点门特写（周围暗） -> 第一步格特写（周围暗）；最后拉远视角画出绿色导向线。
+  - [ ] **第二关 (L02) UI/钥匙**：开局全暗高亮右侧通话框与 Trust 按钮；运镜引导捡钥匙和出门。
+  - [ ] **第三关 (L03) 敌人物理警示**：给红怪特写，在其头上生成 3D 浮空警示框 `⚠️ 追踪者：你动一步它动一步`。
+  - [ ] **第四关 (L04) 旋转无怪化**：物理清除 L04 敌人（ais置空，hasThreats置false）；运镜指示滑动箭头并高亮 Twist 按钮。
+  - [ ] **第六关 (L06) 碎解格子高亮**：特写聚焦裂缝，讲解碎解规则。
+- [ ] **M11.3 实时 Trust 叛逆失效 Bug 修复 (`game.js`)**
+  - [ ] 在 `game.js:requestRealtimeMove` 移动路径中补全 `maybeRefuseRoute()` 判定，确保低 Trust 时叛逆游荡逻辑起效。
+
+---
+
 # 🎬 Milestone 10: Setup Redesign, Esc Console Routing, Viewport Focus, and HUD decluttering (2026-06-27)
 
-> 状态：`[STATUS: WAITING_FOR_QA]`
+> 状态：`[STATUS: AUDIT_PASSED]`
 > 执行者：Antigravity (Mastermind)
 > 红线：关卡检视文字块移至左上角；初始相机视角与 Viewport 聚焦主角；Esc 键在不同场景下的多级分流；隐藏顶部冗余 HUD 横幅与手机头像占位虚线框；净化残局卡册星图只显示极简编号与 Hover 浮动说明。
 
 - [x] **M10.1 初始镜头对焦主角与检视面板左上角避让 (`render.js` & `style.css`)**
   - [x] 重构 `#canvas-overlay-ui` 的定位，使其撑满 100% 容器，使 `#inspect-overlay` 真正居于屏幕左上角不挡魔方。
-  - [x] 动态计算魔方中心到主角物理位置的法线向量，作为相机朝向。将初始相机位置设在正对该面的斜上方，控制器的 target 对准主角世界 3D 位置。
-  - [x] 重建 `resetCamera`、`flyToGameCamera`、`setGameViewportBias` 的 lookAt 基准点，使它们在游玩期间跟随主角的起始坐标，而不是硬编码的魔方物理中心。
+  - [x] 动态计算魔方中心到主角物理位置 the normal vector, as camera heading. Set camera initial pos on top-diagonal facing that surface.
+  - [x] 重建 `resetCamera`、`flyToGameCamera`、`setGameViewportBias` 的 lookAt 基准点，使它们在游玩期间跟随主角的起始坐标。
 - [x] **M10.2 Escape 暂停按键事件状态机分流 (`main.js`)**
-  - [x] 在 `main.js` 的按键监听中，拦截 `Escape` 键。如果是设置激活、档案室激活、制作人员激活、选关激活、检视激活，则分别退回各自上一层级（选关退回主菜单，检视退回选关），仅在游戏游玩进行时才打开/关闭暂停控制台。
+  - [x] 在 `main.js` 的按键监听中，拦截 `Escape` 键。如果是设置激活、档案室激活、制作人员激活、选关激活、检视激活，则分别退回各自上一层级，仅在游玩中才开/关暂停控制台。
 - [x] **M10.3 移去顶部 HUD 遮挡、头像占位与 title 多语言翻译 (`style.css` & `locales.js` & `main.js`)**
   - [x] 在 `style.css` 中将 `.top-hud` 设置 `display: none !important` 隐藏。
   - [x] 在 `style.css` 中将手机通讯顶部头像框 `.companion-slot` 隐藏并修改 `.companion-dock` 布局。
@@ -17,8 +40,9 @@
 - [x] **M10.4 星轨选关卡片极简重设 (`main.js` & `style.css`)**
   - [x] 在 `main.js` 选关卡片渲染中，使用正则/split提取 `L01` / `L02` 代号作为圆形卡片内展示的主文字，并为卡片赋予完整 title 提示。
   - [x] 优化 `.level-card-title` 的字体大小和显示定位。
-- [ ] **⚠️ Codex 物理写码待办：B面（紫色面）拖拽/旋转轴异常修复**
-  - [ ] 调试并修复在 B面 (Back 后面 / 紫色面) 时，拖拽或使用 Twist 模式进行某些轴向旋转操作时发生的奇怪锁定/无法拧层的问题。
+- [x] **⚠️ Codex 物理写码待办：B面（紫色面）拖拽/旋转轴异常修复**
+  - [x] 调试并修复在 B面 (Back 后面 / 紫色面) 时，拖拽或使用 Twist 模式进行某些轴向旋转操作时发生的奇怪锁定/无法拧层的问题。
+  - [x] Git Checkpoint：`27efb73 fix(render): stabilize twist drag direction on back face`
 
 ---
 

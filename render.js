@@ -908,11 +908,11 @@ class RenderEngine {
             if (pPos.length() > 0.1) {
                 targetPosition.copy(dir).multiplyScalar(21.0);
                 targetPosition.y += 9.5;
-                targetLookAt.copy(pPos);
+                targetLookAt.copy(this.getGameplayOrbitPivot(pPos));
             }
         }
         
-        const biasX = (this.gameLookAtTarget.x !== 0) ? (this.gameLookAtTarget.x - (this.playerMesh ? this.playerMesh.position.x : 0)) : 0;
+        const biasX = this.getViewportBiasX();
         targetLookAt.x += biasX;
         
         this.camera.position.copy(targetPosition);
@@ -925,11 +925,26 @@ class RenderEngine {
     setGameViewportBias(phoneOpen = true) {
         const targetX = phoneOpen ? -1.55 : 0;
         if (this.playerMesh) {
-            this.gameLookAtTarget.copy(this.playerMesh.position);
+            this.gameLookAtTarget.copy(this.getGameplayOrbitPivot(this.playerMesh.position));
             this.gameLookAtTarget.x += targetX;
         } else {
             this.gameLookAtTarget.set(targetX, 0, 0);
         }
+    }
+
+    getViewportBiasX() {
+        if (!this.gameLookAtTarget) return 0;
+        if (this.playerMesh) {
+            const pivot = this.getGameplayOrbitPivot(this.playerMesh.position);
+            return this.gameLookAtTarget.x - pivot.x;
+        }
+        return this.gameLookAtTarget.x;
+    }
+
+    getGameplayOrbitPivot(playerPosition) {
+        if (!playerPosition) return new THREE.Vector3(0, 0, 0);
+        // Keep Dawn visually prioritized, but orbit around an internal point so camera drags can cross opposite faces.
+        return playerPosition.clone().multiplyScalar(0.35);
     }
 
     setPresentationMode(mode = 'game') {
@@ -994,7 +1009,11 @@ class RenderEngine {
             }
         }
         
-        const targetLookAt = this.gameLookAtTarget?.clone?.() || new THREE.Vector3(0, 0, 0);
+        const targetLookAt = this.playerMesh
+            ? this.getGameplayOrbitPivot(this.playerMesh.position)
+            : (this.gameLookAtTarget?.clone?.() || new THREE.Vector3(0, 0, 0));
+        targetLookAt.x += this.getViewportBiasX();
+        this.gameLookAtTarget.copy(targetLookAt);
         const startPosition = this.camera.position.clone();
         const startTime = performance.now();
         this.presentationMode = 'game';

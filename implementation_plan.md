@@ -1,44 +1,71 @@
-# 🎬 Milestone 10.5: Codex Purple Face (B-Face) 3D Twist Rotation Debug Plan
+# 🎬 Milestone 11: Danganronpa-Style Dialogue UI, Dynamic LED Pixel Mascot, and Choreographed Vignette Tutorial System
 
-> 状态：`[STATUS: CODE_EXECUTION_M10]`
+> 状态：`[STATUS: CODE_EXECUTION_M11]`
 > 执行者：Codex (GPT-5.5 / Claude Code)
 > 主管审计：Antigravity (Mastermind)
-> 红线：专职修复在魔方 Back 后面（紫色面，法线 (0,0,-1)）进行拖拽旋转层（Twist）时的控制轴方向映射错乱、锁死或逆反问题。
+> 红线：彻底重构 3D 进关新手教程与运镜高亮系统，实装底部弹丸论破风格毛玻璃对话框与动态 LED 点阵像素表情 Mascot，移去头顶说教气泡，重构第一关视角强旋转约束，并在 L04 中物理删除敌人。
 
 ---
 
-## 🔍 问题诊断背景 (Debug Context)
+## 🔍 1. 动态 LED 点阵像素 Mascot 与 弹丸风对话 UI (HTML/CSS & Canvas)
 
-在魔方 Back 面（紫色面，也就是 `faceId: 1` 且 cell 物理法线 `normal: (0, 0, -1)`）下拖拽旋转层时，玩家会遭遇：
-1. **旋转方向（CW/CCW）异常**：拖动判定出的方向与鼠标划过方向相反，或者根本拧不动。
-2. **轴向锁定映射偏置**：对于 Z 轴旋转或与 Z 轴垂直面拖拽的检测发生了交叉投影退化。
+### 📲 弹丸风对话控制台 (Lower Dialogue Console)
+- 在屏幕底部 25% 宽度 80% 的区域实装一个浮动、略微倾斜 (`transform: skewX(-6deg)`) 的半透明毛玻璃对话框。
+- 名字标签（E-7 / 引导系统）采用反倾斜（`skewX(6deg)`）的荧光粉/青色背景角标。
+- 文字展示采用高Legibility字号，支持打字机效果，重点机制词汇通过 `<span class="text-neon-yellow">` 实现高亮发光。
 
-### 核心关联函数
-
-所有 3D 拖拽判定与物理投影均在 [render.js](file:///Users/qcmorning/Desktop/project/antigravity2/escape/render.js) 之中：
-- `getTwistLayerFromCell(cellId)` (L308-328)：从被点击拖动的格子物理坐标，反推要旋转的轴向与层索引。
-- `getScreenProjectedTwistDirection(layer, startX, startY, dx, dy)` (L330-357)：计算鼠标拖动的屏幕向量对 3D 轴心投影的外积（cross product）和相机朝向点积（cameraFacing dot product），得出顺时针（CW）或逆时针（CCW）命令。
-- `handleBoardPointerUp(event)` (L278-306)：监听鼠标/触控释放，并执行旋转层操作。
-
----
-
-## 🛠️ Codex 具体执行步骤
-
-### 1. 紫色面 (B-Face) 拖拽向量外积校验
-检查 `getScreenProjectedTwistDirection` 在处理 Back 面（尤其是垂直于 Z 轴，或者在 Z 轴 layer 坐标较小的一端）时的行为：
-- `cameraFacing = axisVector.dot(this.camera.position.clone().normalize()) >= 0 ? 1 : -1;`
-- 在 Back 面，相机的 Y 轴高度和局部朝向与 Front 面相反。需要验证在该坐标系下，外积 `radiusX * dy - radiusY * dx` 以及 `cameraFacing` 变号后的最终结果。
-- 检查是否存在屏幕空间中心投射偏置，导致鼠标在 B面 拖拽时的切线计算发生奇点退化。
-
-### 2. 轴旋转与操作关联自检
-- 验证 B面（法线 `(0, 0, -1)`）在拖拽时，其对于 X 轴与 Y 轴旋转层（即转动水平层和垂直层）的外积投影，是否在特定角度下会产生接近 `0` 的退化导致回退到默认判定。
+### 👾 动态 LED 点阵像素头像 (M Mascot)
+- 在对话框左侧，开发一个由 HTML5 `<canvas>` (或 `24x24` 细密 CSS Grid 像素点) 渲染的 **E-7 动态 LED 点阵像素头像**。
+- 点阵中的每个像素在激活时散发霓虹绿或荧光蓝的发光阴影（`box-shadow`），未激活时呈深色背景。
+- 通过 JS 状态驱动，将 E-7 当前的颜文字表情转换为像素矩阵点阵图：
+  - 默认: `( •_• )`
+  - 惊恐: `( 0_0 )`
+  - 生气: `( ｀_´ )`
+  - 委屈: `( ´･ω･` )`
+- 表情在打字机说话时自带像素阵列高频微颤与呼吸闪烁，建立顶级的虚拟 AI 陪伴感。
 
 ---
 
-## 🧪 自动化与回归测试
-修改完成后，你必须运行以下验证脚本确保关卡物理可通，且未引入全局 3D 逻辑崩溃：
+## 📸 2. 分步暗色遮罩与焦点运镜系统 (Camera Vignettes & Blackout Masks)
+
+在讲解关卡机制时，引入 **分步式强制时停运镜与暗色高亮遮罩**。
+在 CSS 中实现 `.tutorial-blackout` 覆盖层，配合 WebGL Shader 或直接通过 CSS 滤镜将除了“主角”与“所讲解的目标物”以外的整个 3D 画布及其他 UI 区域置为灰度且大幅调暗（`filter: grayscale(1) brightness(0.2)`），只高亮高显当前教学实体。
+
+### 🎥 第一关 (L01) 分步约束引导：
+1. **镜头特写主角，主角头顶漂浮问号** -> 提示文本：“拖拽鼠标或滑动屏幕，转动魔方视角”；
+2. **视角强约束**：玩家必须累计拖拽转动视角（检测 OrbitControls 的 theta/phi 变量改变差值）超过指定阈值，才能触发下一步；
+3. **看门特写**：镜头拉近到终点门（场景全暗，只有门亮起），弹出 E-7 吐槽：“那似乎是出口，但周围磁场很奇怪。”
+4. **看路特写**：镜头拉近到主角的第一步网格（圆锥自下而上呼吸高亮），提示“点击这格以迈出第一步”；
+5. **指引绿线**：镜头拉回大远景，从主角脚下向门拉出一条绿色的引导虚线，玩家走完第一步后时停解除，恢复自由点击。
+
+### 🔑 第二关 (L02) 通讯与钥匙引导：
+1. **开场 UI 教学**：进关第一秒时停，场景全暗。单独高亮右侧的手机屏幕（通话框）与暂停菜单里的 Trust 信任值，弹出对话介绍。
+2. **钥匙至门引导**：看主角 -> 钥匙特写（引导捡钥匙） -> 门特写（引导去门）。
+
+### 👾 第三关 (L03) 敌人物理警示：
+- 镜头切特写聚焦敌人（红怪），其余全暗。
+- 底部弹丸对话框弹出 E-7 的紧张台词，同时在 3D 敌人的头顶上，同步渲染生成一个浮空的警示提示框（`⚠️ 追踪者：你动一步它动一步`）。
+
+### 🔄 第四关 (L04) 旋转教学与敌人移除：
+- **关卡清理**：物理清除 `levels.js` 中 L04 夹击拧门的所有 `ais` 敌对实体（`ais: []`），并将 `validation.hasThreats` 设为 `false`。
+- **指示箭头**：镜头平滑 pan 到旋转发生的一侧，在需要折叠旋转的魔方格子边缘渲染霓虹闪烁的滑动方向引导箭头。
+- **高亮 Twist 按钮**：高亮并圈出左上角的“Twist”控制环按钮，限制除拖动旋转外的一切交互。
+
+### 💥 第六关 (L06) 碎解格子高亮：
+- 镜头切特写聚焦碎解缝隙（其余全暗），高亮警告碎解惩罚与部署补片规则。
+
+---
+
+## 🛠️ 3. 实时模式下的 Trust 叛逆 Bug 修复
+- 在 `game.js:requestRealtimeMove` (L1143 起) 的路径中，补上 `maybeRefuseRoute` 的前置判断。
+- 使得在第二幕（L13+）实时移动期间，当玩家连续发号施令但 Trust 极低时，Dawn 会以一定的 refusal 概率拒绝走格子，并清除规划路线，随机向安全格游荡，确保信任值叛逆逻辑真实生效。
+
+---
+
+## 🧪 4. 自动化回归测试
+所有 UI 重构与逻辑修改完成后，执行回归验证：
 ```bash
 npm run check
 npm run audit:quality
 ```
-确认无误后，将你的更改推送至 Git 并通过 Noticeboard 向上汇报。
+确保全关卡无报错，且 A* 机器人寻路正常通过。
