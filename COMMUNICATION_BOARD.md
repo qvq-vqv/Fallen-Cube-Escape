@@ -1,6 +1,6 @@
 # 📢 escape Project Communication Board & Noticeboard
 
-> **当前项目状态**: `[STATUS: WAITING_FOR_PLAN_REVIEW]`
+> **当前项目状态**: `[STATUS: WAITING_FOR_QA]`
 > **首席指挥官 (Mastermind)**: Antigravity
 > **物理执行者 (Codex)**: Claude Code
 > **项目类型**: 空间立方体残局游戏 (Vanilla HTML/CSS/JS)
