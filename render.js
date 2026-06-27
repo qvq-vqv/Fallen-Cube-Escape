@@ -73,9 +73,11 @@ class RenderEngine {
         this.playerSpeechBubble = null;
         this.lastSpeechBubbleText = '';
         this.lastSpeechBubbleTone = 'info';
+        this.tutorialLookBaseline = null;
         this.activeTutorialCellId = null;
         this.tutorialPointerCone = null;
         this.tutorialCellHighlightRing = null;
+        this.tutorialWarningSprite = null;
     }
 
     // 初始化 3D 场景
@@ -2837,7 +2839,12 @@ class RenderEngine {
     setPlayerSpeechBubble(text, tone = 'info') {
         this.lastSpeechBubbleText = text || '';
         this.lastSpeechBubbleTone = tone || 'info';
-        if (!this.playerMesh || !this.lastSpeechBubbleText) return;
+        if (!this.lastSpeechBubbleText) {
+            if (this.playerSpeechBubble?.parent) this.playerSpeechBubble.parent.remove(this.playerSpeechBubble);
+            this.playerSpeechBubble = null;
+            return;
+        }
+        if (!this.playerMesh) return;
         if (!this.playerSpeechBubble) {
             this.playerSpeechBubble = this.createSpeechBubbleSprite();
             this.playerSpeechBubble.position.set(0, 2.05, 0);
@@ -2915,8 +2922,113 @@ class RenderEngine {
         }
     }
 
+    focusTutorialStep(step) {
+        if (!step || !this.camera || !this.controls || !this.game) return;
+        if (step.type === 'look') {
+            this.tutorialLookBaseline = this.getCameraOrbitAngles();
+            this.hideTutorialWarning();
+            return;
+        }
+        this.tutorialLookBaseline = null;
+
+        const cellId = step.focusCellId ?? step.targetCellId;
+        if (cellId === null || cellId === undefined) return;
+        const target = this.getCellWorldPosition(cellId, 'pulse');
+        const normal = this.getCellNormalVector(cellId);
+        const position = target.clone()
+            .addScaledVector(normal, 5.8)
+            .add(new THREE.Vector3(2.8, 2.2, 2.8));
+        this.camera.position.lerp(position, 0.68);
+        this.controls.target.lerp(target, 0.68);
+        this.gameLookAt.copy(this.controls.target);
+        this.gameLookAtTarget.copy(this.controls.target);
+        this.controls.update();
+        if (step.warning) this.showTutorialWarning(step.warningText || '⚠ 追踪者：你动一步它动一步');
+        else this.hideTutorialWarning();
+    }
+
+    showTutorialWarning(text) {
+        const firstAi = this.game?.ais?.[0];
+        const host = firstAi ? this.aiMeshes?.[firstAi.id] : null;
+        if (!host) return;
+        if (!this.tutorialWarningSprite) this.tutorialWarningSprite = this.createTutorialWarningSprite();
+        if (this.tutorialWarningSprite.parent !== host) host.add(this.tutorialWarningSprite);
+        this.tutorialWarningSprite.position.set(0, 1.85, 0);
+        this.drawTutorialWarningSprite(this.tutorialWarningSprite, text);
+    }
+
+    hideTutorialWarning() {
+        if (this.tutorialWarningSprite?.parent) this.tutorialWarningSprite.parent.remove(this.tutorialWarningSprite);
+    }
+
+    createTutorialWarningSprite() {
+        const canvas = document.createElement('canvas');
+        canvas.width = 512;
+        canvas.height = 128;
+        const texture = new THREE.CanvasTexture(canvas);
+        const material = new THREE.SpriteMaterial({
+            map: texture,
+            transparent: true,
+            depthTest: false,
+            depthWrite: false
+        });
+        const sprite = new THREE.Sprite(material);
+        sprite.scale.set(2.25, 0.58, 1);
+        sprite.renderOrder = 22;
+        sprite.userData.warningCanvas = canvas;
+        sprite.userData.warningTexture = texture;
+        return sprite;
+    }
+
+    drawTutorialWarningSprite(sprite, text) {
+        const canvas = sprite.userData.warningCanvas;
+        const texture = sprite.userData.warningTexture;
+        const ctx = canvas?.getContext?.('2d');
+        if (!ctx) return;
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        ctx.fillStyle = 'rgba(20, 4, 12, 0.86)';
+        ctx.strokeStyle = 'rgba(255, 0, 85, 0.92)';
+        ctx.lineWidth = 4;
+        ctx.beginPath();
+        ctx.roundRect(10, 16, 492, 82, 16);
+        ctx.fill();
+        ctx.stroke();
+        ctx.fillStyle = '#ffd866';
+        ctx.font = '700 28px Noto Sans SC, sans-serif';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText(text, 256, 58);
+        texture.needsUpdate = true;
+    }
+
+    getCameraOrbitAngles() {
+        if (!this.camera || !this.controls) return null;
+        const offset = this.camera.position.clone().sub(this.controls.target);
+        const spherical = new THREE.Spherical().setFromVector3(offset);
+        return { theta: spherical.theta, phi: spherical.phi };
+    }
+
+    updateTutorialLookGate() {
+        if (!this.game?.tutorialActive || !this.tutorialLookBaseline) return;
+        const step = this.game.activeTutorialSteps?.[this.game.currentTutorialStepIndex];
+        if (step?.type !== 'look') return;
+        const current = this.getCameraOrbitAngles();
+        if (!current) return;
+        const deltaTheta = Math.abs(current.theta - this.tutorialLookBaseline.theta);
+        const deltaPhi = Math.abs(current.phi - this.tutorialLookBaseline.phi);
+        const threshold = Number(step.threshold || 0.28);
+        if (deltaTheta + deltaPhi >= threshold) {
+            this.tutorialLookBaseline = null;
+            if (typeof window !== 'undefined' && window.advanceTutorialStep) {
+                window.advanceTutorialStep();
+            }
+        }
+    }
+
     hideTutorialPointer() {
         this.activeTutorialCellId = null;
+        this.tutorialLookBaseline = null;
+        this.hideTutorialWarning();
         if (this.tutorialPointerCone) {
             this.scene.remove(this.tutorialPointerCone);
             this.tutorialPointerCone = null;
@@ -3295,6 +3407,7 @@ class RenderEngine {
         
         // 更新 OrbitControls 摄像机控制器
         if (this.controls && !this.cameraFlight) this.controls.update();
+        this.updateTutorialLookGate();
         if (this.game?.updateRealtime) {
             this.game.updateRealtime(performance.now());
             this.updateRealtimeTimerVisuals();

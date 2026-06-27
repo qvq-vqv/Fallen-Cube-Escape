@@ -160,6 +160,15 @@
                         <button id="btn-skip-tutorial" class="btn-skip-tutorial" type="button" title="跳过当前教学提示">跳过教程 / Skip Tutorial</button>
                     </div>
                 </aside>
+                <div id="tutorial-blackout" class="tutorial-blackout" aria-hidden="true"></div>
+                <section id="tutorial-dialogue-console" class="tutorial-dialogue-console is-hidden" aria-live="polite">
+                    <canvas id="tutorial-led-mascot" class="tutorial-led-mascot" width="144" height="144" aria-label="E-7 点阵表情"></canvas>
+                    <div class="tutorial-dialogue-copy">
+                        <span id="tutorial-speaker-label" class="tutorial-speaker-label">E-7</span>
+                        <p id="tutorial-dialogue-text">……</p>
+                        <button id="tutorial-dialogue-next" class="tutorial-dialogue-next" type="button">继续</button>
+                    </div>
+                </section>
             </div>
             <button id="audio-toggle" class="audio-toggle" type="button" aria-pressed="true" title="开启或关闭声音">声音 开</button>
             <button id="btn-twist-mode" class="twist-toggle" type="button" aria-pressed="false" title="空间折叠：拖拽控制环旋转一层魔方">Twist</button>

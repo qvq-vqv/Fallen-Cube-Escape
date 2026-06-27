@@ -75,12 +75,25 @@
     const tutorialStepsConfig = {
         L01: [
             {
+                type: 'look',
+                text: {
+                    zh: '……你先别乱点。拖动视角，看清我到底站在哪。',
+                    en: '...Do not click randomly. Drag the view first and figure out where I am.'
+                },
+                threshold: 0.32,
+                focusCell: { face: 1, row: 1, col: 1 },
+                focus: { x: 50, y: 46 },
+                tone: 'steady'
+            },
+            {
                 type: 'dialog',
                 text: {
-                    zh: '……我手机亮了。你是谁？算了，先别害我。',
-                    en: '...My phone lit up. Who are you? Fine, just do not get me killed.'
+                    zh: '那边像出口。像，不代表就是。这个地方很擅长装无辜。',
+                    en: 'That looks like an exit. Looks like. This place is very good at pretending.'
                 },
-                tone: 'steady'
+                focusCell: { face: 0, row: 2, col: 1 },
+                focus: { x: 52, y: 42 },
+                tone: 'worry'
             },
             {
                 type: 'move',
@@ -89,6 +102,8 @@
                     en: 'Click the lit cell ahead of me. Prove you are not making this worse.'
                 },
                 targetCell: { face: 1, row: 0, col: 1 },
+                focusCell: { face: 1, row: 0, col: 1 },
+                focus: { x: 50, y: 43 },
                 tone: 'steady'
             }
         ],
@@ -99,6 +114,8 @@
                     zh: '等下，远处有一个黄色发光的东西，那是钥匙？',
                     en: 'Wait, there is a glowing yellow thing in the distance. Is that a key?'
                 },
+                focusCell: { face: 4, row: 1, col: 0 },
+                focus: { x: 48, y: 42 },
                 tone: 'steady'
             },
             {
@@ -153,6 +170,9 @@
                     zh: '警报！那个红色棋子是追击者，它会在我移动后跟着移动。',
                     en: 'Warning! That red piece is a chaser. It moves every time I take a step.'
                 },
+                focusCell: { face: 0, row: 0, col: 1 },
+                focus: { x: 52, y: 40 },
+                warning: true,
                 tone: 'panic'
             },
             {
@@ -207,6 +227,8 @@
                 axis: 'Y',
                 layer: 0,
                 direction: 'CW',
+                focusCell: { face: 4, row: 1, col: 1 },
+                focus: { x: 50, y: 40 },
                 tone: 'steady'
             }
         ],
@@ -217,6 +239,8 @@
                     zh: '注意看！那是守钥者。它通常只呆在它想呆的地方。',
                     en: 'Look! That is the Guardian. It usually stays where it wants to.'
                 },
+                focusCell: { face: 4, row: 1, col: 2 },
+                focus: { x: 52, y: 40 },
                 tone: 'worry'
             },
             {
@@ -461,10 +485,8 @@
                         at(4, 1, 0),
                         at(4, 1, 2)
                     ],
-                    validation: { solvable: true, mustUseRotation: true, rotatesKey: true, hasThreats: true },
-                    ais: [
-                        { type: 'chaser', pos: at(5, 1, 1) }
-                    ]
+                    validation: { solvable: true, mustUseRotation: true, rotatesKey: true, hasThreats: false },
+                    ais: []
                 },
                 {
                     title: { zh: 'L05 钥匙也会动', en: 'L05 The Key Moves Too' },

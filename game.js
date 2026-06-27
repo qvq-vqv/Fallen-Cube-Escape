@@ -118,6 +118,9 @@ class GameEngine {
                 if (step.targetCell) {
                     s.targetCellId = this.resolveCoord(step.targetCell);
                 }
+                if (step.focusCell) {
+                    s.focusCellId = this.resolveCoord(step.focusCell);
+                }
                 return s;
             });
             this.currentTutorialStepIndex = 0;
@@ -1177,6 +1180,10 @@ class GameEngine {
             this.showFeel('实时模式只接相邻格。别隔空指挥，我会怀疑你也在掉帧。', 'warn');
             return false;
         }
+        if (this.maybeRefuseRoute({ realtime: true })) {
+            this.bufferedMoveCell = null;
+            return true;
+        }
         if (this.playerCooldownRemaining > 0) {
             this.bufferedMoveCell = targetId;
             this.playFeel('routeTick');
@@ -1640,29 +1647,42 @@ class GameEngine {
         }, delay + 100);
     }
 
-    maybeRefuseRoute() {
+    maybeRefuseRoute(options = {}) {
+        const realtime = Boolean(options.realtime);
         const trust = Number.isFinite(this.trust) ? this.trust : 80;
         const refusalChance = Math.max(0, Math.min(0.3, (100 - trust) * 0.003));
         if (Math.random() >= refusalChance) return false;
 
-        this.pushHistory('refusal');
+        this.pushHistory(realtime ? 'realtimeRefusal' : 'refusal');
         const origin = this.playerPos;
         const threatCells = this.getThreatCells();
-        const options = this.getNeighbors(origin)
+        const safeOptions = this.getNeighbors(origin)
             .filter(cellId => this.isWalkableForPlayer(cellId)
                 && !this.ais.some(ai => ai.pos === cellId)
                 && !threatCells.has(cellId));
-        const shouldWander = options.length > 0 && Math.random() < 0.5;
+        const shouldWander = safeOptions.length > 0 && Math.random() < 0.5;
         const target = shouldWander
-            ? options[Math.floor(Math.random() * options.length)]
+            ? safeOptions[Math.floor(Math.random() * safeOptions.length)]
             : origin;
 
-        this.playerAP = Math.max(0, this.playerAP - 1);
+        if (realtime) {
+            this.playerCooldownRemaining = Math.max(260, this.playerMoveCooldownMs * 0.55);
+        } else {
+            this.playerAP = Math.max(0, this.playerAP - 1);
+        }
         this.plannedPath = [];
         this.lastInputCell = null;
         if (target !== origin) {
             this.playerLastPos = origin;
             this.playerPos = target;
+            if (realtime) {
+                this.realtimeEdges.player = {
+                    from: origin,
+                    to: target,
+                    remainingMs: this.playerCooldownRemaining,
+                    durationMs: this.playerCooldownRemaining
+                };
+            }
             if (window.renderEngine) {
                 window.renderEngine.drawPlannedPath([]);
                 window.renderEngine.movePlayer(target);
@@ -1689,7 +1709,7 @@ class GameEngine {
         this.checkKeyCollection();
         this.checkCollisions();
         this.updateUI();
-        if (this.playerAP === 0 && this.gameState === 'playing') {
+        if (!realtime && this.playerAP === 0 && this.gameState === 'playing') {
             this.triggerAITurn();
         }
         return true;

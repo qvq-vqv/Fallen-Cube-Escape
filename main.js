@@ -70,6 +70,12 @@ document.addEventListener('DOMContentLoaded', () => {
     const terminalBadges = document.querySelectorAll('[data-tab-badge]');
     const companionBubble = document.getElementById('companion-bubble');
     const companionStatus = document.getElementById('companion-status');
+    const tutorialBlackout = document.getElementById('tutorial-blackout');
+    const tutorialDialogueConsole = document.getElementById('tutorial-dialogue-console');
+    const tutorialLedMascot = document.getElementById('tutorial-led-mascot');
+    const tutorialSpeakerLabel = document.getElementById('tutorial-speaker-label');
+    const tutorialDialogueText = document.getElementById('tutorial-dialogue-text');
+    const tutorialDialogueNext = document.getElementById('tutorial-dialogue-next');
     const commsSceneTitle = document.getElementById('comms-scene-title');
     const commsBondLabel = document.getElementById('comms-bond-label');
     const commsStoryLines = document.getElementById('comms-story-lines');
@@ -535,10 +541,10 @@ document.addEventListener('DOMContentLoaded', () => {
             .replaceAll("'", '&#039;');
     }
 
-    function setCompanionBubble(text, tone = 'info') {
+    function setCompanionBubble(text, tone = 'info', options = {}) {
         const line = textOf(text) || '';
         if (companionBubble) companionBubble.textContent = line;
-        render.setPlayerSpeechBubble?.(line, tone);
+        if (!options.suppressHeadBubble) render.setPlayerSpeechBubble?.(line, tone);
         pulsePhoneVoice(tone === 'danger' ? 1300 : 900);
     }
 
@@ -1944,6 +1950,14 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         }
     });
+    tutorialDialogueNext?.addEventListener('click', event => {
+        if (!game.tutorialActive) return;
+        const step = game.activeTutorialSteps[game.currentTutorialStepIndex];
+        if (step?.type !== 'dialog') return;
+        event.preventDefault();
+        event.stopPropagation();
+        advanceTutorialStep();
+    });
     document.addEventListener('keydown', event => {
         if (game.tutorialActive) {
             const step = game.activeTutorialSteps[game.currentTutorialStepIndex];
@@ -2149,12 +2163,113 @@ document.addEventListener('DOMContentLoaded', () => {
     // ----------------------------------------------------
     // MILESTONE 7: INTERACTIVE TUTORIAL ENGINE
     // ----------------------------------------------------
+    let tutorialTypingTimer = null;
+
+    function drawLedMascot(tone = 'steady', speaking = false) {
+        const canvas = tutorialLedMascot;
+        const ctx = canvas?.getContext?.('2d');
+        if (!ctx) return;
+        const size = 24;
+        const unit = canvas.width / size;
+        const active = tone === 'panic' ? '#8bdcff' : (tone === 'anger' ? '#ff4d7d' : '#74ff9b');
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        ctx.fillStyle = '#02060a';
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+        const points = [];
+        const dot = (x, y) => points.push([x, y]);
+        const line = (x1, y1, x2, y2) => {
+            const steps = Math.max(Math.abs(x2 - x1), Math.abs(y2 - y1));
+            for (let i = 0; i <= steps; i += 1) {
+                dot(Math.round(x1 + (x2 - x1) * i / steps), Math.round(y1 + (y2 - y1) * i / steps));
+            }
+        };
+
+        for (let x = 5; x <= 18; x += 1) {
+            dot(x, 4);
+            dot(x, 19);
+        }
+        for (let y = 5; y <= 18; y += 1) {
+            dot(4, y);
+            dot(19, y);
+        }
+
+        if (tone === 'panic') {
+            line(8, 8, 8, 12);
+            line(15, 8, 15, 12);
+            line(9, 16, 14, 16);
+        } else if (tone === 'anger') {
+            line(7, 8, 10, 10);
+            line(16, 8, 13, 10);
+            line(9, 16, 15, 15);
+        } else if (tone === 'worry') {
+            line(7, 9, 10, 8);
+            line(14, 8, 17, 9);
+            line(9, 16, 14, 17);
+        } else {
+            line(7, 9, 10, 9);
+            line(14, 9, 17, 9);
+            line(9, 16, 15, 16);
+        }
+
+        const jitter = speaking ? Math.sin(performance.now() * 0.08) * 0.7 : 0;
+        ctx.shadowColor = active;
+        ctx.shadowBlur = speaking ? 14 : 8;
+        points.forEach(([x, y], index) => {
+            const flicker = speaking && index % 5 === 0 ? 0.62 + Math.random() * 0.38 : 1;
+            ctx.globalAlpha = flicker;
+            ctx.fillStyle = active;
+            ctx.fillRect(x * unit + 1 + jitter, y * unit + 1, Math.max(2, unit - 2), Math.max(2, unit - 2));
+        });
+        ctx.globalAlpha = 1;
+        ctx.shadowBlur = 0;
+    }
+
+    function setTutorialDialogue(step) {
+        if (!tutorialDialogueConsole || !tutorialDialogueText) return;
+        const text = step?.text?.[window.currentLang || 'zh'] || step?.text?.zh || '';
+        const tone = step?.tone || 'steady';
+        const speaker = step?.speaker || (tone === 'system' ? '引导系统' : 'E-7');
+        tutorialDialogueConsole.classList.remove('is-hidden');
+        tutorialSpeakerLabel && (tutorialSpeakerLabel.textContent = speaker);
+        tutorialDialogueNext?.classList.toggle('is-hidden', step?.type !== 'dialog');
+        tutorialDialogueText.textContent = '';
+        window.clearInterval(tutorialTypingTimer);
+        let cursor = 0;
+        drawLedMascot(tone, true);
+        tutorialTypingTimer = window.setInterval(() => {
+            cursor += 1;
+            tutorialDialogueText.textContent = text.slice(0, cursor);
+            drawLedMascot(tone, cursor < text.length);
+            if (cursor >= text.length) {
+                window.clearInterval(tutorialTypingTimer);
+                drawLedMascot(tone, false);
+            }
+        }, 18);
+    }
+
+    function hideTutorialDialogue() {
+        window.clearInterval(tutorialTypingTimer);
+        tutorialDialogueConsole?.classList.add('is-hidden');
+        tutorialBlackout?.classList.remove('active');
+        gameContainer.classList.remove('tutorial-vignette');
+    }
+
+    function setTutorialVignette(active, focus = { x: 50, y: 48 }) {
+        gameContainer.classList.toggle('tutorial-vignette', Boolean(active));
+        tutorialBlackout?.classList.toggle('active', Boolean(active));
+        tutorialBlackout?.style.setProperty('--focus-x', `${focus.x}%`);
+        tutorialBlackout?.style.setProperty('--focus-y', `${focus.y}%`);
+    }
+
     function updateTutorialUI() {
         const card = document.getElementById('tutorial-helper-card');
         if (!card) return;
 
         if (!game.tutorialActive) {
             card.classList.add('is-hidden');
+            hideTutorialDialogue();
+            btnTwistMode?.classList.remove('tutorial-target');
             if (typeof render !== 'undefined') render.hideTutorialPointer?.();
             return;
         }
@@ -2164,16 +2279,20 @@ document.addEventListener('DOMContentLoaded', () => {
             skipTutorial();
             return;
         }
+        btnTwistMode?.classList.toggle('tutorial-target', step.type === 'twist');
 
-        card.classList.remove('is-hidden');
+        card.classList.add('is-hidden');
         card.dataset.levelId = game.currentLevel?.id;
+        render.setPlayerSpeechBubble?.('');
+        setTutorialDialogue(step);
+        setTutorialVignette(true, step.focus || { x: 50, y: step.type === 'dialog' ? 52 : 45 });
 
         const titleEl = document.getElementById('tutorial-helper-title');
         const bodyEl = document.getElementById('tutorial-helper-body');
         const iconEl = document.getElementById('tutorial-helper-icon');
 
         if (iconEl) {
-            const icons = { dialog: '💬', move: '➜', twist: '⟳', tool: '⚙️' };
+            const icons = { dialog: '💬', look: '👁', move: '➜', twist: '⟳', tool: '⚙️' };
             iconEl.textContent = icons[step.type] || '➜';
         }
 
@@ -2205,7 +2324,7 @@ document.addEventListener('DOMContentLoaded', () => {
         game.setRealtimePaused?.(true);
 
         const stepText = step.text[window.currentLang || 'zh'] || step.text['zh'];
-        setCompanionBubble(stepText, step.tone || 'info');
+        setCompanionBubble(stepText, step.tone || 'info', { suppressHeadBubble: true });
 
         if (commsStoryLines) {
             const lastLine = commsStoryLines.lastElementChild;
@@ -2239,6 +2358,7 @@ document.addEventListener('DOMContentLoaded', () => {
             } else {
                 render.hideTutorialPointer?.();
             }
+            render.focusTutorialStep?.(step);
         }
     }
 
@@ -2247,7 +2367,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const step = game.activeTutorialSteps[game.currentTutorialStepIndex];
         if (!step) return;
 
-        if (step.type === 'dialog') {
+        if (step.type === 'dialog' || step.type === 'look') {
             game.currentTutorialStepIndex++;
             audio.play('uiConfirm');
             updateTutorialUI();
@@ -2261,6 +2381,7 @@ document.addEventListener('DOMContentLoaded', () => {
         
         game.tutorialActive = false;
         game.setRealtimePaused?.(false);
+        btnTwistMode?.classList.remove('tutorial-target');
         if (typeof render !== 'undefined') render.hideTutorialPointer?.();
         
         const card = document.getElementById('tutorial-helper-card');
