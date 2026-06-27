@@ -293,7 +293,7 @@ class RenderEngine {
             if (!layer) return;
             const dx = event.clientX - down.x;
             const dy = event.clientY - down.y;
-            const direction = this.getScreenProjectedTwistDirection(layer, down.x, down.y, dx, dy);
+            const direction = this.getScreenProjectedTwistDirection(layer, down.x, down.y, dx, dy, down.cellId);
             this.game.rotateLayer(layer.axis, layer.layer, direction);
             return;
         }
@@ -327,7 +327,18 @@ class RenderEngine {
         };
     }
 
-    getScreenProjectedTwistDirection(layer, startX, startY, dx, dy) {
+    getClientPointFromWorld(worldPoint) {
+        if (!this.camera || !this.renderer || !worldPoint) return null;
+        const rect = this.renderer.domElement.getBoundingClientRect();
+        const projected = worldPoint.clone().project(this.camera);
+        if (!Number.isFinite(projected.x) || !Number.isFinite(projected.y)) return null;
+        return {
+            x: rect.left + (projected.x + 1) * 0.5 * rect.width,
+            y: rect.top + (1 - (projected.y + 1) * 0.5) * rect.height
+        };
+    }
+
+    getScreenProjectedTwistDirection(layer, startX, startY, dx, dy, cellId = null) {
         if (!this.camera || !this.renderer) {
             return Math.abs(dx) >= Math.abs(dy)
                 ? (dx > 0 ? 'CW' : 'CCW')
@@ -340,19 +351,44 @@ class RenderEngine {
         );
         const H = ((this.game?.N || 3) - 1) / 2;
         const coord = (layer.layer - H) * 2;
-        const center = axisVector.clone().multiplyScalar(coord).project(this.camera);
-        const rect = this.renderer.domElement.getBoundingClientRect();
-        const centerX = rect.left + (center.x + 1) * 0.5 * rect.width;
-        const centerY = rect.top + (1 - (center.y + 1) * 0.5) * rect.height;
-        const radiusX = startX - centerX;
-        const radiusY = startY - centerY;
-        const cross = radiusX * dy - radiusY * dx;
-        if (Math.abs(cross) < 0.01) {
+        const centerWorld = axisVector.clone().multiplyScalar(coord);
+        const cellPointWorld = Number.isInteger(cellId)
+            ? this.getCellWorldPosition(cellId, 'route')
+            : null;
+
+        if (cellPointWorld) {
+            const radiusWorld = cellPointWorld.clone().sub(centerWorld);
+            radiusWorld.addScaledVector(axisVector, -radiusWorld.dot(axisVector));
+            if (radiusWorld.lengthSq() > 0.0001) {
+                const tangentStart = this.getClientPointFromWorld(cellPointWorld);
+                const tangentEnd = this.getClientPointFromWorld(
+                    radiusWorld.clone().applyAxisAngle(axisVector, Math.PI / 18).add(centerWorld)
+                );
+                if (tangentStart && tangentEnd) {
+                    const tangentX = tangentEnd.x - tangentStart.x;
+                    const tangentY = tangentEnd.y - tangentStart.y;
+                    const tangentDot = tangentX * dx + tangentY * dy;
+                    if (Math.abs(tangentDot) > 0.5) return tangentDot > 0 ? 'CCW' : 'CW';
+                }
+            }
+        }
+
+        const centerPoint = this.getClientPointFromWorld(centerWorld);
+        if (!centerPoint) {
             return Math.abs(dx) >= Math.abs(dy)
                 ? (dx > 0 ? 'CW' : 'CCW')
                 : (dy > 0 ? 'CCW' : 'CW');
         }
-        const cameraFacing = axisVector.dot(this.camera.position.clone().normalize()) >= 0 ? 1 : -1;
+        const cellPoint = cellPointWorld ? this.getClientPointFromWorld(cellPointWorld) : null;
+        const radiusX = (cellPoint?.x ?? startX) - centerPoint.x;
+        const radiusY = (cellPoint?.y ?? startY) - centerPoint.y;
+        const cross = radiusX * dy - radiusY * dx;
+        if (Math.abs(cross) < 10) {
+            return Math.abs(dx) >= Math.abs(dy)
+                ? (dx > 0 ? 'CW' : 'CCW')
+                : (dy > 0 ? 'CCW' : 'CW');
+        }
+        const cameraFacing = axisVector.dot(this.camera.position.clone().sub(centerWorld).normalize()) >= 0 ? 1 : -1;
         return cross * cameraFacing > 0 ? 'CCW' : 'CW';
     }
 
