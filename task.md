@@ -1,3 +1,25 @@
+# 🎬 Milestone 10: Setup Redesign, Esc Console Routing, Viewport Focus, and HUD decluttering (2026-06-27)
+
+> 状态：`[STATUS: WAITING_FOR_QA]`
+> 执行者：Antigravity (Mastermind)
+> 红线：关卡检视文字块移至左上角；初始相机视角与 Viewport 聚焦主角；Esc 键在不同场景下的多级分流；隐藏顶部冗余 HUD 横幅与手机头像占位虚线框；净化残局卡册星图只显示极简编号与 Hover 浮动说明。
+
+- [x] **M10.1 初始镜头对焦主角与检视面板左上角避让 (`render.js` & `style.css`)**
+  - [x] 重构 `#canvas-overlay-ui` 的定位，使其撑满 100% 容器，使 `#inspect-overlay` 真正居于屏幕左上角不挡魔方。
+  - [x] 动态计算魔方中心到主角物理位置的法线向量，作为相机朝向。将初始相机位置设在正对该面的斜上方，控制器的 target 对准主角世界 3D 位置。
+  - [x] 重建 `resetCamera`、`flyToGameCamera`、`setGameViewportBias` 的 lookAt 基准点，使它们在游玩期间跟随主角的起始坐标，而不是硬编码的魔方物理中心。
+- [x] **M10.2 Escape 暂停按键事件状态机分流 (`main.js`)**
+  - [x] 在 `main.js` 的按键监听中，拦截 `Escape` 键。如果是设置激活、档案室激活、制作人员激活、选关激活、检视激活，则分别退回各自上一层级（选关退回主菜单，检视退回选关），仅在游戏游玩进行时才打开/关闭暂停控制台。
+- [x] **M10.3 移去顶部 HUD 遮挡、头像占位与 title 多语言翻译 (`style.css` & `locales.js` & `main.js`)**
+  - [x] 在 `style.css` 中将 `.top-hud` 设置 `display: none !important` 隐藏。
+  - [x] 在 `style.css` 中将手机通讯顶部头像框 `.companion-slot` 隐藏并修改 `.companion-dock` 布局。
+  - [x] 在 `locales.js` 中新增 meta 按钮和 Twist 按钮 title 翻译词条，并在 `applyLanguage` 里就地替换 title。
+- [x] **M10.4 星轨选关卡片极简重设 (`main.js` & `style.css`)**
+  - [x] 在 `main.js` 选关卡片渲染中，使用正则/split提取 `L01` / `L02` 代号作为圆形卡片内展示的主文字，并为卡片赋予完整 title 提示。
+  - [x] 优化 `.level-card-title` 的字体大小和显示定位。
+
+---
+
 # 🎬 Milestone 9: Overlays Z-Index, Inspect Mode Lock & Level Setup Refactoring (2026-06-27)
 
 > 状态：`[STATUS: WAITING_FOR_QA]`

@@ -87,7 +87,11 @@
             'prologue.enter': '进入链路',
             'prologue.reply.steady': '我会先证明自己。',
             'prologue.reply.warm': '我也不知道，但我会看着你。',
-            'prologue.reply.tease': '陌生人救援服务，试营业。'
+            'prologue.reply.tease': '陌生人救援服务，试营业。',
+            'meta.menu': '控制台菜单 (Esc)',
+            'meta.undo': '逆熵悔棋：回退一步 (↶)',
+            'meta.reset': '时空重构：重置本局 (⟲)',
+            'meta.twist': '空间折叠：拖拽控制环旋转一层魔方 (Shift)'
         },
         en: {
             'setup.title': 'Dawn Cube',
@@ -176,7 +180,11 @@
             'prologue.enter': 'Enter Link',
             'prologue.reply.steady': 'I will prove it first.',
             'prologue.reply.warm': 'I do not know either, but I am watching.',
-            'prologue.reply.tease': 'Stranger rescue service. Trial run.'
+            'prologue.reply.tease': 'Stranger rescue service. Trial run.',
+            'meta.menu': 'Console Menu (Esc)',
+            'meta.undo': 'Time Reverse: Undo one step (↶)',
+            'meta.reset': 'Time Reset: Restart level (⟲)',
+            'meta.twist': 'Space Fold: Drag control rings to twist layer (Shift)'
         }
     };
 

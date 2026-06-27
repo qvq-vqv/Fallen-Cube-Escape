@@ -567,6 +567,18 @@ document.addEventListener('DOMContentLoaded', () => {
             btn.textContent = window.currentLang === 'en' ? 'EN / 中' : '中 / EN';
             btn.setAttribute('aria-label', window.currentLang === 'en' ? 'Switch to Chinese' : '切换到英文');
         });
+
+        // 就地翻译四大主控按钮的 title 批注说明
+        const btnMenu = document.getElementById('btn-esc-menu');
+        const btnUndo = document.getElementById('btn-undo');
+        const btnReset = document.getElementById('btn-reset');
+        const btnTwist = document.getElementById('btn-twist-mode');
+
+        if (btnMenu) btnMenu.setAttribute('title', window.t?.('meta.menu') || '控制台菜单 (Esc)');
+        if (btnUndo) btnUndo.setAttribute('title', window.t?.('meta.undo') || '逆熵悔棋：回退一步 (↶)');
+        if (btnReset) btnReset.setAttribute('title', window.t?.('meta.reset') || '时空重构：重置本局 (⟲)');
+        if (btnTwist) btnTwist.setAttribute('title', window.t?.('meta.twist') || '空间折叠：拖拽控制环旋转一层魔方 (Shift)');
+
         renderArchive();
         renderLevelCards();
         renderLevelBrief();
@@ -1061,14 +1073,16 @@ document.addEventListener('DOMContentLoaded', () => {
                 completed: completedLevels.has(index),
                 frontier: !completedLevels.has(index)
             });
+            const levelCode = textOf(level.title).split(' ')[0] || `L${index + 1}`;
             card.innerHTML = `
-                <span class="level-card-title">${escapeHtml(textOf(level.title))}</span>
+                <span class="level-card-title">${escapeHtml(levelCode)}</span>
                 <span class="level-card-chapter">${escapeHtml(textOf(level.chapter))}</span>
                 <span class="level-card-meta">
                     ${renderLevelMetaIcons(level, index)}
                 </span>
                 <span class="level-card-concept">${escapeHtml(textOf(level.concept))}</span>
             `;
+            card.setAttribute('title', `${escapeHtml(textOf(level.title))} · ${escapeHtml(textOf(level.chapter))}`);
             card.addEventListener('click', () => {
                 selectedLevelIndex = index;
                 renderLevelCards();
@@ -1955,11 +1969,44 @@ document.addEventListener('DOMContentLoaded', () => {
         }
         if (event.key === 'Escape') {
             event.preventDefault();
+            
+            // 1. 如果设置页面活跃，则直接关闭设置
             if (settingsOverlay?.classList.contains('active')) {
                 closeSettings();
-            } else {
-                toggleEscConsole();
+                return;
             }
+            
+            // 2. 如果档案矩阵活跃，则关闭并回到主菜单
+            if (archiveOverlay?.classList.contains('active')) {
+                closeArchiveRoom();
+                return;
+            }
+            
+            // 3. 如果制作名单活跃，则关闭并回到主菜单
+            if (creditsOverlay?.classList.contains('active')) {
+                closeCredits();
+                return;
+            }
+            
+            // 4. 如果选关册活跃，则关闭选关册，回到主菜单
+            if (setupOverlay?.classList.contains('active')) {
+                showLanding();
+                return;
+            }
+            
+            // 5. 如果处于战术检视 (Inspect Mode)，退出检视返回选关册
+            if (inspectOverlay?.classList.contains('active')) {
+                exitInspectPreview();
+                return;
+            }
+            
+            // 6. 如果在游戏活跃状态下，切换暂停控制台的显示与隐藏
+            if (isGameActive) {
+                toggleEscConsole();
+                return;
+            }
+            
+            // 7. 在主菜单无额外层时，Esc 忽略
             return;
         }
         if (handleGameplayKeybind(event, 'down')) {

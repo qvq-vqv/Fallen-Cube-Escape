@@ -862,16 +862,38 @@ class RenderEngine {
 
     resetCamera() {
         if (!this.camera || !this.controls) return;
-        this.camera.position.set(8.4, 7.8, 12.4);
-        this.controls.target.set(0, 0, 0);
-        this.gameLookAt.set(0, 0, 0);
-        this.gameLookAtTarget.set(0, 0, 0);
+        
+        let targetLookAt = new THREE.Vector3(0, 0, 0);
+        let targetPosition = new THREE.Vector3(8.4, 7.8, 12.4);
+        
+        if (this.playerMesh) {
+            const pPos = this.playerMesh.position.clone();
+            const dir = pPos.clone().normalize();
+            if (pPos.length() > 0.1) {
+                targetPosition.copy(dir).multiplyScalar(15.2);
+                targetPosition.y += 6.5;
+                targetLookAt.copy(pPos);
+            }
+        }
+        
+        const biasX = (this.gameLookAtTarget.x !== 0) ? (this.gameLookAtTarget.x - (this.playerMesh ? this.playerMesh.position.x : 0)) : 0;
+        targetLookAt.x += biasX;
+        
+        this.camera.position.copy(targetPosition);
+        this.controls.target.copy(targetLookAt);
+        this.gameLookAt.copy(targetLookAt);
+        this.gameLookAtTarget.copy(targetLookAt);
         this.controls.update();
     }
 
     setGameViewportBias(phoneOpen = true) {
         const targetX = phoneOpen ? -1.55 : 0;
-        this.gameLookAtTarget.set(targetX, 0, 0);
+        if (this.playerMesh) {
+            this.gameLookAtTarget.copy(this.playerMesh.position);
+            this.gameLookAtTarget.x += targetX;
+        } else {
+            this.gameLookAtTarget.set(targetX, 0, 0);
+        }
     }
 
     setPresentationMode(mode = 'game') {
@@ -905,7 +927,11 @@ class RenderEngine {
             : new THREE.Vector3(0, 0, 0);
         const lookAt = isLanding
             ? new THREE.Vector3(1.85, -0.62, 0.45)
-            : (isConstellation ? new THREE.Vector3(2.4, -0.5, 0.65).add(drift.multiplyScalar(0.35)) : new THREE.Vector3(0.65, -0.28, 0.2));
+            : (isConstellation 
+                ? new THREE.Vector3(2.4, -0.5, 0.65).add(drift.multiplyScalar(0.35)) 
+                : (this.playerMesh 
+                    ? this.playerMesh.position.clone() 
+                    : new THREE.Vector3(0.65, -0.28, 0.2)));
         const angle = this.presentationAngle;
         this.camera.position.set(
             Math.cos(angle) * radius + lookAt.x * 0.48 + (isConstellation ? drift.x : 0),
@@ -921,7 +947,17 @@ class RenderEngine {
 
     flyToGameCamera(duration = 950) {
         if (!this.camera) return Promise.resolve();
-        const targetPosition = new THREE.Vector3(8.4, 7.8, 12.4);
+        
+        let targetPosition = new THREE.Vector3(8.4, 7.8, 12.4);
+        if (this.playerMesh) {
+            const pPos = this.playerMesh.position.clone();
+            const dir = pPos.clone().normalize();
+            if (pPos.length() > 0.1) {
+                targetPosition.copy(dir).multiplyScalar(15.2);
+                targetPosition.y += 6.5;
+            }
+        }
+        
         const targetLookAt = this.gameLookAtTarget?.clone?.() || new THREE.Vector3(0, 0, 0);
         const startPosition = this.camera.position.clone();
         const startTime = performance.now();
