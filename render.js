@@ -870,8 +870,8 @@ class RenderEngine {
             const pPos = this.playerMesh.position.clone();
             const dir = pPos.clone().normalize();
             if (pPos.length() > 0.1) {
-                targetPosition.copy(dir).multiplyScalar(15.2);
-                targetPosition.y += 6.5;
+                targetPosition.copy(dir).multiplyScalar(21.0);
+                targetPosition.y += 9.5;
                 targetLookAt.copy(pPos);
             }
         }
@@ -953,8 +953,8 @@ class RenderEngine {
             const pPos = this.playerMesh.position.clone();
             const dir = pPos.clone().normalize();
             if (pPos.length() > 0.1) {
-                targetPosition.copy(dir).multiplyScalar(15.2);
-                targetPosition.y += 6.5;
+                targetPosition.copy(dir).multiplyScalar(21.0);
+                targetPosition.y += 9.5;
             }
         }
         
