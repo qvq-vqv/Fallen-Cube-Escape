@@ -1,23 +1,25 @@
 # 🎬 Milestone 11: Danganronpa Dialogue UI, LED Dot-Matrix Mascot, and Camera Vignette Tutorial System (2026-06-27)
 
-> 状态：`[STATUS: CODE_EXECUTION_M11]`
+> 状态：`[STATUS: AUDIT_PASSED]`
 > 执行者：Codex (gpt5.5 / 物理写码)
 > 红线：彻底重构进关引导系统，加入底部弹丸风毛玻璃对话框与动态 LED 点阵像素 Mascot，第一关视角旋转强约束，L04 无怪且带滑动箭头，修复实时下 Trust 叛逆失效 Bug。
 
-- [ ] **M11.1 弹丸风对话 UI 与 LED 点阵像素 Mascot 实装 (`index.html` & `style.css` & `main.js`)**
-  - [ ] 在屏幕底部 25% 区域实装一个带 `skewX(-6deg)` 倾斜的半透明毛玻璃对话框与反倾斜名字标签。
-  - [ ] 利用 HTML5 Canvas / CSS 像素格子，开发一个高对比度自发光的 `24x24` **E-7 动态 LED 点阵像素表情头像**。
-  - [ ] 用 JS 将 `normal`, `panic`, `angry`, `sad` 表情状态渲染为点阵颜文字并伴随打字机颤动。
-  - [ ] 移除旧版飘在 3D 主角头顶的局促气泡框。
-- [ ] **M11.2 分步暗色遮罩与镜头焦点运镜系统 (`render.js` & `style.css` & `main.js`)**
-  - [ ] 实现 `.tutorial-blackout` 机制。讲解新机制时，暗化并去饱和其余一切不相关画面。
-  - [ ] **第一关 (L01) 分步约束**：开局强制玩家拖动旋转视角一定角度才解锁下一步；分步执行主角问号 -> 终点门特写（周围暗） -> 第一步格特写（周围暗）；最后拉远视角画出绿色导向线。
-  - [ ] **第二关 (L02) UI/钥匙**：开局全暗高亮右侧通话框与 Trust 按钮；运镜引导捡钥匙和出门。
-  - [ ] **第三关 (L03) 敌人物理警示**：给红怪特写，在其头上生成 3D 浮空警示框 `⚠️ 追踪者：你动一步它动一步`。
-  - [ ] **第四关 (L04) 旋转无怪化**：物理清除 L04 敌人（ais置空，hasThreats置false）；运镜指示滑动箭头并高亮 Twist 按钮。
-  - [ ] **第六关 (L06) 碎解格子高亮**：特写聚焦裂缝，讲解碎解规则。
-- [ ] **M11.3 实时 Trust 叛逆失效 Bug 修复 (`game.js`)**
-  - [ ] 在 `game.js:requestRealtimeMove` 移动路径中补全 `maybeRefuseRoute()` 判定，确保低 Trust 时叛逆游荡逻辑起效。
+- [x] **M11.1 弹丸风对话 UI 与 LED 点阵像素 Mascot 实装 (`index.html` & `style.css` & `main.js`)**
+  - [x] 在屏幕底部 25% 区域实装一个带 `skewX(-6deg)` 倾斜的半透明毛玻璃对话框与反倾斜名字标签。
+  - [x] 利用 HTML5 Canvas / CSS 像素格子，开发一个高对比度自发光的 `24x24` **E-7 动态 LED 点阵像素表情头像**。
+  - [x] 用 JS 将 `normal`, `panic`, `angry`, `sad` 表情状态渲染为点阵颜文字并伴随打字机颤动。
+  - [x] 移除旧版飘在 3D 主角头顶的局促气泡框。
+- [x] **M11.2 分步暗色遮罩与镜头焦点运镜系统 (`render.js` & `style.css` & `main.js`)**
+  - [x] 实现 `.tutorial-blackout` 机制。讲解新机制时，暗化并去饱和其余一切不相关画面。
+  - [x] **第一关 (L01) 分步约束**：开局强制玩家拖动旋转视角一定角度才解锁下一步；分步执行主角问号 -> 终点门特写（周围暗） -> 第一步格特写（周围暗）；最后拉远视角画出绿色导向线。
+  - [x] **第二关 (L02) UI/钥匙**：开局全暗高亮右侧通话框与 Trust 按钮；运镜引导捡钥匙和出门。
+  - [x] **第三关 (L03) 敌人物理警示**：给红怪特写，在其头上生成 3D 浮空警示框 `⚠️ 追踪者：你动一步它动一步`。
+  - [x] **第四关 (L04) 旋转无怪化**：物理清除 L04 敌人（ais置空，hasThreats置false）；运镜指示滑动箭头并高亮 Twist 按钮。
+  - [x] **第六关 (L06) 碎解格子高亮**：特写聚焦裂缝，讲解碎解规则。
+- [x] **M11.3 实时 Trust 叛逆失效 Bug 修复 (`game.js`)**
+  - [x] 在 `game.js:requestRealtimeMove` 移动路径中补全 `maybeRefuseRoute()` 判定，确保低 Trust 时叛逆游荡逻辑起效。
+
+> Git Checkpoint：`dbe80d6 feat(tutorial): add dialogue console mascot and guided vignette flow`
 
 ---
 
