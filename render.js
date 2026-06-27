@@ -136,7 +136,7 @@ class RenderEngine {
         const height = this.container.clientHeight || 1;
         
         this.camera = new THREE.PerspectiveCamera(45, width / height, 0.1, 100);
-        this.camera.position.set(8.4, 7.8, 12.4);
+        this.camera.position.set(10.8, 10.0, 15.9);
         
         const rendererOptions = [
             { antialias: true, alpha: true, powerPreference: 'high-performance', failIfMajorPerformanceCaveat: false },
@@ -864,7 +864,7 @@ class RenderEngine {
         if (!this.camera || !this.controls) return;
         
         let targetLookAt = new THREE.Vector3(0, 0, 0);
-        let targetPosition = new THREE.Vector3(8.4, 7.8, 12.4);
+        let targetPosition = new THREE.Vector3(10.8, 10.0, 15.9);
         
         if (this.playerMesh) {
             const pPos = this.playerMesh.position.clone();
@@ -948,7 +948,7 @@ class RenderEngine {
     flyToGameCamera(duration = 950) {
         if (!this.camera) return Promise.resolve();
         
-        let targetPosition = new THREE.Vector3(8.4, 7.8, 12.4);
+        let targetPosition = new THREE.Vector3(10.8, 10.0, 15.9);
         if (this.playerMesh) {
             const pPos = this.playerMesh.position.clone();
             const dir = pPos.clone().normalize();
