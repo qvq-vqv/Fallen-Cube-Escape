@@ -1164,7 +1164,7 @@ document.addEventListener('DOMContentLoaded', () => {
         victoryOverlay.classList.remove('active');
         gameContainer.style.display = 'grid';
         gameContainer.classList.add('preplay-stage', 'inspect-stage');
-        game.initLevel(index);
+        game.initLevel(index, true);
         game.setRealtimeMode?.(false);
         game.stopRealtime?.();
         game.gameState = 'setup';
@@ -1543,7 +1543,7 @@ document.addEventListener('DOMContentLoaded', () => {
         isGameActive = true;
 
         await showLoadingSequence(game.levels[selectedLevelIndex]);
-        game.initLevel(selectedLevelIndex);
+        game.initLevel(selectedLevelIndex, false);
         game.applyRealtimeTuning?.(settingsState);
         game.setRealtimeMode?.(true);
         game.stopRealtime?.();
@@ -1572,7 +1572,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const levelId = game.currentLevel?.id;
         if (levelId) localStorage.removeItem(`dawnCubeTutorialDismissed:${levelId}`);
         setBulletTimeActive(false);
-        game.initLevel(game.currentLevelIndex);
+        game.initLevel(game.currentLevelIndex, false);
         game.setRealtimeMode?.(true);
         game.startRealtime?.();
         render.buildCube3D();
@@ -1636,7 +1636,7 @@ document.addEventListener('DOMContentLoaded', () => {
     renderLevelCards();
     renderLevelBrief();
     updateLayerDropdown(3);
-    game.initLevel(selectedLevelIndex);
+    game.initLevel(selectedLevelIndex, true);
     initRenderScene();
     render.setPresentationMode?.('landing');
     applyLanguage();
@@ -1875,7 +1875,7 @@ document.addEventListener('DOMContentLoaded', () => {
         audio.play('uiConfirm');
         feel.note('所有教学提示已恢复', 'good');
         if (game.currentLevel && game.currentLevel.tutorialSteps?.length > 0) {
-            game.initLevel(game.currentLevelIndex);
+            game.initLevel(game.currentLevelIndex, false);
             updateTutorialUI();
             if (typeof render !== 'undefined') {
                 render.initLevelVisuals();

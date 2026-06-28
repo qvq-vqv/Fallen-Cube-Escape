@@ -94,7 +94,7 @@ class GameEngine {
         this.updateUI();
     }
 
-    initLevel(levelIndex = 0) {
+    initLevel(levelIndex = 0, isInspect = false) {
         this.currentLevelIndex = Math.max(0, Math.min(this.levels.length - 1, levelIndex));
         this.currentLevel = this.levels[this.currentLevelIndex];
         this.N = this.currentLevel.size || 3;
@@ -112,7 +112,7 @@ class GameEngine {
         // Initialize tutorial state
         const dismissed = typeof localStorage !== 'undefined' &&
             localStorage.getItem(`dawnCubeTutorialDismissed:${this.currentLevel.id}`) === 'true';
-        if (this.currentLevel.tutorialSteps && this.currentLevel.tutorialSteps.length > 0 && !dismissed && typeof document !== 'undefined') {
+        if (!isInspect && this.currentLevel.tutorialSteps && this.currentLevel.tutorialSteps.length > 0 && !dismissed && typeof document !== 'undefined') {
             this.activeTutorialSteps = this.currentLevel.tutorialSteps.map(step => {
                 const s = { ...step };
                 if (step.targetCell) {
