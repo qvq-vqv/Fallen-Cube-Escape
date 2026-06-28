@@ -2721,7 +2721,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const step = game.activeTutorialSteps[game.currentTutorialStepIndex];
         if (!step) return;
 
-        if (step.type === 'dialog' || step.type === 'look') {
+        if (step.type === 'dialog' || step.type === 'look' || step.type === 'zoom') {
             game.currentTutorialStepIndex++;
             audio.play('uiConfirm');
             updateTutorialUI();
