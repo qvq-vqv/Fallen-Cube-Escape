@@ -3126,31 +3126,55 @@ class RenderEngine {
     }
 
     updateTutorialLookGate() {
-        if (!this.game?.tutorialActive || !this.tutorialLookBaseline) return;
+        if (!this.game?.tutorialActive) return;
         const step = this.game.activeTutorialSteps?.[this.game.currentTutorialStepIndex];
         if (step?.type !== 'look') return;
         if (!this.isOrbitActive || this.cameraFlight) {
-            this.tutorialLookLastAngles = null;
+            this.lastLookTickTime = null;
             return;
         }
-        const current = this.getCameraOrbitAngles();
-        if (!current) return;
-        if (!this.tutorialLookLastAngles) {
-            this.tutorialLookLastAngles = current;
+        const now = Date.now();
+        if (!this.lastLookTickTime) {
+            this.lastLookTickTime = now;
             return;
         }
-        const deltaTheta = Math.abs(current.theta - this.tutorialLookLastAngles.theta);
-        const deltaPhi = Math.abs(current.phi - this.tutorialLookLastAngles.phi);
-        this.tutorialLookLastAngles = current;
-        const threshold = Number(step.threshold || 0.28);
-        this.tutorialLookAccumulated += deltaTheta + deltaPhi;
+        const elapsedSec = (now - this.lastLookTickTime) / 1000;
+        this.lastLookTickTime = now;
+
+        const threshold = Number(step.threshold || 3.0);
+        this.tutorialLookAccumulated += elapsedSec;
         if (typeof window !== 'undefined') {
             window.updateTutorialLookProgress?.(this.tutorialLookAccumulated / threshold);
         }
         if (this.tutorialLookAccumulated >= threshold) {
-            this.tutorialLookBaseline = null;
-            this.tutorialLookLastAngles = null;
+            this.lastLookTickTime = null;
             this.tutorialLookAccumulated = 0;
+            if (typeof window !== 'undefined' && window.advanceTutorialStep) {
+                window.advanceTutorialStep();
+            }
+        }
+    }
+
+    updateTutorialZoomGate() {
+        if (!this.game?.tutorialActive || !this.controls) return;
+        const step = this.game.activeTutorialSteps?.[this.game.currentTutorialStepIndex];
+        if (step?.type !== 'zoom') {
+            this.tutorialZoomBaseline = null;
+            return;
+        }
+        const currentDistance = this.camera.position.distanceTo(this.controls.target);
+        if (this.tutorialZoomBaseline === null || this.tutorialZoomBaseline === undefined) {
+            this.tutorialZoomBaseline = currentDistance;
+            this.tutorialZoomAccumulated = 0;
+            return;
+        }
+        const diff = Math.abs(currentDistance - this.tutorialZoomBaseline);
+        const threshold = Number(step.threshold || 0.8);
+        if (typeof window !== 'undefined' && window.updateTutorialLookProgress) {
+            window.updateTutorialLookProgress(Math.min(1, diff / threshold));
+        }
+        if (diff >= threshold) {
+            this.tutorialZoomBaseline = null;
             if (typeof window !== 'undefined' && window.advanceTutorialStep) {
                 window.advanceTutorialStep();
             }
@@ -3162,6 +3186,7 @@ class RenderEngine {
         this.tutorialLookBaseline = null;
         this.tutorialLookLastAngles = null;
         this.tutorialLookAccumulated = 0;
+        this.tutorialZoomBaseline = null;
         this.hideTutorialWarning();
         if (this.tutorialPointerCone) {
             this.scene.remove(this.tutorialPointerCone);
@@ -3550,6 +3575,7 @@ class RenderEngine {
         // 更新 OrbitControls 摄像机控制器
         if (this.controls && !this.cameraFlight) this.controls.update();
         this.updateTutorialLookGate();
+        this.updateTutorialZoomGate();
         if (this.game?.updateRealtime) {
             this.game.updateRealtime(performance.now());
             this.updateRealtimeTimerVisuals();

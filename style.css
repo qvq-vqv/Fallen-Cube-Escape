@@ -4228,6 +4228,33 @@ body {
     }
 }
 
+.gesture-hand-svg.is-hidden {
+    display: none !important;
+}
+
+.zooming-mouse {
+    transform-origin: 50% 50%;
+}
+
+.mouse-wheel {
+    animation: mouse-wheel-scroll 1.5s ease-in-out infinite;
+}
+
+@keyframes mouse-wheel-scroll {
+    0% {
+        transform: translateY(-2px);
+        opacity: 0.3;
+    }
+    50% {
+        transform: translateY(3px);
+        opacity: 1;
+    }
+    100% {
+        transform: translateY(-2px);
+        opacity: 0.3;
+    }
+}
+
 .progress-ring {
     transform: rotate(-90deg);
     filter: drop-shadow(0 0 12px rgba(0, 255, 136, 0.32));

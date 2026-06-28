@@ -2621,9 +2621,24 @@ document.addEventListener('DOMContentLoaded', () => {
         render.setPlayerSpeechBubble?.('');
         setTutorialDialogue(step);
         setTutorialVignette(true, step.focus || { x: 50, y: step.type === 'dialog' ? 52 : 45 });
-        tutorialLookGesture?.classList.toggle('is-hidden', step.type !== 'look');
-        if (step.type === 'look') {
-            tutorialLookProgress?.style.setProperty('--look-progress', '0%');
+        const showGesture = step.type === 'look' || step.type === 'zoom';
+        tutorialLookGesture?.classList.toggle('is-hidden', !showGesture);
+        if (showGesture) {
+            const svgCircle = document.getElementById('tutorial-look-progress-svg');
+            if (svgCircle) {
+                svgCircle.style.strokeDashoffset = '326.7';
+            }
+            const lookSvg = document.getElementById('tutorial-gesture-look-svg');
+            const zoomSvg = document.getElementById('tutorial-gesture-zoom-svg');
+            const textEl = document.getElementById('tutorial-gesture-text');
+            
+            if (lookSvg) lookSvg.classList.toggle('is-hidden', step.type !== 'look');
+            if (zoomSvg) zoomSvg.classList.toggle('is-hidden', step.type !== 'zoom');
+            if (textEl) {
+                textEl.textContent = step.type === 'zoom'
+                    ? 'SCROLL TO ZOOM / 滚动鼠标滚轮缩放'
+                    : 'DRAG TO ROTATE / 拖拽旋转视角';
+            }
         }
 
         const titleEl = document.getElementById('tutorial-helper-title');
@@ -2631,7 +2646,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const iconEl = document.getElementById('tutorial-helper-icon');
 
         if (iconEl) {
-            const icons = { dialog: '💬', look: '👁', move: '➜', twist: '⟳', tool: '⚙️' };
+            const icons = { dialog: '💬', look: '👁', move: '➜', twist: '⟳', tool: '⚙️', zoom: '🔍' };
             iconEl.textContent = icons[step.type] || '➜';
         }
 

@@ -167,7 +167,7 @@
                         <circle class="progress-ring__circle-bg" stroke="rgba(255,255,255,0.15)" stroke-width="6" fill="transparent" r="52" cx="60" cy="60"/>
                         <circle id="tutorial-look-progress-svg" class="progress-ring__circle" stroke="#00ff88" stroke-width="6" fill="transparent" r="52" cx="60" cy="60" stroke-dasharray="326.7" stroke-dashoffset="326.7"/>
                     </svg>
-                    <svg viewBox="0 0 100 100" class="gesture-hand-svg" width="80" height="80">
+                    <svg id="tutorial-gesture-look-svg" viewBox="0 0 100 100" class="gesture-hand-svg" width="80" height="80">
                         <!-- Double-headed arrow background curve -->
                         <path d="M 15 52 Q 50 22 85 52" fill="none" stroke="#00f0ff" stroke-width="3" stroke-linecap="round" stroke-dasharray="6,4"/>
                         <path d="M 15 52 L 27 45 M 15 52 L 23 62" fill="none" stroke="#00f0ff" stroke-width="3" stroke-linecap="round"/>
@@ -182,7 +182,23 @@
                             <path d="M 36 57 C 32 55 30 50 32 46 C 34 42 38 44 40 48 Z" fill="#ffffff" stroke="#00f0ff" stroke-width="2" stroke-linejoin="round"/>
                         </g>
                     </svg>
-                    <span class="gesture-text">DRAG TO ROTATE / 拖拽旋转视角</span>
+                    <!-- Zoom SVG -->
+                    <svg id="tutorial-gesture-zoom-svg" viewBox="0 0 100 100" class="gesture-hand-svg is-hidden" width="80" height="80">
+                        <!-- Diagonal double-headed arrows -->
+                        <path d="M 30 70 L 70 30" fill="none" stroke="#00f0ff" stroke-width="3" stroke-linecap="round" stroke-dasharray="6,4"/>
+                        <path d="M 70 30 L 58 30 M 70 30 L 70 42" fill="none" stroke="#00f0ff" stroke-width="3" stroke-linecap="round"/>
+                        <path d="M 30 70 L 42 70 M 30 70 L 30 58" fill="none" stroke="#00f0ff" stroke-width="3" stroke-linecap="round"/>
+                        <!-- Mouse scroll icon -->
+                        <g class="zooming-mouse">
+                            <!-- Mouse body -->
+                            <rect x="38" y="30" width="24" height="40" rx="12" ry="12" fill="rgba(255,255,255,0.15)" stroke="#00f0ff" stroke-width="2.5"/>
+                            <!-- Split line -->
+                            <line x1="50" y1="30" x2="50" y2="46" stroke="#00f0ff" stroke-width="1.5"/>
+                            <!-- Scroll wheel -->
+                            <rect class="mouse-wheel" x="48" y="36" width="4" height="8" rx="2" ry="2" fill="#00ff88"/>
+                        </g>
+                    </svg>
+                    <span id="tutorial-gesture-text" class="gesture-text">DRAG TO ROTATE / 拖拽旋转视角</span>
                 </div>
                 <section id="tutorial-dialogue-console" class="tutorial-dialogue-console is-hidden" aria-live="polite">
                     <canvas id="tutorial-led-mascot" class="tutorial-led-mascot" width="144" height="144" aria-label="E-7 点阵表情"></canvas>

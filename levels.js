@@ -80,7 +80,7 @@
                     zh: '……别急着救我。先看清楚，这地方会骗人。',
                     en: '...Do not rush to save me. Look first. This place lies.'
                 },
-                threshold: 1.6,
+                threshold: 3.0,
                 focusCell: { face: 1, row: 1, col: 1 },
                 focus: { x: 50, y: 46 },
                 tone: 'steady'
@@ -93,6 +93,17 @@
                 },
                 focusCell: { face: 0, row: 2, col: 1 },
                 focus: { x: 52, y: 42 },
+                tone: 'steady'
+            },
+            {
+                type: 'zoom',
+                text: {
+                    zh: '滚动鼠标滚轮（或触控板双指捏合），可以放大或缩小视图。试试看。',
+                    en: 'Scroll the mouse wheel or pinch to zoom in/out. Try it.'
+                },
+                threshold: 0.8,
+                focusCell: { face: 1, row: 1, col: 1 },
+                focus: { x: 50, y: 46 },
                 tone: 'steady'
             },
             {
