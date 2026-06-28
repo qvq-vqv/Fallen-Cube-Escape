@@ -201,9 +201,13 @@
                     <span id="tutorial-gesture-text" class="gesture-text">DRAG TO ROTATE / 拖拽旋转视角</span>
                 </div>
                 <section id="tutorial-dialogue-console" class="tutorial-dialogue-console is-hidden" aria-live="polite">
+                    <button id="tutorial-dialogue-close" class="tutorial-dialogue-close" type="button" aria-label="关闭提示">×</button>
                     <canvas id="tutorial-led-mascot" class="tutorial-led-mascot" width="144" height="144" aria-label="E-7 点阵表情"></canvas>
                     <div class="tutorial-dialogue-copy">
-                        <span id="tutorial-speaker-label" class="tutorial-speaker-label">E-7</span>
+                        <div class="tutorial-dialogue-header">
+                            <span id="tutorial-speaker-label" class="tutorial-speaker-label">E-7</span>
+                            <span class="tutorial-time-label" data-i18n="tutorial.now">现在</span>
+                        </div>
                         <p id="tutorial-dialogue-text">……</p>
                         <button id="tutorial-dialogue-next" class="tutorial-dialogue-next" type="button">继续</button>
                     </div>

@@ -90,6 +90,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const tutorialSpeakerLabel = document.getElementById('tutorial-speaker-label');
     const tutorialDialogueText = document.getElementById('tutorial-dialogue-text');
     const tutorialDialogueNext = document.getElementById('tutorial-dialogue-next');
+    const tutorialDialogueClose = document.getElementById('tutorial-dialogue-close');
     const tutorialLookGesture = document.getElementById('tutorial-look-gesture');
     const tutorialLookProgress = document.getElementById('tutorial-look-progress');
     const commsFloatBubble = document.getElementById('comms-float-bubble');
@@ -2241,6 +2242,11 @@ document.addEventListener('DOMContentLoaded', () => {
         event.preventDefault();
         event.stopPropagation();
         advanceTutorialStep();
+    });
+    tutorialDialogueClose?.addEventListener('click', event => {
+        event.preventDefault();
+        event.stopPropagation();
+        skipTutorial();
     });
     document.addEventListener('keydown', event => {
         if (game.tutorialActive) {

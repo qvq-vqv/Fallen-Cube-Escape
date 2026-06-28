@@ -4290,97 +4290,118 @@ body {
 
 .tutorial-dialogue-console {
     position: absolute;
-    left: 50%;
-    bottom: clamp(1rem, 2.2vw, 2rem);
+    left: 1.5rem;
+    top: 6.5rem;
     z-index: 1400;
-    width: min(80%, 58rem);
-    min-height: clamp(7.5rem, 13vw, 10.5rem);
+    width: 25rem;
+    min-height: auto;
     display: grid;
-    grid-template-columns: clamp(5.5rem, 8vw, 8rem) minmax(0, 1fr);
-    gap: clamp(0.75rem, 1vw, 1.35rem);
-    align-items: center;
-    padding: clamp(0.75rem, 1.1vw, 1.25rem) clamp(1rem, 1.6vw, 1.8rem);
-    border: 1px solid rgba(0, 240, 255, 0.34);
-    border-left: clamp(0.35rem, 0.5vw, 0.58rem) solid rgba(255, 0, 85, 0.86);
-    border-radius: 8px;
-    background:
-        linear-gradient(112deg, rgba(255, 0, 85, 0.16), transparent 21%),
-        linear-gradient(145deg, rgba(255, 255, 255, 0.14), transparent 42%),
-        rgba(3, 8, 16, 0.78);
-    backdrop-filter: blur(22px) saturate(190%);
-    -webkit-backdrop-filter: blur(22px) saturate(190%);
+    grid-template-columns: 3.5rem minmax(0, 1fr);
+    gap: 1rem;
+    align-items: flex-start;
+    padding: 1rem;
+    border: 1px solid rgba(0, 240, 255, 0.2);
+    border-left: 4px solid rgba(255, 0, 85, 0.86);
+    border-radius: 12px;
+    background: rgba(10, 16, 24, 0.78);
+    backdrop-filter: blur(20px) saturate(180%);
+    -webkit-backdrop-filter: blur(20px) saturate(180%);
     box-shadow:
-        0 clamp(1rem, 1.5vw, 2rem) clamp(2rem, 4vw, 5rem) rgba(0, 0, 0, 0.56),
-        0 0 clamp(1rem, 2vw, 2.4rem) rgba(0, 240, 255, 0.12),
-        inset 0 1px 0 rgba(255, 255, 255, 0.24);
-    transform: translateX(-50%) skewX(-6deg) translateY(0);
+        0 10px 30px rgba(0, 0, 0, 0.4),
+        0 0 20px rgba(0, 240, 255, 0.08),
+        inset 0 1px 0 rgba(255, 255, 255, 0.15);
+    transform: translateX(0) translateY(0);
     opacity: 1;
     transition:
-        opacity var(--motion-base) var(--ease-decisive),
-        transform var(--motion-base) var(--ease-elastic);
+        opacity 0.25s ease,
+        transform 0.3s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 .tutorial-dialogue-console.is-hidden {
     pointer-events: none;
     opacity: 0;
-    transform: translateX(-50%) skewX(-6deg) translateY(1rem);
+    transform: translateX(-120%) translateY(0);
 }
 
-.tutorial-led-mascot,
-.tutorial-dialogue-copy {
-    transform: skewX(6deg);
+.tutorial-dialogue-close {
+    position: absolute;
+    top: 0.6rem;
+    right: 0.6rem;
+    width: 1.4rem;
+    height: 1.4rem;
+    border: none;
+    background: transparent;
+    color: rgba(255, 255, 255, 0.35);
+    font-size: 1rem;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 50%;
+    transition: color 0.2s, background-color 0.2s;
+}
+
+.tutorial-dialogue-close:hover {
+    color: #ffffff;
+    background-color: rgba(255, 255, 255, 0.12);
 }
 
 .tutorial-led-mascot {
-    width: clamp(5rem, 7vw, 7.5rem);
-    height: clamp(5rem, 7vw, 7.5rem);
-    border: 1px solid rgba(111, 255, 153, 0.38);
-    border-radius: 8px;
-    background: rgba(0, 6, 10, 0.72);
-    box-shadow:
-        0 0 clamp(0.8rem, 1.4vw, 1.8rem) rgba(0, 255, 136, 0.18),
-        inset 0 0 clamp(0.7rem, 1vw, 1.4rem) rgba(0, 255, 136, 0.08);
+    width: 3.5rem;
+    height: 3.5rem;
+    border: 1px solid rgba(0, 240, 255, 0.3);
+    border-radius: 50%;
+    overflow: hidden;
+    background: rgba(0, 6, 10, 0.85);
+    box-shadow: 0 0 10px rgba(0, 240, 255, 0.15);
 }
 
 .tutorial-dialogue-copy {
     min-width: 0;
 }
 
+.tutorial-dialogue-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 0.4rem;
+    padding-right: 1rem;
+}
+
 .tutorial-speaker-label {
-    display: inline-grid;
-    place-items: center;
-    min-width: clamp(4.2rem, 6vw, 6.2rem);
-    margin-bottom: clamp(0.35rem, 0.5vw, 0.65rem);
-    padding: clamp(0.22rem, 0.3vw, 0.38rem) clamp(0.6rem, 0.9vw, 0.95rem);
-    background: linear-gradient(90deg, rgba(255, 0, 85, 0.96), rgba(0, 240, 255, 0.78));
-    color: #fff;
+    color: #00f0ff;
     font-family: var(--font-title);
-    font-size: clamp(0.78rem, 0.68rem + 0.35vw, 1.05rem);
-    letter-spacing: 0;
-    box-shadow: 0 0 clamp(0.7rem, 1vw, 1.5rem) rgba(255, 0, 85, 0.26);
+    font-size: 0.9rem;
+    font-weight: 700;
+    letter-spacing: 0.5px;
+    text-transform: uppercase;
+}
+
+.tutorial-time-label {
+    color: rgba(255, 255, 255, 0.35);
+    font-size: 0.75rem;
+    font-family: var(--font-data);
 }
 
 .tutorial-dialogue-copy p {
     margin: 0;
-    color: #effaff;
-    font-size: clamp(1rem, 0.88rem + 0.5vw, 1.45rem);
-    line-height: 1.55;
-    text-shadow: 0 0 0.8rem rgba(0, 240, 255, 0.22);
+    color: #e2f1f9;
+    font-size: 0.95rem;
+    line-height: 1.45;
+    text-shadow: 0 0 8px rgba(0, 240, 255, 0.1);
 }
 
 .tutorial-dialogue-next {
-    margin-top: clamp(0.45rem, 0.65vw, 0.85rem);
-    padding: clamp(0.28rem, 0.35vw, 0.45rem) clamp(0.75rem, 1vw, 1.1rem);
-    border: 1px solid rgba(0, 240, 255, 0.32);
-    border-radius: 999px;
-    color: #8bdcff;
+    margin-top: 0.65rem;
+    padding: 0.25rem 0.85rem;
+    border: 1px solid rgba(0, 240, 255, 0.3);
+    border-radius: 6px;
+    color: #00f0ff;
     background: rgba(0, 240, 255, 0.08);
     font-family: var(--font-data);
+    font-size: 0.8rem;
     cursor: pointer;
-    transition:
-        transform var(--motion-fast) var(--ease-elastic),
-        border-color var(--motion-fast) var(--ease-decisive),
-        color var(--motion-fast) var(--ease-decisive);
+    transition: background-color 0.2s, color 0.2s;
 }
 
 .tutorial-dialogue-next:hover {
