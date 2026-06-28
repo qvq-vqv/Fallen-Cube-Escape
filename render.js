@@ -3183,6 +3183,11 @@ class RenderEngine {
             this.tutorialZoomAccumulated = 0;
             return;
         }
+        if (this.cameraFlight) {
+            this.tutorialZoomBaseline = null;
+            this.tutorialZoomAccumulated = 0;
+            return;
+        }
         const currentDistance = this.camera.position.distanceTo(this.controls.target);
         if (this.tutorialZoomBaseline === null || this.tutorialZoomBaseline === undefined) {
             this.tutorialZoomBaseline = currentDistance;
