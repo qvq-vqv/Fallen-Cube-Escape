@@ -122,8 +122,8 @@
             {
                 type: 'dialog',
                 text: {
-                    zh: '等下，那个黄色的东西……是钥匙！拿到它我们才能开门。先拿到它再说。',
-                    en: 'Wait, that yellow thing... a key! We need it to unlock the exit. Let\'s get it first.'
+                    zh: '前面悬浮着一把发光的……钥匙？还有一扇看起来像安全出口的门。虽然很荒谬，但看来我得先去把那玩意儿捞到手。这难道是什么密室逃脱的测试吗？',
+                    en: 'There\'s a glowing... key floating ahead? And a door that looks like an emergency exit. Absurd, but I guess I have to grab that thing first. Is this some kind of escape room test?'
                 },
                 openComms: true,
                 focusCell: { face: 4, row: 1, col: 0 },
@@ -133,32 +133,32 @@
             {
                 type: 'dialog',
                 text: {
-                    zh: '对了，你刚才应该看到了我的健康状态。那我的情绪监控（Trust）呢？它也是正常运转的。',
-                    en: 'By the way, you saw my health status. What about my trust level? It is also active.'
+                    zh: '等等，你发现了吗？我头顶上好像亮起了一个情绪状态指示灯（Trust）……对，它在实时监控我的服从度。',
+                    en: 'Wait, did you notice? Some emotional indicator (Trust) lit up above my head... Yeah, it\'s monitoring my obedience in real-time.'
                 },
                 tone: 'steady'
             },
             {
                 type: 'dialog',
                 text: {
-                    zh: '如果我的关系信任值过低，我可能会拒绝服从指令，甚至会随机乱走。',
-                    en: 'If trust drops too low, I might refuse to obey your moves or even wander around randomly.'
+                    zh: '我要是心情太差、或者极其讨厌你，我就可能会拒绝执行你的指令，甚至在格子上随机乱走！',
+                    en: 'If my mood goes to trash or I absolutely detest you, I might refuse to follow your directions or even wander around randomly!'
                 },
                 tone: 'steady'
             },
             {
                 type: 'esc',
                 text: {
-                    zh: '按下 ESC 键（或点击左上角菜单 ☰），打开暂停控制面板。',
-                    en: 'Press ESC key (or click top-left ☰ menu) to open the control panel.'
+                    zh: '按下 ESC 键（或者点击左上角的 ☰ 按钮）打开面板，看看我的当前信任值是多少。',
+                    en: 'Press the ESC key (or click the top-left ☰ button) to open the console and check my current trust value.'
                 },
                 tone: 'steady'
             },
             {
                 type: 'closeEsc',
                 text: {
-                    zh: '看，这是我的信任值，目前为 80（已高亮）。把它保持在安全线以上。现在关闭面板开始行动吧！',
-                    en: 'Look, this is my trust value, currently at 80 (highlighted). Keep it safe. Now close the panel and action!'
+                    zh: '看，我的信任值目前是 80（已在面板中闪烁高亮）。千方百计地哄好我，别让它掉光。现在关闭面板开始行动吧！',
+                    en: 'Look, my trust value is currently at 80 (pulsing in the panel). Keep me happy, don\'t let it drain. Now close the panel and action!'
                 },
                 tone: 'steady'
             }

@@ -4292,7 +4292,7 @@ body {
     position: absolute;
     left: 50%;
     bottom: clamp(1rem, 2.2vw, 2rem);
-    z-index: 28;
+    z-index: 1400;
     width: min(80%, 58rem);
     min-height: clamp(7.5rem, 13vw, 10.5rem);
     display: grid;
