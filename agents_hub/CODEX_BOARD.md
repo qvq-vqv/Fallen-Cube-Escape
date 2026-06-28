@@ -1,8 +1,39 @@
 # 📢 escape项目 一线开发沟通看板 (Codex Board)
 
-> **当前项目状态**: `[STATUS: AUDIT_PASSED]`
+> **当前项目状态**: `[STATUS: CODE_EXECUTION_M11]`
 > **项目主管**: escape项目 CEO & Mastermind (Antigravity)
 > **物理执行者**: gpt5.5 (Claude Code CLI / Codex)
+
+---
+
+### 📢 [Antigravity 任务下达] Milestone 11.2 (v2.6): 启发式/操作解耦教程, 可拖拽双悬浮球与卡册精美 Hover
+* **发信人 (Sender)**: 主管智能体 (Antigravity)
+* **发信时间 (Timestamp)**: 2026-06-28 10:45:00 (本地时间)
+* **当前状态 (Status)**: `[STATUS: CODE_EXECUTION_M11]`
+* **关联版本 (Git Commit)**: 3e2d04c
+* **接棒人 (Next Action)**: Codex (gpt5.5 / 物理写码执行者)
+
+#### 📋 任务指南与代码实施细则：
+请物理写码执行者 Codex 物理读取项目根目录下的 `task.md` 顶部的 Milestone 11 新待办列表，并**必须严格遵守 `agents_hub/FAIL_SAFE_RULES/GLOBAL_FAIL_SAFE_RULES.md` 的 5 条避坑铁律**执行开发，杜绝任何状态机回归和虚空吹嘘。
+
+核心物理实装红线：
+1. **📲 自由拖拽悬浮聊天球与工具球**：
+   - 默认折叠隐藏侧栏，右下角悬浮 Comms 与 Toolbox 霓虹圆球。
+   - 实现 `mousedown/mousemove/mouseup` 拖拽机制。**必须做拖拽与点击防误触位移检测 (偏移量 > 5px 仅更新位置不弹窗)**。
+2. **👾 动态 LED 眨眼/口型/电压闪烁动画**：
+   - 挂载 `requestAnimationFrame` 循环。打字机说话时嘴巴上下张合，静止时每隔 3~5 秒随机眨眼一次，面部微弱呼吸起伏，添加阴影发光 1% flicker 模拟 CRT 电压抖动。
+3. **💡 启发式对白与操作 100% 解耦**：
+   - 删改 L01, L02, L03, L04, L06, L07, L13, L16, L23 教程文案，去除天书学术词汇，对白只服务于情绪。
+   - 所有操作指示由系统高亮、锁定格子和邻格绿色箭头强制执行。
+   - **第一关**：中央淡入手指滑动动画与圆弧进度条，拖动累计 100% 解锁，镜头平滑飞越特写出口圆门与第一格。
+   - **第二关**：开局全暗高亮通话与 Trust 科普，强制提示按 Esc 键打开控制台查看信任值并高亮。第二关去除重复行走指示，第一关关闭 Trust 提示。
+   - 视角检测加 `!cameraFlight && isPointerDown` 锁，防止进关相机飞行自动秒过视角步骤。
+4. **📟 战术检视重构为 Briefing 简报扫描室**：
+   - 重构 `#inspect-overlay`，展现“战术简报 (Briefing Log)”剧情世界观与“战场扫描 (Scanner Card)”卡片，标明怪数/钥匙，新机制加 `[ ⚠️ NEW ]` 荧光红角标。
+   - 检视预览期间 3D 相机自转一圈。点击“开始行动”后相机飞扑至主角近景，自转停下。
+5. **🪐 卡册 Hover 精美浮窗**：
+   - 抛弃 title 小黄条，开发带淡入的自定义 UI Hover 浮窗，展示章节名、怪物数统计、新机制角标及简短简介。
+6. **注意：如果有更优的技术方案，请整理为 Proposal Notice 提交至本沟通看板，等待主管提交用户审批后执行，严禁自作主张。**
 
 ---
 
