@@ -15,6 +15,10 @@ document.addEventListener('DOMContentLoaded', () => {
     window.gameFeel = feel;
 
     let lastStepAdvancedTime = 0;
+    let pointerdownStartCoords = { x: 0, y: 0 };
+    document.addEventListener('pointerdown', event => {
+        pointerdownStartCoords = { x: event.clientX, y: event.clientY };
+    }, true);
 
     const originalUpdateUI = game.updateUI;
     game.updateUI = function() {
@@ -2752,6 +2756,10 @@ document.addEventListener('DOMContentLoaded', () => {
             if (step && step.type === 'dialog') {
                 if (Date.now() - lastStepAdvancedTime < 180) {
                     return;
+                }
+                const moved = Math.hypot(event.clientX - pointerdownStartCoords.x, event.clientY - pointerdownStartCoords.y);
+                if (moved > 6) {
+                    return; // Ignore drags/swipes
                 }
                 const skipBtn = event.target.closest('#btn-skip-tutorial, #tutorial-helper-close');
                 const systemBtn = event.target.closest('#btn-esc-menu, #audio-toggle, #landing-settings-btn, #btn-console-resume, #btn-console-reset, #btn-console-settings');

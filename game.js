@@ -2538,8 +2538,20 @@ class GameEngine {
             apBarEl.style.width = `${Math.max(0, Math.min(1, fill)) * 100}%`;
         }
         document.getElementById('rotation-charge').innerText = '1 AP';
-        document.getElementById('trust-display') && (document.getElementById('trust-display').innerText = this.trust);
-        document.getElementById('console-trust-display') && (document.getElementById('console-trust-display').innerText = this.trust);
+        const trustEl = document.getElementById('trust-display');
+        const consoleTrustEl = document.getElementById('console-trust-display');
+        if (trustEl) {
+            trustEl.innerText = this.trust;
+            if (trustEl.parentElement) {
+                trustEl.parentElement.style.display = this.currentLevelIndex === 0 ? 'none' : '';
+            }
+        }
+        if (consoleTrustEl) {
+            consoleTrustEl.innerText = this.trust;
+            if (consoleTrustEl.parentElement) {
+                consoleTrustEl.parentElement.style.display = this.currentLevelIndex === 0 ? 'none' : '';
+            }
+        }
         document.getElementById('console-rotation-display') && (document.getElementById('console-rotation-display').innerText = this.rotationsUsed);
         document.getElementById('console-turn-display') && (document.getElementById('console-turn-display').innerText = this.realtimeMode ? '实时' : this.turn);
         document.getElementById('console-ap-display') && (document.getElementById('console-ap-display').innerText = this.realtimeMode ? '移动 CD' : `${this.playerAP} / ${this.maxAP}`);

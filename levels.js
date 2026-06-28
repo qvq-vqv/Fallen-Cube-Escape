@@ -80,7 +80,7 @@
                     zh: '……别急着救我。先看清楚，这地方会骗人。',
                     en: '...Do not rush to save me. Look first. This place lies.'
                 },
-                threshold: 0.32,
+                threshold: 1.6,
                 focusCell: { face: 1, row: 1, col: 1 },
                 focus: { x: 50, y: 46 },
                 tone: 'steady'

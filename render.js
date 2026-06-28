@@ -306,7 +306,7 @@ class RenderEngine {
             this.controls.enabled = true;
         }
 
-        if (down.mode === 'twist' && moved > 10) {
+        if (down.mode === 'twist' && moved > 18) {
             const layer = down.twistRing || this.getTwistLayerFromCell(down.cellId);
             if (!layer) return;
             const dx = event.clientX - down.x;
@@ -316,7 +316,7 @@ class RenderEngine {
             return;
         }
 
-        if (down.mode === 'route' && moved <= 10) {
+        if (down.mode === 'route' && moved <= 18) {
             const cellId = this.pickBoardCell(event);
             if (cellId === null || cellId === undefined) return;
             this.game.handleBoardCellClick(cellId);
