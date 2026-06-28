@@ -88,12 +88,12 @@
             {
                 type: 'dialog',
                 text: {
-                    zh: '那边像出口。像，不代表就是。这个地方很擅长装无辜。',
-                    en: 'That looks like an exit. Looks like. This place is very good at pretending.'
+                    zh: '看到那个旋转发光的圆门了吗？那就是出口。我们得沿着魔方表面点格子走过去，从那里逃生。',
+                    en: 'See that rotating glowing portal? That is the exit. We must step along the cube to reach it and escape.'
                 },
                 focusCell: { face: 0, row: 2, col: 1 },
                 focus: { x: 52, y: 42 },
-                tone: 'worry'
+                tone: 'steady'
             },
             {
                 type: 'move',

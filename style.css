@@ -3867,7 +3867,8 @@ body {
 }
 
 #game-container.tutorial-vignette #canvas-container canvas {
-    filter: grayscale(0.95) brightness(0.34) saturate(0.72);
+    /* Retain original colorful materials in Three.js and do not make the cube pitch-black */
+    filter: none;
     transition: filter var(--motion-base) var(--ease-decisive);
 }
 
@@ -3880,9 +3881,9 @@ body {
     background:
         radial-gradient(circle at var(--focus-x, 50%) var(--focus-y, 48%),
             transparent 0,
-            transparent clamp(4rem, 12vw, 9rem),
-            rgba(0, 0, 0, 0.38) clamp(6rem, 17vw, 13rem),
-            rgba(0, 0, 0, 0.7) 100%);
+            transparent clamp(4.5rem, 12vw, 9.5rem),
+            rgba(2, 6, 16, 0.74) clamp(6.5rem, 17vw, 13.5rem),
+            rgba(2, 4, 12, 0.93) 100%);
     transition: opacity var(--motion-base) var(--ease-decisive);
 }
 

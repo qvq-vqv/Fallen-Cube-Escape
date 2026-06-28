@@ -2922,6 +2922,39 @@ class RenderEngine {
         }
     }
 
+    flyToTutorialFocus(cellId, duration = 850) {
+        if (!this.camera || !this.controls) return;
+        const target = this.getCellWorldPosition(cellId, 'pulse');
+        const normal = this.getCellNormalVector(cellId);
+        
+        // Dynamic camera focal distance: keep target clear
+        const position = target.clone()
+            .addScaledVector(normal, 6.8)
+            .add(new THREE.Vector3(3.2, 2.5, 3.2));
+        
+        const startPosition = this.camera.position.clone();
+        const startTime = performance.now();
+        
+        if (this.controls) {
+            this.controls.enabled = false;
+        }
+        
+        this.cameraFlight = {
+            startPosition,
+            targetPosition: position,
+            targetLookAt: target,
+            startTime,
+            duration,
+            resolve: () => {
+                if (this.controls) {
+                    this.controls.target.copy(target);
+                    this.controls.enabled = true;
+                    this.controls.update();
+                }
+            }
+        };
+    }
+
     focusTutorialStep(step) {
         if (!step || !this.camera || !this.controls || !this.game) return;
         if (step.type === 'look') {
@@ -2933,16 +2966,9 @@ class RenderEngine {
 
         const cellId = step.focusCellId ?? step.targetCellId;
         if (cellId === null || cellId === undefined) return;
-        const target = this.getCellWorldPosition(cellId, 'pulse');
-        const normal = this.getCellNormalVector(cellId);
-        const position = target.clone()
-            .addScaledVector(normal, 5.8)
-            .add(new THREE.Vector3(2.8, 2.2, 2.8));
-        this.camera.position.lerp(position, 0.68);
-        this.controls.target.lerp(target, 0.68);
-        this.gameLookAt.copy(this.controls.target);
-        this.gameLookAtTarget.copy(this.controls.target);
-        this.controls.update();
+        
+        this.flyToTutorialFocus(cellId, 850);
+
         if (step.warning) this.showTutorialWarning(step.warningText || '⚠ 追踪者：你动一步它动一步');
         else this.hideTutorialWarning();
     }
