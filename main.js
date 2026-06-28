@@ -14,6 +14,8 @@ document.addEventListener('DOMContentLoaded', () => {
     window.audioFeedback = audio;
     window.gameFeel = feel;
 
+    let lastStepAdvancedTime = 0;
+
     const originalUpdateUI = game.updateUI;
     game.updateUI = function() {
         originalUpdateUI.call(game);
@@ -2587,6 +2589,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     function updateTutorialUI() {
+        lastStepAdvancedTime = Date.now();
         const card = document.getElementById('tutorial-helper-card');
         if (!card) return;
 
@@ -2747,6 +2750,9 @@ document.addEventListener('DOMContentLoaded', () => {
         if (game.tutorialActive) {
             const step = game.activeTutorialSteps[game.currentTutorialStepIndex];
             if (step && step.type === 'dialog') {
+                if (Date.now() - lastStepAdvancedTime < 180) {
+                    return;
+                }
                 const skipBtn = event.target.closest('#btn-skip-tutorial, #tutorial-helper-close');
                 const systemBtn = event.target.closest('#btn-esc-menu, #audio-toggle, #landing-settings-btn, #btn-console-resume, #btn-console-reset, #btn-console-settings');
                 if (skipBtn) {
