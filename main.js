@@ -1795,7 +1795,7 @@ document.addEventListener('DOMContentLoaded', () => {
         await showLoadingSequence(game.levels[selectedLevelIndex]);
         game.initLevel(selectedLevelIndex, false);
         game.applyRealtimeTuning?.(settingsState);
-        game.setRealtimeMode?.(selectedLevelIndex >= 12);
+        game.setRealtimeMode?.(true);
         game.stopRealtime?.();
         renderUnreadBadges();
         renderLevelComms(selectedLevelIndex);
@@ -1803,9 +1803,7 @@ document.addEventListener('DOMContentLoaded', () => {
         updateLayerDropdown(game.N);
         initRenderScene();
         await render.flyToGameCamera?.(980);
-        if (selectedLevelIndex >= 12) {
-            game.startRealtime?.();
-        }
+        game.startRealtime?.();
         if (game.tutorialActive) {
             updateTutorialUI();
             game.setRealtimePaused?.(true);
@@ -1826,10 +1824,8 @@ document.addEventListener('DOMContentLoaded', () => {
         if (levelId) localStorage.removeItem(`dawnCubeTutorialDismissed:${levelId}`);
         setBulletTimeActive(false);
         game.initLevel(game.currentLevelIndex, false);
-        game.setRealtimeMode?.(game.currentLevelIndex >= 12);
-        if (game.currentLevelIndex >= 12) {
-            game.startRealtime?.();
-        }
+        game.setRealtimeMode?.(true);
+        game.startRealtime?.();
         renderUnreadBadges();
         render.buildCube3D();
         render.spawnEntities3D();

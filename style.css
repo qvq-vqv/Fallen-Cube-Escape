@@ -4204,19 +4204,28 @@ body {
     transform: translate(-50%, -46%) scale(0.94);
 }
 
-.gesture-hand {
+.gesture-hand-svg {
     position: absolute;
-    width: clamp(2rem, 3.5vw, 3rem);
-    height: clamp(2rem, 3.5vw, 3rem);
-    border: 1px solid rgba(255, 255, 255, 0.72);
-    border-radius: 50% 50% 46% 46%;
-    background:
-        radial-gradient(circle at 34% 28%, rgba(255, 255, 255, 0.86), transparent 22%),
-        rgba(0, 240, 255, 0.26);
-    box-shadow:
-        0 0 1rem rgba(0, 240, 255, 0.42),
-        inset 0 0 0.8rem rgba(255, 255, 255, 0.12);
-    animation: tutorial-hand-swipe 1.35s var(--ease-decisive) infinite;
+    width: 80px;
+    height: 80px;
+    filter: drop-shadow(0 0 8px rgba(0, 240, 255, 0.42));
+}
+
+.swiping-hand {
+    animation: hand-drag-swipe 2s ease-in-out infinite;
+    transform-origin: 50% 70%;
+}
+
+@keyframes hand-drag-swipe {
+    0% {
+        transform: translate(-15px, 6px) rotate(-8deg);
+    }
+    50% {
+        transform: translate(15px, 6px) rotate(8deg);
+    }
+    100% {
+        transform: translate(-15px, 6px) rotate(-8deg);
+    }
 }
 
 .progress-ring {

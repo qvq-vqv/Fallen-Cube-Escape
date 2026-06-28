@@ -1259,6 +1259,11 @@ class GameEngine {
             window.renderEngine.drawPlannedPath([]);
             window.renderEngine.spawnCellPulse(targetId, '#8bdcff', 0.45);
         }
+        if (this.currentLevelIndex < 12) {
+            this.ais.forEach(ai => {
+                this.moveAIRealtime(ai);
+            });
+        }
         this.checkCollisions();
         this.updateUI();
         return true;
@@ -1377,6 +1382,14 @@ class GameEngine {
 
     tickRealtimeAI(deltaMs) {
         this.primeRealtimeClocks();
+        if (this.currentLevelIndex < 12) {
+            // Under first 12 levels, AIs only move when the player moves.
+            this.ais.forEach(ai => {
+                const clock = this.realtimeAIClocks[ai.id];
+                if (clock) clock.nextCell = this.computeAIMovement(ai);
+            });
+            return;
+        }
         this.ais.forEach(ai => {
             const clock = this.realtimeAIClocks[ai.id];
             if (!clock) return;

@@ -167,7 +167,21 @@
                         <circle class="progress-ring__circle-bg" stroke="rgba(255,255,255,0.15)" stroke-width="6" fill="transparent" r="52" cx="60" cy="60"/>
                         <circle id="tutorial-look-progress-svg" class="progress-ring__circle" stroke="#00ff88" stroke-width="6" fill="transparent" r="52" cx="60" cy="60" stroke-dasharray="326.7" stroke-dashoffset="326.7"/>
                     </svg>
-                    <span class="gesture-hand"></span>
+                    <svg viewBox="0 0 100 100" class="gesture-hand-svg" width="80" height="80">
+                        <!-- Double-headed arrow background curve -->
+                        <path d="M 15 52 Q 50 22 85 52" fill="none" stroke="#00f0ff" stroke-width="3" stroke-linecap="round" stroke-dasharray="6,4"/>
+                        <path d="M 15 52 L 27 45 M 15 52 L 23 62" fill="none" stroke="#00f0ff" stroke-width="3" stroke-linecap="round"/>
+                        <path d="M 85 52 L 73 45 M 85 52 L 77 62" fill="none" stroke="#00f0ff" stroke-width="3" stroke-linecap="round"/>
+                        <!-- Hand icon -->
+                        <g class="swiping-hand">
+                            <!-- Wrist / Arm -->
+                            <path d="M 45 80 L 45 68 L 55 68 L 55 80 Z" fill="#ffffff" opacity="0.2"/>
+                            <!-- Hand palm and fingers -->
+                            <path d="M 35 60 C 35 55 38 52 42 52 C 43 52 45 53 46 54 L 46 32 C 46 29 49 27 52 27 C 55 27 58 29 58 32 L 58 48 C 59 48 61 48 62 48 C 65 48 67 50 67 53 L 67 60 C 67 66 62 70 56 70 L 44 70 C 39 70 35 65 35 60 Z" fill="#ffffff" stroke="#00f0ff" stroke-width="2" stroke-linejoin="round"/>
+                            <!-- Thumb -->
+                            <path d="M 36 57 C 32 55 30 50 32 46 C 34 42 38 44 40 48 Z" fill="#ffffff" stroke="#00f0ff" stroke-width="2" stroke-linejoin="round"/>
+                        </g>
+                    </svg>
                     <span class="gesture-text">DRAG TO ROTATE / 拖拽旋转视角</span>
                 </div>
                 <section id="tutorial-dialogue-console" class="tutorial-dialogue-console is-hidden" aria-live="polite">
