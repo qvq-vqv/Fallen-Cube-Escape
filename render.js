@@ -193,6 +193,14 @@ class RenderEngine {
         this.controls.addEventListener('end', () => {
             this.isOrbitActive = false;
         });
+        this.renderer.domElement.addEventListener('wheel', (e) => {
+            if (this.game?.tutorialActive) {
+                const step = this.game.activeTutorialSteps?.[this.game.currentTutorialStepIndex];
+                if (step && step.type === 'zoom') {
+                    this.tutorialZoomAccumulated = (this.tutorialZoomAccumulated || 0) + Math.abs(e.deltaY) * 0.005;
+                }
+            }
+        }, { passive: true });
         this.attachBoardPointerHandlers();
         
         // 3. 添加光源：读图层不依赖光照，光源只负责空间质感
@@ -3131,26 +3139,38 @@ class RenderEngine {
         if (step?.type !== 'look') return;
         if (!this.isOrbitActive || this.cameraFlight) {
             this.lastLookTickTime = null;
+            this.tutorialLookLastAngles = null;
             return;
         }
+        const current = this.getCameraOrbitAngles();
+        if (!current) return;
+        if (!this.tutorialLookLastAngles) {
+            this.tutorialLookLastAngles = current;
+            this.lastLookTickTime = Date.now();
+            return;
+        }
+        const deltaTheta = Math.abs(current.theta - this.tutorialLookLastAngles.theta);
+        const deltaPhi = Math.abs(current.phi - this.tutorialLookLastAngles.phi);
+        this.tutorialLookLastAngles = current;
+
         const now = Date.now();
-        if (!this.lastLookTickTime) {
-            this.lastLookTickTime = now;
-            return;
-        }
         const elapsedSec = (now - this.lastLookTickTime) / 1000;
         this.lastLookTickTime = now;
 
-        const threshold = Number(step.threshold || 3.0);
-        this.tutorialLookAccumulated += elapsedSec;
-        if (typeof window !== 'undefined') {
-            window.updateTutorialLookProgress?.(this.tutorialLookAccumulated / threshold);
-        }
-        if (this.tutorialLookAccumulated >= threshold) {
-            this.lastLookTickTime = null;
-            this.tutorialLookAccumulated = 0;
-            if (typeof window !== 'undefined' && window.advanceTutorialStep) {
-                window.advanceTutorialStep();
+        // Only accumulate time if the camera is actively rotating this frame
+        if (deltaTheta + deltaPhi > 0.001) {
+            const threshold = Number(step.threshold || 3.0);
+            this.tutorialLookAccumulated += elapsedSec;
+            if (typeof window !== 'undefined') {
+                window.updateTutorialLookProgress?.(this.tutorialLookAccumulated / threshold);
+            }
+            if (this.tutorialLookAccumulated >= threshold) {
+                this.lastLookTickTime = null;
+                this.tutorialLookLastAngles = null;
+                this.tutorialLookAccumulated = 0;
+                if (typeof window !== 'undefined' && window.advanceTutorialStep) {
+                    window.advanceTutorialStep();
+                }
             }
         }
     }
@@ -3160,6 +3180,7 @@ class RenderEngine {
         const step = this.game.activeTutorialSteps?.[this.game.currentTutorialStepIndex];
         if (step?.type !== 'zoom') {
             this.tutorialZoomBaseline = null;
+            this.tutorialZoomAccumulated = 0;
             return;
         }
         const currentDistance = this.camera.position.distanceTo(this.controls.target);
@@ -3168,13 +3189,17 @@ class RenderEngine {
             this.tutorialZoomAccumulated = 0;
             return;
         }
-        const diff = Math.abs(currentDistance - this.tutorialZoomBaseline);
-        const threshold = Number(step.threshold || 0.8);
+        const distanceDiff = Math.abs(currentDistance - this.tutorialZoomBaseline);
+        
+        // Progress is the max of the camera distance change or the scroll wheel delta accumulation
+        const progress = Math.max(distanceDiff / 0.6, (this.tutorialZoomAccumulated || 0) / 1.0);
+        
         if (typeof window !== 'undefined' && window.updateTutorialLookProgress) {
-            window.updateTutorialLookProgress(Math.min(1, diff / threshold));
+            window.updateTutorialLookProgress(Math.min(1, progress));
         }
-        if (diff >= threshold) {
+        if (progress >= 1.0) {
             this.tutorialZoomBaseline = null;
+            this.tutorialZoomAccumulated = 0;
             if (typeof window !== 'undefined' && window.advanceTutorialStep) {
                 window.advanceTutorialStep();
             }
