@@ -76,6 +76,13 @@ document.addEventListener('DOMContentLoaded', () => {
     const tutorialSpeakerLabel = document.getElementById('tutorial-speaker-label');
     const tutorialDialogueText = document.getElementById('tutorial-dialogue-text');
     const tutorialDialogueNext = document.getElementById('tutorial-dialogue-next');
+    const tutorialLookGesture = document.getElementById('tutorial-look-gesture');
+    const tutorialLookProgress = document.getElementById('tutorial-look-progress');
+    const commsFloatBubble = document.getElementById('comms-float-bubble');
+    const toolsFloatBubble = document.getElementById('tools-float-bubble');
+    const commsFloatBadge = document.getElementById('comms-float-badge');
+    const toolsFloatBadge = document.getElementById('tools-float-badge');
+    const levelHoverCard = document.getElementById('level-hover-card');
     const commsSceneTitle = document.getElementById('comms-scene-title');
     const commsBondLabel = document.getElementById('comms-bond-label');
     const commsStoryLines = document.getElementById('comms-story-lines');
@@ -498,6 +505,19 @@ document.addEventListener('DOMContentLoaded', () => {
             badge.textContent = count > 9 ? '9+' : String(count);
             badge.classList.toggle('is-hidden', count <= 0);
         });
+        const commsCount = unreadCounts.comms || 0;
+        if (commsFloatBadge) {
+            commsFloatBadge.textContent = commsCount > 9 ? '9+' : String(commsCount);
+            commsFloatBadge.classList.toggle('is-hidden', commsCount <= 0);
+        }
+        const toolCount = game.currentLevel
+            ? Number(Boolean(game.rotationEnabled)) + Number(game.patchCharges > 0) + Number(game.beaconCharges > 0) + Number(game.breakCharges > 0)
+            : 0;
+        if (toolsFloatBadge) {
+            toolsFloatBadge.textContent = String(toolCount);
+            toolsFloatBadge.classList.toggle('is-hidden', toolCount <= 0);
+        }
+        toolsFloatBubble?.classList.toggle('has-tools', toolCount > 0);
     }
 
     function clearUnread(tabName) {
@@ -532,6 +552,11 @@ document.addEventListener('DOMContentLoaded', () => {
         return window.getText ? window.getText(value) : (value ?? '');
     }
 
+    function getDefaultPhoneCollapsed() {
+        const stored = localStorage.getItem(PHONE_COLLAPSED_KEY);
+        return stored === null ? true : stored === 'true';
+    }
+
     function escapeHtml(value) {
         return String(textOf(value))
             .replaceAll('&', '&amp;')
@@ -539,6 +564,46 @@ document.addEventListener('DOMContentLoaded', () => {
             .replaceAll('>', '&gt;')
             .replaceAll('"', '&quot;')
             .replaceAll("'", '&#039;');
+    }
+
+    function getLevelStats(level) {
+        const enemyCounts = getEnemyCounts(level);
+        const totalEnemies = Object.values(enemyCounts).reduce((sum, count) => sum + count, 0);
+        const keyCount = level.keyCell !== null && level.keyCell !== undefined ? 1 : 0;
+        const newMechanics = [];
+        const firstRotationIndex = getFirstLevelIndex(item => item.rotationEnabled);
+        const firstBridgeIndex = getFirstLevelIndex(item => item.bridges?.length);
+        const firstVoidIndex = getFirstLevelIndex(item => item.voids?.length);
+        const firstPatchIndex = getFirstLevelIndex(item => item.patchCharges);
+        const firstBeaconIndex = getFirstLevelIndex(item => item.beaconCharges);
+        const firstBreakIndex = getFirstLevelIndex(item => item.breakCharges);
+        const levelIndex = game.levels.indexOf(level);
+        if (level.rotationEnabled && levelIndex === firstRotationIndex) newMechanics.push('空间折叠');
+        if (level.bridges?.length && levelIndex === firstBridgeIndex) newMechanics.push('传送裂缝');
+        if (level.voids?.length && levelIndex === firstVoidIndex) newMechanics.push('缺面');
+        if (level.patchCharges && levelIndex === firstPatchIndex) newMechanics.push('补片');
+        if (level.beaconCharges && levelIndex === firstBeaconIndex) newMechanics.push('诱饵');
+        if (level.breakCharges && levelIndex === firstBreakIndex) newMechanics.push('碎解');
+        return { enemyCounts, totalEnemies, keyCount, newMechanics };
+    }
+
+    function renderScannerChips(level, index, { compact = false } = {}) {
+        const stats = getLevelStats(level);
+        const enemyText = Object.entries(stats.enemyCounts)
+            .map(([type, count]) => `${enemyMeta[type]?.label || type} x${count}`)
+            .join(' / ') || '无敌人';
+        const chips = [
+            `<span class="scanner-chip ${stats.totalEnemies ? 'danger' : 'safe'}">敌 ${stats.totalEnemies}</span>`,
+            `<span class="scanner-chip key">钥 ${stats.keyCount}</span>`,
+            `<span class="scanner-chip">门 1</span>`
+        ];
+        if (!compact) {
+            chips.push(`<span class="scanner-chip wide">${escapeHtml(enemyText)}</span>`);
+        }
+        stats.newMechanics.forEach(name => {
+            chips.push(`<span class="scanner-chip new">NEW ${escapeHtml(name)}</span>`);
+        });
+        return chips.join('');
     }
 
     function setCompanionBubble(text, tone = 'info', options = {}) {
@@ -1030,6 +1095,37 @@ document.addEventListener('DOMContentLoaded', () => {
         return icons.join('');
     }
 
+    function showLevelHover(card, level, index, event) {
+        if (!levelHoverCard) return;
+        const stats = getLevelStats(level);
+        levelHoverCard.innerHTML = `
+            <span class="hover-kicker">TACTICAL SCAN</span>
+            <strong>${escapeHtml(textOf(level.title))}</strong>
+            <small>${escapeHtml(textOf(level.chapter))}</small>
+            <div class="hover-chip-row">${renderScannerChips(level, index, { compact: true })}</div>
+            ${stats.newMechanics.length ? `<div class="hover-new">⚠ NEW ${escapeHtml(stats.newMechanics.join(' / '))}</div>` : ''}
+            <p>${escapeHtml(textOf(level.concept))}</p>
+        `;
+        levelHoverCard.classList.add('active');
+        levelHoverCard.setAttribute('aria-hidden', 'false');
+        moveLevelHover(event);
+    }
+
+    function moveLevelHover(event) {
+        if (!levelHoverCard?.classList.contains('active')) return;
+        const offset = 18;
+        const rect = levelHoverCard.getBoundingClientRect();
+        const x = Math.min(window.innerWidth - rect.width - 12, event.clientX + offset);
+        const y = Math.min(window.innerHeight - rect.height - 12, event.clientY + offset);
+        levelHoverCard.style.setProperty('--hover-x', `${Math.max(12, x)}px`);
+        levelHoverCard.style.setProperty('--hover-y', `${Math.max(12, y)}px`);
+    }
+
+    function hideLevelHover() {
+        levelHoverCard?.classList.remove('active');
+        levelHoverCard?.setAttribute('aria-hidden', 'true');
+    }
+
     function updateActPageTabs() {
         actPageTabs.forEach(tab => {
             const page = Number(tab.dataset.actPage);
@@ -1088,8 +1184,17 @@ document.addEventListener('DOMContentLoaded', () => {
                 </span>
                 <span class="level-card-concept">${escapeHtml(textOf(level.concept))}</span>
             `;
-            card.setAttribute('title', `${escapeHtml(textOf(level.title))} · ${escapeHtml(textOf(level.chapter))}`);
+            card.removeAttribute('title');
+            card.addEventListener('mouseenter', event => showLevelHover(card, level, index, event));
+            card.addEventListener('mousemove', moveLevelHover);
+            card.addEventListener('mouseleave', hideLevelHover);
+            card.addEventListener('focus', event => {
+                const rect = card.getBoundingClientRect();
+                showLevelHover(card, level, index, { clientX: rect.right, clientY: rect.top });
+            });
+            card.addEventListener('blur', hideLevelHover);
             card.addEventListener('click', () => {
+                hideLevelHover();
                 selectedLevelIndex = index;
                 renderLevelCards();
                 renderLevelBrief();
@@ -1140,14 +1245,33 @@ document.addEventListener('DOMContentLoaded', () => {
     function renderInspectOverlay() {
         const level = game.levels[selectedLevelIndex];
         if (!level) return;
-        if (inspectTitle) inspectTitle.textContent = textOf(level.title);
-        if (inspectGoal) inspectGoal.textContent = textOf(level.tutorial?.goal || level.concept);
+        const stats = getLevelStats(level);
+        if (inspectTitle) inspectTitle.textContent = '战术简报';
+        if (inspectGoal) {
+            inspectGoal.innerHTML = `
+                <span class="briefing-kicker">${escapeHtml(textOf(level.title))} · ${escapeHtml(textOf(level.chapter))}</span>
+                <b>${escapeHtml(textOf(level.tutorial?.goal || level.concept))}</b>
+            `;
+        }
         if (inspectMeta) {
             inspectMeta.innerHTML = `
-                <span>${escapeHtml(textOf(level.chapter))}</span>
-                <span>回合 ${Number(level.bestTurns || 0)}</span>
-                <span>旋转 ${Number(level.bestRotations || 0)}</span>
-                ${renderLevelMetaIcons(level, selectedLevelIndex, { includeAlwaysTools: true })}
+                <article class="scanner-card">
+                    <div class="scanner-card-head">
+                        <span>SCANNER CARD</span>
+                        ${stats.newMechanics.length ? '<b>⚠ NEW</b>' : '<em>CLEAR</em>'}
+                    </div>
+                    <div class="scanner-grid">
+                        ${renderScannerChips(level, selectedLevelIndex)}
+                    </div>
+                    <div class="scanner-icons">
+                        ${renderLevelMetaIcons(level, selectedLevelIndex, { includeAlwaysTools: true }) || '<span class="scanner-chip safe">基础逃生</span>'}
+                    </div>
+                </article>
+                <article class="briefing-log">
+                    <span>BRIEFING LOG</span>
+                    <p>${escapeHtml(textOf(level.concept))}</p>
+                    <small>建议回合 ${Number(level.bestTurns || 0)} · 建议折叠 ${Number(level.bestRotations || 0)}</small>
+                </article>
             `;
         }
     }
@@ -1504,6 +1628,72 @@ document.addEventListener('DOMContentLoaded', () => {
         if (persist) localStorage.setItem(PHONE_COLLAPSED_KEY, collapsed ? 'true' : 'false');
     }
 
+    function openPhonePanel(tabName = 'comms') {
+        setPhoneCollapsed(false);
+        setTerminalTab(tabName);
+        phonePanel?.classList.toggle('tool-focus', tabName !== 'comms');
+        if (tabName !== 'comms') {
+            document.getElementById('phone-action-dock')?.scrollIntoView?.({ block: 'nearest' });
+        }
+    }
+
+    function placeFloatBubble(btn, key, fallback) {
+        if (!btn) return;
+        const saved = safeParseObject(key, fallback);
+        const x = Number.isFinite(saved.x) ? saved.x : fallback.x;
+        const y = Number.isFinite(saved.y) ? saved.y : fallback.y;
+        btn.style.setProperty('--bubble-x', `${Math.max(8, Math.min(window.innerWidth - 72, x))}px`);
+        btn.style.setProperty('--bubble-y', `${Math.max(8, Math.min(window.innerHeight - 72, y))}px`);
+    }
+
+    function setupDraggableBubble(btn, storageKey, fallback, onClick) {
+        if (!btn) return;
+        placeFloatBubble(btn, storageKey, fallback);
+        let drag = null;
+        const getPoint = event => ({ x: event.clientX, y: event.clientY });
+        btn.addEventListener('pointerdown', event => {
+            const p = getPoint(event);
+            const rect = btn.getBoundingClientRect();
+            drag = {
+                startX: p.x,
+                startY: p.y,
+                offsetX: p.x - rect.left,
+                offsetY: p.y - rect.top,
+                moved: false
+            };
+            btn.setPointerCapture?.(event.pointerId);
+            btn.classList.add('is-dragging');
+            event.preventDefault();
+        });
+        btn.addEventListener('pointermove', event => {
+            if (!drag) return;
+            const p = getPoint(event);
+            const moved = Math.hypot(p.x - drag.startX, p.y - drag.startY);
+            if (moved > 5) drag.moved = true;
+            if (!drag.moved) return;
+            const nextX = Math.max(8, Math.min(window.innerWidth - btn.offsetWidth - 8, p.x - drag.offsetX));
+            const nextY = Math.max(8, Math.min(window.innerHeight - btn.offsetHeight - 8, p.y - drag.offsetY));
+            btn.style.setProperty('--bubble-x', `${nextX}px`);
+            btn.style.setProperty('--bubble-y', `${nextY}px`);
+        });
+        btn.addEventListener('pointerup', event => {
+            if (!drag) return;
+            const p = getPoint(event);
+            const moved = Math.hypot(p.x - drag.startX, p.y - drag.startY);
+            btn.releasePointerCapture?.(event.pointerId);
+            btn.classList.remove('is-dragging');
+            const rect = btn.getBoundingClientRect();
+            localStorage.setItem(storageKey, JSON.stringify({ x: rect.left, y: rect.top }));
+            const wasDrag = drag.moved || moved > 5;
+            drag = null;
+            if (!wasDrag) onClick?.();
+        });
+        btn.addEventListener('pointercancel', () => {
+            drag = null;
+            btn.classList.remove('is-dragging');
+        });
+    }
+
     function appendRouteBubble() {
         if (!routeCommandPreview || !commsStoryLines || game.plannedPath.length === 0) return;
         const playerLine = document.createElement('p');
@@ -1537,7 +1727,7 @@ document.addEventListener('DOMContentLoaded', () => {
         gameContainer.classList.remove('preplay-stage', 'inspect-stage');
         gameContainer.style.display = 'grid';
         setTerminalTab('comms');
-        setPhoneCollapsed(localStorage.getItem(PHONE_COLLAPSED_KEY) === 'true', { persist: false });
+        setPhoneCollapsed(getDefaultPhoneCollapsed(), { persist: false });
         setTwistMode(false);
         setBulletTimeActive(false);
         isGameActive = true;
@@ -1547,6 +1737,7 @@ document.addEventListener('DOMContentLoaded', () => {
         game.applyRealtimeTuning?.(settingsState);
         game.setRealtimeMode?.(true);
         game.stopRealtime?.();
+        renderUnreadBadges();
         renderLevelComms(selectedLevelIndex);
         syncArchiveForLevelStart(selectedLevelIndex);
         updateLayerDropdown(game.N);
@@ -1575,6 +1766,7 @@ document.addEventListener('DOMContentLoaded', () => {
         game.initLevel(game.currentLevelIndex, false);
         game.setRealtimeMode?.(true);
         game.startRealtime?.();
+        renderUnreadBadges();
         render.buildCube3D();
         render.spawnEntities3D();
         render.resetCamera?.();
@@ -1923,6 +2115,18 @@ document.addEventListener('DOMContentLoaded', () => {
     phoneNotch?.addEventListener('click', () => {
         setPhoneCollapsed(!phonePanel?.classList.contains('is-collapsed'));
     });
+    setupDraggableBubble(commsFloatBubble, 'dawnCubeCommsBubblePos', { x: window.innerWidth - 156, y: window.innerHeight - 92 }, () => {
+        openPhonePanel('comms');
+        audio.play('uiConfirm');
+    });
+    setupDraggableBubble(toolsFloatBubble, 'dawnCubeToolsBubblePos', { x: window.innerWidth - 82, y: window.innerHeight - 92 }, () => {
+        openPhonePanel('tasks');
+        audio.play('uiConfirm');
+    });
+    window.addEventListener('resize', () => {
+        placeFloatBubble(commsFloatBubble, 'dawnCubeCommsBubblePos', { x: window.innerWidth - 156, y: window.innerHeight - 92 });
+        placeFloatBubble(toolsFloatBubble, 'dawnCubeToolsBubblePos', { x: window.innerWidth - 82, y: window.innerHeight - 92 });
+    });
     landingArchiveBtn?.addEventListener('click', openArchiveRoom);
     landingCreditsBtn?.addEventListener('click', openCredits);
     archiveCloseBtn?.addEventListener('click', closeArchiveRoom);
@@ -2164,14 +2368,39 @@ document.addEventListener('DOMContentLoaded', () => {
     // MILESTONE 7: INTERACTIVE TUTORIAL ENGINE
     // ----------------------------------------------------
     let tutorialTypingTimer = null;
+    const ledMascotState = {
+        tone: 'steady',
+        speaking: false,
+        lastBlinkAt: 0,
+        nextBlinkAt: 1800 + Math.random() * 2200,
+        blinkUntil: 0
+    };
 
     function drawLedMascot(tone = 'steady', speaking = false) {
         const canvas = tutorialLedMascot;
         const ctx = canvas?.getContext?.('2d');
         if (!ctx) return;
+        ledMascotState.tone = tone;
+        ledMascotState.speaking = Boolean(speaking);
+    }
+
+    function renderLedMascotFrame(now = performance.now()) {
+        const canvas = tutorialLedMascot;
+        const ctx = canvas?.getContext?.('2d');
+        if (!ctx) return;
         const size = 24;
         const unit = canvas.width / size;
+        const tone = ledMascotState.tone || 'steady';
+        const speaking = ledMascotState.speaking;
+        if (now >= ledMascotState.nextBlinkAt) {
+            ledMascotState.blinkUntil = now + 150;
+            ledMascotState.nextBlinkAt = now + 3000 + Math.random() * 2000;
+        }
+        const blinking = now < ledMascotState.blinkUntil;
         const active = tone === 'panic' ? '#8bdcff' : (tone === 'anger' ? '#ff4d7d' : '#74ff9b');
+        const breath = 1 + Math.sin(now * 0.0016) * 0.035;
+        const voltage = 0.99 + Math.random() * 0.02;
+        const mouthOpen = speaking ? 1 + Math.round((Math.sin(now * 0.018) + 1) * 1.5) : 1;
         ctx.clearRect(0, 0, canvas.width, canvas.height);
         ctx.fillStyle = '#02060a';
         ctx.fillRect(0, 0, canvas.width, canvas.height);
@@ -2195,34 +2424,60 @@ document.addEventListener('DOMContentLoaded', () => {
         }
 
         if (tone === 'panic') {
-            line(8, 8, 8, 12);
-            line(15, 8, 15, 12);
-            line(9, 16, 14, 16);
+            if (blinking) {
+                line(7, 10, 10, 10);
+                line(14, 10, 17, 10);
+            } else {
+                line(8, 8, 8, 12);
+                line(15, 8, 15, 12);
+            }
+            line(9, 16, 14, 16 + mouthOpen);
         } else if (tone === 'anger') {
-            line(7, 8, 10, 10);
-            line(16, 8, 13, 10);
-            line(9, 16, 15, 15);
+            if (blinking) {
+                line(7, 10, 10, 10);
+                line(14, 10, 17, 10);
+            } else {
+                line(7, 8, 10, 10);
+                line(16, 8, 13, 10);
+            }
+            line(9, 16, 15, 15 + Math.max(0, mouthOpen - 1));
         } else if (tone === 'worry') {
-            line(7, 9, 10, 8);
-            line(14, 8, 17, 9);
-            line(9, 16, 14, 17);
+            if (blinking) {
+                line(7, 10, 10, 10);
+                line(14, 10, 17, 10);
+            } else {
+                line(7, 9, 10, 8);
+                line(14, 8, 17, 9);
+            }
+            line(9, 16, 14, 17 + Math.max(0, mouthOpen - 1));
         } else {
-            line(7, 9, 10, 9);
-            line(14, 9, 17, 9);
-            line(9, 16, 15, 16);
+            if (blinking) {
+                line(7, 10, 10, 10);
+                line(14, 10, 17, 10);
+            } else {
+                line(7, 9, 10, 9);
+                line(14, 9, 17, 9);
+            }
+            line(9, 16, 15, 16 + Math.max(0, mouthOpen - 1));
         }
 
-        const jitter = speaking ? Math.sin(performance.now() * 0.08) * 0.7 : 0;
+        const jitter = speaking ? Math.sin(now * 0.08) * 0.7 : 0;
         ctx.shadowColor = active;
-        ctx.shadowBlur = speaking ? 14 : 8;
+        ctx.shadowBlur = (speaking ? 14 : 8) * voltage;
         points.forEach(([x, y], index) => {
             const flicker = speaking && index % 5 === 0 ? 0.62 + Math.random() * 0.38 : 1;
             ctx.globalAlpha = flicker;
             ctx.fillStyle = active;
-            ctx.fillRect(x * unit + 1 + jitter, y * unit + 1, Math.max(2, unit - 2), Math.max(2, unit - 2));
+            const dotSize = Math.max(2, (unit - 2) * breath);
+            ctx.fillRect(x * unit + 1 + jitter, y * unit + 1, dotSize, dotSize);
         });
         ctx.globalAlpha = 1;
         ctx.shadowBlur = 0;
+    }
+
+    function startLedMascotLoop() {
+        renderLedMascotFrame(performance.now());
+        requestAnimationFrame(startLedMascotLoop);
     }
 
     function setTutorialDialogue(step) {
@@ -2250,8 +2505,11 @@ document.addEventListener('DOMContentLoaded', () => {
 
     function hideTutorialDialogue() {
         window.clearInterval(tutorialTypingTimer);
+        drawLedMascot('steady', false);
         tutorialDialogueConsole?.classList.add('is-hidden');
         tutorialBlackout?.classList.remove('active');
+        tutorialLookGesture?.classList.add('is-hidden');
+        tutorialLookProgress?.style.setProperty('--look-progress', '0%');
         gameContainer.classList.remove('tutorial-vignette');
     }
 
@@ -2280,12 +2538,20 @@ document.addEventListener('DOMContentLoaded', () => {
             return;
         }
         btnTwistMode?.classList.toggle('tutorial-target', step.type === 'twist');
+        commsFloatBubble?.classList.toggle('tutorial-target', step.openComms || step.type === 'dialog');
+        toolsFloatBubble?.classList.toggle('tutorial-target', step.openTools || step.type === 'tool' || step.type === 'twist');
+        if (step.openComms) openPhonePanel('comms');
+        if (step.openTools || step.type === 'tool' || step.type === 'twist') openPhonePanel('tasks');
 
         card.classList.add('is-hidden');
         card.dataset.levelId = game.currentLevel?.id;
         render.setPlayerSpeechBubble?.('');
         setTutorialDialogue(step);
         setTutorialVignette(true, step.focus || { x: 50, y: step.type === 'dialog' ? 52 : 45 });
+        tutorialLookGesture?.classList.toggle('is-hidden', step.type !== 'look');
+        if (step.type === 'look') {
+            tutorialLookProgress?.style.setProperty('--look-progress', '0%');
+        }
 
         const titleEl = document.getElementById('tutorial-helper-title');
         const bodyEl = document.getElementById('tutorial-helper-body');
@@ -2382,7 +2648,10 @@ document.addEventListener('DOMContentLoaded', () => {
         game.tutorialActive = false;
         game.setRealtimePaused?.(false);
         btnTwistMode?.classList.remove('tutorial-target');
+        commsFloatBubble?.classList.remove('tutorial-target');
+        toolsFloatBubble?.classList.remove('tutorial-target');
         if (typeof render !== 'undefined') render.hideTutorialPointer?.();
+        hideTutorialDialogue();
         
         const card = document.getElementById('tutorial-helper-card');
         card?.classList.add('is-hidden');
@@ -2397,6 +2666,11 @@ document.addEventListener('DOMContentLoaded', () => {
     window.updateTutorialUI = updateTutorialUI;
     window.advanceTutorialStep = advanceTutorialStep;
     window.skipTutorial = skipTutorial;
+    window.updateTutorialLookProgress = progress => {
+        const pct = Math.max(0, Math.min(100, Number(progress || 0) * 100));
+        tutorialLookProgress?.style.setProperty('--look-progress', `${pct}%`);
+        tutorialLookGesture?.classList.toggle('is-complete', pct >= 100);
+    };
 
     // Listen to global click/pointerup events to advance dialog step in capturing phase
     document.addEventListener('pointerup', event => {
@@ -2421,5 +2695,6 @@ document.addEventListener('DOMContentLoaded', () => {
 
     persistSettings();
     startPhoneWaveLoop();
+    startLedMascotLoop();
     window.setInterval(updatePhoneClock, 30000);
 });

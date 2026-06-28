@@ -77,8 +77,8 @@
             {
                 type: 'look',
                 text: {
-                    zh: '……你先别乱点。拖动视角，看清我到底站在哪。',
-                    en: '...Do not click randomly. Drag the view first and figure out where I am.'
+                    zh: '……别急着救我。先看清楚，这地方会骗人。',
+                    en: '...Do not rush to save me. Look first. This place lies.'
                 },
                 threshold: 0.32,
                 focusCell: { face: 1, row: 1, col: 1 },
@@ -88,8 +88,8 @@
             {
                 type: 'dialog',
                 text: {
-                    zh: '看到那个旋转发光的圆门了吗？那就是出口。我们得沿着魔方表面点格子走过去，从那里逃生。',
-                    en: 'See that rotating glowing portal? That is the exit. We must step along the cube to reach it and escape.'
+                    zh: '那扇亮门看起来像出口。拜托，它最好真的是。',
+                    en: 'That glowing door looks like an exit. Please let it actually be one.'
                 },
                 focusCell: { face: 0, row: 2, col: 1 },
                 focus: { x: 52, y: 42 },
@@ -98,8 +98,8 @@
             {
                 type: 'move',
                 text: {
-                    zh: '点我前面的亮格。先证明你不是来添乱的。',
-                    en: 'Click the lit cell ahead of me. Prove you are not making this worse.'
+                    zh: '前面亮了。行吧，我赌你一次。',
+                    en: 'The tile lit up. Fine. I will trust you once.'
                 },
                 targetCell: { face: 1, row: 0, col: 1 },
                 focusCell: { face: 1, row: 0, col: 1 },
@@ -111,9 +111,10 @@
             {
                 type: 'dialog',
                 text: {
-                    zh: '等下，远处有一个黄色发光的东西，那是钥匙？',
-                    en: 'Wait, there is a glowing yellow thing in the distance. Is that a key?'
+                    zh: '等下，那个黄色的东西……钥匙？真经典，经典得有点可疑。',
+                    en: 'Wait, that yellow thing... a key? Classic. Suspiciously classic.'
                 },
+                openComms: true,
                 focusCell: { face: 4, row: 1, col: 0 },
                 focus: { x: 48, y: 42 },
                 tone: 'steady'
@@ -121,16 +122,16 @@
             {
                 type: 'dialog',
                 text: {
-                    zh: '看来我得先拿到钥匙，门才能打开。你必须引我去拿钥匙。',
-                    en: 'Looks like I need the key before the exit opens. You must guide me to collect it first.'
+                    zh: '门大概率不会白给。先拿钥匙，我不想跟锁讲道理。',
+                    en: 'The door probably wants payment. Key first. I am not arguing with a lock.'
                 },
                 tone: 'steady'
             },
             {
                 type: 'move',
                 text: {
-                    zh: '点一下前面的格子。',
-                    en: 'Click the cell in front of me.'
+                    zh: '亮格在等你。我也在等，别问我急不急。',
+                    en: 'The lit tile is waiting. So am I. Calmly. Totally.'
                 },
                 targetCell: { face: 0, row: 2, col: 1 },
                 tone: 'steady'
@@ -138,8 +139,8 @@
             {
                 type: 'move',
                 text: {
-                    zh: '走下这个面，朝钥匙的方向移动。',
-                    en: 'Step onto the face below, moving towards the key.'
+                    zh: '它离我更近了。很好，我讨厌白跑。',
+                    en: 'It is closer now. Good. I hate pointless cardio.'
                 },
                 targetCell: { face: 4, row: 0, col: 1 },
                 tone: 'steady'
@@ -147,8 +148,8 @@
             {
                 type: 'move',
                 text: {
-                    zh: '继续往前走。',
-                    en: 'Keep moving forward.'
+                    zh: '继续。钥匙就在那儿晃，像在嘲笑我。',
+                    en: 'Keep going. The key is right there, mocking me.'
                 },
                 targetCell: { face: 4, row: 1, col: 1 },
                 tone: 'steady'
@@ -156,8 +157,8 @@
             {
                 type: 'move',
                 text: {
-                    zh: '踩在钥匙上！拿到它。',
-                    en: 'Step on the key! Grab it.'
+                    zh: '拿它。要是这钥匙咬人，我先怪你。',
+                    en: 'Take it. If the key bites, I blame you first.'
                 },
                 targetCell: { face: 4, row: 1, col: 0 },
                 tone: 'steady'
@@ -167,8 +168,8 @@
             {
                 type: 'dialog',
                 text: {
-                    zh: '警报！那个红色棋子是追击者，它会在我移动后跟着移动。',
-                    en: 'Warning! That red piece is a chaser. It moves every time I take a step.'
+                    zh: '红色那个在看我。好消息：我讨厌被看。',
+                    en: 'The red one is watching me. Great news: I hate being watched.'
                 },
                 focusCell: { face: 0, row: 0, col: 1 },
                 focus: { x: 52, y: 40 },
@@ -178,16 +179,16 @@
             {
                 type: 'dialog',
                 text: {
-                    zh: '它下一步要踩的格子会变成红色闪烁。绝对不能走到红色闪烁的格子里！',
-                    en: 'The cell it will step on next flashes red. Never walk into a flashing red cell!'
+                    zh: '红光就是坏消息。这个世界至少在恶意上很诚实。',
+                    en: 'Red light means bad news. At least this world is honest about danger.'
                 },
                 tone: 'panic'
             },
             {
                 type: 'move',
                 text: {
-                    zh: '朝左边移动，避开上方红色预告格。',
-                    en: 'Move to the left to avoid the red warning cell above.'
+                    zh: '我不想和它贴脸。亮哪儿我走哪儿。',
+                    en: 'I do not want a close-up with it. Light the way.'
                 },
                 targetCell: { face: 0, row: 1, col: 0 },
                 tone: 'steady'
@@ -197,32 +198,33 @@
             {
                 type: 'dialog',
                 text: {
-                    zh: '钥匙被虚空隔开了。我走不过去。',
-                    en: 'The key is cut off by voids. I cannot walk there.'
+                    zh: '钥匙在那边，路没了。很好，地板开始摆烂了。',
+                    en: 'The key is there. The floor is not. Excellent. The floor quit.'
                 },
                 tone: 'worry'
             },
             {
                 type: 'dialog',
                 text: {
-                    zh: '但别慌，我们可以拧动魔方的某个层面，把钥匙转过来。',
-                    en: 'But don\'t panic. We can twist a layer of the cube to bring the key to us.'
+                    zh: '如果路不来找我，那就把世界拧过来。听起来很疯，但我现在不挑。',
+                    en: 'If the path will not come to me, twist the world over. Insane, but I am not picky.'
                 },
                 tone: 'steady'
             },
             {
                 type: 'dialog',
                 text: {
-                    zh: '按 Shift 键（手机端点右下 Twist）进入旋转模式。',
-                    en: 'Press Shift (or tap Twist on mobile) to enter Twist mode.'
+                    zh: '那个折叠按钮在发光。别问我为什么它比我冷静。',
+                    en: 'The twist button is glowing. Do not ask why it is calmer than me.'
                 },
+                openTools: true,
                 tone: 'steady'
             },
             {
                 type: 'twist',
                 text: {
-                    zh: '在魔方顶部，向右拖动顶层，或者使用界面上的旋转按钮将 Y 轴第 1 层 [顺时针] 旋转。',
-                    en: 'Swipe the top layer to the right, or use the UI rotation controls to rotate Y-axis layer 1 [CW].'
+                    zh: '看亮起来的那一层。轻点，我还站在这东西上。',
+                    en: 'Watch the lit layer. Easy. I am standing on this thing.'
                 },
                 axis: 'Y',
                 layer: 0,
@@ -236,8 +238,8 @@
             {
                 type: 'dialog',
                 text: {
-                    zh: '注意看！那是守钥者。它通常只呆在它想呆的地方。',
-                    en: 'Look! That is the Guardian. It usually stays where it wants to.'
+                    zh: '黄色那个不是装饰。它看起来像“钥匙保安”，而且没工资也很敬业。',
+                    en: 'The yellow one is not decoration. Looks like unpaid key security.'
                 },
                 focusCell: { face: 4, row: 1, col: 2 },
                 focus: { x: 52, y: 40 },
@@ -246,16 +248,16 @@
             {
                 type: 'dialog',
                 text: {
-                    zh: '一旦我踏入钥匙所在的“前”面，它就会被引诱并跟着我移动。而且拿走钥匙后它会暴走（连走两格）。',
-                    en: 'Once I enter the "Front" face where the key is, it will be lured and follow me. It will rage (double-move) after key pickup.'
+                    zh: '它会被我引开。拿到钥匙后，它大概会更不讲理。',
+                    en: 'I can lure it away. After the key, it probably gets less reasonable.'
                 },
                 tone: 'panic'
             },
             {
                 type: 'move',
                 text: {
-                    zh: '走到前面底部的格子，把守钥者引离钥匙。',
-                    en: 'Walk to the bottom cell on the Front face to lure the Guardian away from the key.'
+                    zh: '我去当诱饵。你负责别让我白当。',
+                    en: 'I will be the bait. You make it worth it.'
                 },
                 targetCell: { face: 4, row: 2, col: 1 },
                 tone: 'steady'
@@ -265,16 +267,16 @@
             {
                 type: 'dialog',
                 text: {
-                    zh: '等等，守钥者守在必经之路上，我们没法走过去。',
-                    en: 'Wait, the Guardian is blocking the path. We cannot pass.'
+                    zh: '它堵路了。很有职业精神，也很讨厌。',
+                    en: 'It is blocking the way. Professional. Annoying.'
                 },
                 tone: 'worry'
             },
             {
                 type: 'dialog',
                 text: {
-                    zh: '既然无路可走，那就把它的路拆了！我们可以使用碎解工具打破格子。',
-                    en: 'Since there is no path, let\'s break its path! We can use the Break tool to destroy a cell.'
+                    zh: '如果它非要走那条路……那条路可以不存在。',
+                    en: 'If it insists on using that path... the path can stop existing.'
                 },
                 tone: 'steady'
             },
@@ -283,9 +285,10 @@
                 tool: 'break',
                 targetCell: { face: 4, row: 1, col: 1 },
                 text: {
-                    zh: '选择右侧手机下方的 [碎解] 工具，然后点击前侧中心格子。',
-                    en: 'Select the [Break] tool from the options, then click the Front center cell.'
+                    zh: '亮起来的地方，可以拆。',
+                    en: 'The lit place can be broken.'
                 },
+                openTools: true,
                 tone: 'steady'
             }
         ],
@@ -293,16 +296,16 @@
             {
                 type: 'dialog',
                 text: {
-                    zh: '第二幕开启。这一关的钥匙被虚空包围了，我们没法直接走过去。',
-                    en: 'Act II begins. The key is surrounded by voids. We cannot walk over.'
+                    zh: '门后还是魔方。好，今天的现实感很幽默。',
+                    en: 'After the door: more cube. Reality has jokes today.'
                 },
                 tone: 'worry'
             },
             {
                 type: 'dialog',
                 text: {
-                    zh: '但我们可以使用补片工具在缺口上铺路。注意，补片被踩过后就会碎裂，只能踩一次。',
-                    en: 'But we can use the Patch tool to pave a road over the gap. Note that a patch breaks after one step.'
+                    zh: '那块临时地板看着很薄。薄也行，能活一次就算赢。',
+                    en: 'That temporary floor looks thin. Thin is fine if it saves me once.'
                 },
                 tone: 'steady'
             },
@@ -311,9 +314,10 @@
                 tool: 'patch',
                 targetCell: { face: 4, row: 1, col: 2 },
                 text: {
-                    zh: '选择右侧手机下方的 [补片] 工具，然后在前侧的缺口处铺路。',
-                    en: 'Select the [Patch] tool from the options, and place it on the Front gap cell.'
+                    zh: '把路补在亮的缺口上。别补成纪念品。',
+                    en: 'Patch the lit gap. Do not make it decorative.'
                 },
+                openTools: true,
                 tone: 'steady'
             }
         ],
@@ -321,16 +325,16 @@
             {
                 type: 'dialog',
                 text: {
-                    zh: '这是传送门。地表上旋转的蓝色微涡流就是入口与出口。',
-                    en: 'This is a Portal. The rotating blue vortex on the ground connects the entrance and exit.'
+                    zh: '蓝色圈圈。看起来像门，也可能像胃。我们先假设是门。',
+                    en: 'Blue ring. Could be a door. Could be a stomach. Let us assume door.'
                 },
                 tone: 'steady'
             },
             {
                 type: 'dialog',
                 text: {
-                    zh: '踩在传送门上时，点击对应的另一端，就能瞬间穿过它，实现跨面传送。',
-                    en: 'When standing on a Portal, click its destination to teleport instantly across faces.'
+                    zh: '它能把我甩到另一端。希望不是以零件形式。',
+                    en: 'It can throw me to the other side. Hopefully in one piece.'
                 },
                 tone: 'steady'
             },
@@ -338,8 +342,8 @@
                 type: 'move',
                 targetCell: { face: 4, row: 3, col: 0 },
                 text: {
-                    zh: '点击前侧左下方的传送门出口（F4-1），体验传送。',
-                    en: 'Click the portal exit on the bottom-left of the Front face (F4-1) to teleport.'
+                    zh: '另一个圈亮了。行，试试看。',
+                    en: 'The other ring lit up. Fine. Let us try.'
                 },
                 tone: 'steady'
             }
@@ -348,16 +352,16 @@
             {
                 type: 'dialog',
                 text: {
-                    zh: '守钥者挡在前方，我们如果直接走过去，它会瞬间把我们抓住。',
-                    en: 'The Guardian is blocking the way. If we walk straight there, it will catch us immediately.'
+                    zh: '它挡得太正了。直接过去就是给它送货上门。',
+                    en: 'It is blocking too cleanly. Walking in is delivery service.'
                 },
                 tone: 'worry'
             },
             {
                 type: 'dialog',
                 text: {
-                    zh: '此时，可以使用信标（诱饵）工具。诱饵会发出假信号，将敌人的注意力引开。',
-                    en: 'This is where the Beacon (Decoy) tool comes in. It emits a fake signal to lure enemies away.'
+                    zh: '给它一个假目标。它要是上当，我不嘲笑它，最多记下来。',
+                    en: 'Give it a fake target. If it falls for it, I will not laugh. Much.'
                 },
                 tone: 'steady'
             },
@@ -366,9 +370,10 @@
                 tool: 'beacon',
                 targetCell: { face: 1, row: 0, col: 0 },
                 text: {
-                    zh: '选择右侧手机下方的 [信标] 工具，然后点击下方（D面）的左上角格子。',
-                    en: 'Select the [Beacon] tool from the options, then click the top-left cell on the bottom (D) face.'
+                    zh: '把诱饵丢到亮的位置。演技交给它。',
+                    en: 'Drop the decoy on the lit spot. Let it act.'
                 },
+                openTools: true,
                 tone: 'steady'
             }
         ]

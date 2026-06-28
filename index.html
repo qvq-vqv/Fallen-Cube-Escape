@@ -97,6 +97,7 @@
 
             <button id="setup-back-btn" class="btn btn-secondary btn-large" type="button" data-i18n="setup.back">返回主菜单</button>
         </div>
+        <div id="level-hover-card" class="level-hover-card" aria-hidden="true"></div>
     </div>
 
     <div id="loading-overlay" class="overlay loading-overlay" aria-hidden="true">
@@ -161,6 +162,10 @@
                     </div>
                 </aside>
                 <div id="tutorial-blackout" class="tutorial-blackout" aria-hidden="true"></div>
+                <div id="tutorial-look-gesture" class="tutorial-look-gesture is-hidden" aria-hidden="true">
+                    <span class="gesture-hand"></span>
+                    <span class="gesture-arc"><i id="tutorial-look-progress"></i></span>
+                </div>
                 <section id="tutorial-dialogue-console" class="tutorial-dialogue-console is-hidden" aria-live="polite">
                     <canvas id="tutorial-led-mascot" class="tutorial-led-mascot" width="144" height="144" aria-label="E-7 点阵表情"></canvas>
                     <div class="tutorial-dialogue-copy">
@@ -172,6 +177,17 @@
             </div>
             <button id="audio-toggle" class="audio-toggle" type="button" aria-pressed="true" title="开启或关闭声音">声音 开</button>
             <button id="btn-twist-mode" class="twist-toggle" type="button" aria-pressed="false" title="空间折叠：拖拽控制环旋转一层魔方">Twist</button>
+        </div>
+
+        <div id="float-bubble-layer" class="float-bubble-layer" aria-label="悬浮快捷球">
+            <button id="comms-float-bubble" class="float-bubble comms-bubble" type="button" aria-label="打开 Dawn 通讯">
+                <span>☎</span>
+                <b id="comms-float-badge" class="float-bubble-badge is-hidden">0</b>
+            </button>
+            <button id="tools-float-bubble" class="float-bubble tools-bubble" type="button" aria-label="打开工具箱">
+                <span>✦</span>
+                <b id="tools-float-badge" class="float-bubble-badge is-hidden">0</b>
+            </button>
         </div>
 
         <!-- 右侧 E-7 手机：抽屉式通讯 / 档案 -->
@@ -194,7 +210,7 @@
             </div>
 
 
-            <div class="phone-action-dock">
+            <div class="phone-action-dock" id="phone-action-dock">
                 <button id="btn-confirm-path" class="btn btn-primary phone-primary" disabled data-i18n="phone.sendRoute" title="发送当前规划路线">发送路线</button>
                 <button id="btn-end-turn" class="btn btn-risk phone-secondary" data-i18n="phone.skip" title="跳过本次行动">跳过</button>
 

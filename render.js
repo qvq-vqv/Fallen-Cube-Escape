@@ -74,6 +74,8 @@ class RenderEngine {
         this.lastSpeechBubbleText = '';
         this.lastSpeechBubbleTone = 'info';
         this.tutorialLookBaseline = null;
+        this.tutorialLookLastAngles = null;
+        this.tutorialLookAccumulated = 0;
         this.activeTutorialCellId = null;
         this.tutorialPointerCone = null;
         this.tutorialCellHighlightRing = null;
@@ -2959,10 +2961,15 @@ class RenderEngine {
         if (!step || !this.camera || !this.controls || !this.game) return;
         if (step.type === 'look') {
             this.tutorialLookBaseline = this.getCameraOrbitAngles();
+            this.tutorialLookLastAngles = null;
+            this.tutorialLookAccumulated = 0;
+            if (typeof window !== 'undefined') window.updateTutorialLookProgress?.(0);
             this.hideTutorialWarning();
             return;
         }
         this.tutorialLookBaseline = null;
+        this.tutorialLookLastAngles = null;
+        this.tutorialLookAccumulated = 0;
 
         const cellId = step.focusCellId ?? step.targetCellId;
         if (cellId === null || cellId === undefined) return;
@@ -3038,13 +3045,28 @@ class RenderEngine {
         if (!this.game?.tutorialActive || !this.tutorialLookBaseline) return;
         const step = this.game.activeTutorialSteps?.[this.game.currentTutorialStepIndex];
         if (step?.type !== 'look') return;
+        if (!this.pointerDown || this.cameraFlight) {
+            this.tutorialLookLastAngles = null;
+            return;
+        }
         const current = this.getCameraOrbitAngles();
         if (!current) return;
-        const deltaTheta = Math.abs(current.theta - this.tutorialLookBaseline.theta);
-        const deltaPhi = Math.abs(current.phi - this.tutorialLookBaseline.phi);
+        if (!this.tutorialLookLastAngles) {
+            this.tutorialLookLastAngles = current;
+            return;
+        }
+        const deltaTheta = Math.abs(current.theta - this.tutorialLookLastAngles.theta);
+        const deltaPhi = Math.abs(current.phi - this.tutorialLookLastAngles.phi);
+        this.tutorialLookLastAngles = current;
         const threshold = Number(step.threshold || 0.28);
-        if (deltaTheta + deltaPhi >= threshold) {
+        this.tutorialLookAccumulated += deltaTheta + deltaPhi;
+        if (typeof window !== 'undefined') {
+            window.updateTutorialLookProgress?.(this.tutorialLookAccumulated / threshold);
+        }
+        if (this.tutorialLookAccumulated >= threshold) {
             this.tutorialLookBaseline = null;
+            this.tutorialLookLastAngles = null;
+            this.tutorialLookAccumulated = 0;
             if (typeof window !== 'undefined' && window.advanceTutorialStep) {
                 window.advanceTutorialStep();
             }
@@ -3054,6 +3076,8 @@ class RenderEngine {
     hideTutorialPointer() {
         this.activeTutorialCellId = null;
         this.tutorialLookBaseline = null;
+        this.tutorialLookLastAngles = null;
+        this.tutorialLookAccumulated = 0;
         this.hideTutorialWarning();
         if (this.tutorialPointerCone) {
             this.scene.remove(this.tutorialPointerCone);
