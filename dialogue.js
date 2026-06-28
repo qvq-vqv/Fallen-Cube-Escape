@@ -152,55 +152,53 @@
         },
         scenes: {
             wakeSignal: {
-                title: { zh: 'Dawn / 陌生来电', en: 'Dawn / Unknown Call' },
+                title: { zh: 'E-7 / 陌生来电', en: 'E-7 / Unknown Call' },
                 status: { zh: '信号发抖', en: 'Signal trembling' },
                 bubble: { zh: '你到底是谁？', en: 'Who are you?' },
                 lines: [
-                    '……我不是在做梦吧。',
-                    '我刚才还在床上。灯没关，手机在响，然后床像被谁折起来了。',
-                    '现在我站在一个会发光的方块上。很好，物理也开始摆烂。',
-                    '你是谁？为什么我的手机能收到你的信号？',
-                    '那个格子是你点亮的？先别自信。我还没决定要不要听一个陌生人的。'
+                    { zh: '……喂？能听到吗？这什么鬼信号……', en: '...Hello? Can you hear me? What a garbage signal...' },
+                    { zh: '我刚才明明在宿舍床上玩手机，怎么一闭眼，整个人站在一个发光的方块上？！', en: 'I was literally just on my dorm bed looking at my phone. How did I open my eyes to find myself standing on a glowing square?!' },
+                    { zh: '等等，我脚底下那条发光的荧光轨道是你画的？', en: 'Wait, did you draw that glowing fluorescent path under my feet?' },
+                    { zh: '你到底是谁？先别得意，我还没决定要不要听一个陌生人的。', en: 'Who are you anyway? Don\'t get smug, I haven\'t decided whether to trust a stranger yet.' }
                 ],
                 replies: [
                     {
                         face: K.shock,
                         aria: { zh: '震惊', en: 'Shocked' },
                         tone: 'warm',
-                        response: '很好，你也不知道。这个回答很糟，但至少不像骗子。'
+                        response: { zh: '很好，你也不知道。这个回答很糟，但至少不像骗子。', en: 'Great, you don\'t know either. Terrible answer, but at least you don\'t sound like a scammer.' }
                     },
                     commonReplies.steady,
                     commonReplies.worry
                 ]
             },
             l01Route: {
-                title: { zh: 'L01 / 线', en: 'L01 / The Line' },
+                title: { zh: 'L01 / 荧光轨道', en: 'L01 / Fluorescent Route' },
                 status: { zh: '最低信任', en: 'Minimum trust' },
-                bubble: { zh: '这是你点亮的？', en: 'Did you light that tile?' },
+                bubble: { zh: '我警告你啊，别把我带沟里。', en: 'I warning you, don\'t lead me into a ditch.' },
                 lines: [
-                    '等下，我脚边真的出现了一条线。',
-                    '我还是不信你。但这地方更不值得信。',
-                    '先走一小段。你要是把我带进奇怪东西里，我会骂得很难听。'
+                    { zh: '这地面踩起来倒是实的……好吧，虽然不知道你是什么原理，但我好像只能顺着你画的这条发光线走。', en: 'The ground feels solid... fine, whatever your science is, I guess I can only follow this glowing line you\'re drawing.' },
+                    { zh: '我警告你啊，你要是故意把我往死路上带，我做鬼也不会放过你的！', en: 'I\'m warning you, if you lead me into a trap on purpose, I\'ll haunt you forever!' }
                 ],
                 replies: [
                     commonReplies.steady,
                     {
                         face: K.nod,
-                        aria: '点头',
+                        aria: { zh: '点头', en: 'Nod' },
                         tone: 'steady',
-                        response: '别点得这么理所当然。你现在只是“可疑但暂时有用”。'
+                        response: { zh: '别点得这么理所当然。你现在只是“可疑但暂时有用”。', en: 'Don\'t nod so casually. Right now you\'re just "suspicious but temporarily useful."' }
                     },
                     commonReplies.tease
                 ]
             },
             l02Key: {
-                title: { zh: 'L02 / 钥匙', en: 'L02 / Key' },
+                title: { zh: 'L02 / 权限钥匙', en: 'L02 / Auth Key' },
                 status: { zh: '目标确认', en: 'Target confirmed' },
                 bubble: { zh: '那是钥匙吧？应该吧？', en: 'That is a key, right? Probably?' },
                 lines: [
-                    '那边有个钥匙形状的东西。',
-                    '我知道这听起来像废话，但在这个地方，长得像钥匙已经是很高的可信度了。',
-                    '先拿它，再看那扇门会不会讲点人话。'
+                    { zh: '前面悬浮着一把发光的……钥匙？还有一扇看起来像安全出口的门。', en: 'There\'s a glowing... key floating ahead? And a door that looks like an emergency exit.' },
+                    { zh: '虽然很荒谬，但看来我得先去把那玩意儿捞到手。', en: 'Absurd, but I guess I have to grab that thing first.' },
+                    { zh: '这难道是什么密室逃脱的测试吗？', en: 'Is this some kind of escape room test?' }
                 ],
                 replies: [
                     commonReplies.steady,
@@ -209,96 +207,96 @@
                         face: K.tease,
                         aria: { zh: '吐槽', en: 'Snark' },
                         tone: 'tease',
-                        response: '你也觉得这里很离谱吧？好，我们至少审美还在同一边。'
+                        response: { zh: '你也觉得这里很离谱吧？好，我们至少审美还在同一边。', en: 'You think this place is ridiculous too? Fine, at least our tastes are aligned.' }
                     }
                 ]
             },
             l03Chaser: {
-                title: { zh: 'L03 / 红格', en: 'L03 / Red Tiles' },
+                title: { zh: 'L03 / 红色鬼东西', en: 'L03 / Red Thing' },
                 status: { zh: '威胁接近', en: 'Threat closing' },
-                bubble: { zh: '先看红格。', en: 'Watch the red tiles first.' },
+                bubble: { zh: '那怪东西在看我。', en: 'That weird thing is watching me.' },
                 lines: [
-                    '红色不是气氛灯。它是它们下一步会踩到的地方。',
-                    '它们不聪明，甚至有点死板。问题是，死板的东西最难求情。',
-                    '所以别赌它会犯傻。它不会。它只是照规则来抓我。'
+                    { zh: '等等！前面那几格地板怎么开始冒红光了？', en: 'Wait! Why are those tiles ahead glowing red?' },
+                    { zh: '还有那个飘在空中的红色鬼东西……它是冲着我来的对吧？', en: 'And that red ghost floating in the air... it\'s coming for me, isn\'t it?' },
+                    { zh: '千万别把我往红光里送，我可不想被它碰到，天知道会发生什么！', en: 'Do not guide me into the red light under any circumstances. Heaven knows what happens if it touches me!' }
                 ],
                 replies: [
                     commonReplies.steady,
                     {
                         face: K.panic,
-                        aria: '紧张',
+                        aria: { zh: '紧张', en: 'Nervous' },
                         tone: 'warm',
-                        response: '别紧张。好吧，可以紧张一点，但别把线画到红格里。'
+                        response: { zh: '别紧张。好吧，可以紧张一点，但别把线画到红格里。', en: 'Don\'t panic. Okay, maybe panic a little, but don\'t draw the line into the red cells.' }
                     },
                     commonReplies.tease
                 ]
             },
             l04Rotation: {
-                title: { zh: 'L04 / 拧世界', en: 'L04 / Twist the World' },
+                title: { zh: 'L04 / 空间重组', en: 'L04 / Space Reorder' },
                 status: { zh: '空间异常', en: 'Space anomaly' },
-                bubble: { zh: '等下，你拧了什么？', en: 'Wait, what did you twist?' },
+                bubble: { zh: '等下，你拧了什么？！', en: 'Wait, what did you twist?!' },
                 lines: [
-                    '停。刚才不是我走了，是整个地方被你拧了一下。',
-                    '我胃里现在有一场小型抗议。',
-                    '但……确实有用。所以你能动的不只是线，对吧？'
+                    { zh: '卧槽！！！——刚才整层地面是不是突然转过去了？！', en: 'What the hell!!! Did the entire floor just rotate?!' },
+                    { zh: '我差点直接大头朝下栽下去！你……你居然能直接转动这个空间？！', en: 'I almost fell off head-first! You... you can actually rotate this space?!' },
+                    { zh: '我的胃现在还在半空中悬着，下次转之前能不能提前打个招呼？！', en: 'My stomach is still floating in mid-air. Can you give me a heads-up before twisting next time?!' }
                 ],
                 replies: [
                     {
                         face: K.shock,
                         aria: { zh: '震惊', en: 'Shocked' },
                         tone: 'warm',
-                        response: '你也吓到了？很好，我不是唯一一个想投诉物理的人。'
+                        response: { zh: '你也吓到了？很好，我不是唯一一个想投诉物理的人。', en: 'You got scared too? Great, I\'m not the only one who wants to complain to physics.' }
                     },
                     commonReplies.steady,
                     commonReplies.tease
                 ]
             },
             l05MovingKey: {
-                title: { zh: 'L05 / 旋转小考', en: 'L05 / Twist Quiz' },
+                title: { zh: 'L05 / 旋转钥匙', en: 'L05 / Rotating the Key' },
                 status: { zh: '空间拼图', en: 'Space puzzle' },
-                bubble: { zh: '断开的路还能连上？', en: 'The broken path can reconnect?' },
+                bubble: { zh: '钥匙也跟着转走了？', en: 'Did the key rotate with it?' },
                 lines: [
-                    '等一下，这个面中间被切出了一大条漆黑的虚空。',
-                    '直接走过去的话，我就只能在虚空里玩自由落体了。',
-                    '你能旋转一下中间那一层吗？找个完整的格子把我对面的路接上。'
+                    { zh: '等等，我刚才看错了吗？你转动那一层的时候，那把钥匙也跟着转走了？！', en: 'Wait, did I see that wrong? When you rotated that layer, the key rotated with it too?!' },
+                    { zh: '原来这地方的物品不是固定在半空，而是跟着地板被定义在格子上的？', en: 'So the items here aren\'t fixed in mid-air, but defined on the tiles and ride with the floor?' },
+                    { zh: '那我是不是也只是一个可以被你任意拧来拧去的积木？太诡异了……', en: 'So am I just a block that you can twist around at will? Creepy...' }
                 ],
                 replies: [
                     {
                         face: K.worry,
-                        aria: '别催，我已经在对齐路线了。',
+                        aria: { zh: '担心', en: 'Worried' },
                         tone: 'warm',
-                        response: '行，对齐了叫我。别等我掉下去才反应过来。'
+                        response: { zh: '行，你慢慢对齐。别等我掉下去才反应过来。', en: 'Fine, take your time aligning it. Just don\'t react only after I fall off.' }
                     },
                     {
                         face: K.steady,
-                        aria: '旋转已就绪，走你。',
+                        aria: { zh: '认真', en: 'Locked in' },
                         tone: 'steady',
-                        response: '感觉你在像拧螺丝一样拧我所在的维度。但好歹路通了。'
+                        response: { zh: '感觉你在像拧魔方一样拧我所在的维度。但好歹路通了。', en: 'Feels like you\'re twisting the dimension I\'m in like a Rubik\'s cube. But hey, the path connected.' }
                     },
                     {
                         face: K.tease,
-                        aria: '体验一把悬空飞车？',
+                        aria: { zh: '吐槽', en: 'Snark' },
                         tone: 'tease',
-                        response: '飞车留给你自己。把路对齐，谢谢！'
+                        response: { zh: '别笑。把路对齐，谢谢！', en: 'Don\'t laugh. Just align the road, thank you!' }
                     }
                 ]
             },
             l06Guardian: {
-                title: { zh: 'L06 / 守钥者', en: 'L06 / Key Keeper' },
+                title: { zh: 'L06 / 黄色保安', en: 'L06 / Yellow Guard' },
                 status: { zh: '守卫识别', en: 'Keeper identified' },
-                bubble: { zh: '它在看钥匙。', en: 'It is watching the key.' },
+                bubble: { zh: '那大家伙在看钥匙。', en: 'That big guy is watching the key.' },
                 lines: [
-                    '那个黄色的家伙不是堵钥匙，它在看钥匙。',
-                    '我靠近同一面，它就会追我一步。像保安听见门口有人咳嗽。',
-                    '也就是说，我可以引它。注意，我说的是可以，不是我喜欢。'
+                    { zh: '那个黄色的铁壳怪是什么？它一直绕着钥匙打转……', en: 'What is that yellow iron monster? It keeps circling the key...' },
+                    { zh: '它看起来像是这把钥匙的‘贴身保安’。等等！它发现我了！', en: 'Looks like a personal bodyguard for the key. Wait! It spotted me!' },
+                    { zh: '它正在朝我挪动，虽然动作有点慢，但被它堵住就完了！', en: 'It\'s moving towards me. Slowly, but if it blocks me, I\'m toast!' }
                 ],
                 replies: [
                     commonReplies.steady,
                     {
                         face: K.worry,
-                        aria: '心疼',
+                        aria: { zh: '担心', en: 'Worried' },
                         tone: 'warm',
-                        response: '别摆出这种脸。引怪这件事听起来危险，是因为它确实危险。'
+                        response: { zh: '别摆出这种脸。引怪这件事听起来危险，是因为它确实危险。', en: 'Don\'t make that face. Luring it sounds dangerous because it actually is.' }
                     },
                     commonReplies.tease
                 ]
@@ -306,62 +304,55 @@
             l07Split: {
                 title: { zh: 'L07 / 碎解阻断', en: 'L07 / Break the Route' },
                 status: { zh: '防线建构', en: 'Defense line' },
-                bubble: { zh: '等等，把格子砸了？', en: 'Wait, smash the tile?' },
+                bubble: { zh: '等等，把地砸了？', en: 'Wait, smash the ground?' },
                 lines: [
-                    '等下，我终端的控制面板上亮起了一个叫『碎解』的东西。',
-                    '你可以把某个正常的格子彻底打碎变成虚空。听起来是个破坏狂的好消息。',
-                    '既然守卫只要看到我在同一面就会追上来，我们是不是可以……提前把它的必经之路打碎？',
-                    '让它被虚空隔在另一端，我们去拿钥匙。'
+                    { zh: '等下，我终端的控制面板上亮起了一个叫『碎解』的东西。', en: 'Wait, a tool called "Break" just lit up on my terminal control panel.' },
+                    { zh: '既然那个大家伙只要看到我在同一面就会追上来，我们是不是可以……提前把它的必经之路砸了？', en: 'Since that big guy chases me as long as I\'m on the same face, can we... smash the path in front of him beforehand?' },
+                    { zh: '把它隔在虚空另一端，然后我们去拿钥匙。听起来是个暴力拆除的好主意！', en: 'Isolate him on the other side of the void, then grab the key. Sounds like a great demolition plan!' }
                 ],
                 replies: [
                     {
                         face: K.steady,
-                        aria: '计划通！看我把它隔绝在对岸。',
+                        aria: { zh: '认真', en: 'Locked in' },
                         tone: 'steady',
-                        response: '行，你在控制台敲回车，我在这里负责看它发呆。'
+                        response: { zh: '行，你在终端砸，我在这里负责看它发呆。', en: 'Fine, you break it from your terminal, I\'ll watch him stare blankly from here.' }
                     },
                     {
                         face: K.tease,
-                        aria: '听起来你也很喜欢暴力拆除嘛。',
+                        aria: { zh: '吐槽', en: 'Snark' },
                         tone: 'tease',
-                        response: '这叫“战术地形重塑”。我只是想安全拿到钥匙。'
-                    },
-                    {
-                        face: K.nod,
-                        aria: '收到，砸哪个格子听你的。',
-                        tone: 'steady',
-                        response: '别砸到我们站的地方就行。那会变成真正的地狱笑话。'
+                        response: { zh: '别砸到我们站的地方就行。那会变成真正的地狱笑话。', en: 'Just don\'t break the tiles we\'re standing on. That would be a literal tragedy.' }
                     }
                 ]
             },
             l08Rage: {
-                title: { zh: 'L08 / 报警器', en: 'L08 / Alarm Key' },
-                status: { zh: '钥匙警报', en: 'Key alarm' },
-                bubble: { zh: '钥匙一拿，它急了。', en: 'Grab the key, it panics.' },
+                title: { zh: 'L08 / 钥匙警报', en: 'L08 / Key Alarm' },
+                status: { zh: '追击升级', en: 'Threat escalated' },
+                bubble: { zh: '钥匙一拿，它急了！', en: 'Grab the key, it panics!' },
                 lines: [
-                    '我刚碰到钥匙，它就像听见下班铃一样突然认真。',
-                    '所以钥匙不是奖励，是报警器。拿到它只是开始撤离，不是开始庆祝。',
-                    '你要是想庆祝，可以等我不在红格旁边的时候。'
+                    { zh: '它……它刚才是不是尖叫了一声？', en: 'Did... did it just scream?' },
+                    { zh: '我拿到钥匙之后，它的眼睛突然变红了，而且飘得比刚才快了一倍！', en: 'The moment I grabbed the key, its eyes turned red and it started floating twice as fast!' },
+                    { zh: '快画线！它疯了一样追过来了！！这把钥匙根本就是个警报器！', en: 'Draw the line! It\'s chasing me like crazy!! This key is literally just an alarm!' }
                 ],
                 replies: [
                     commonReplies.steady,
                     {
                         face: K.panic,
-                        aria: '紧张',
+                        aria: { zh: '紧张', en: 'Nervous' },
                         tone: 'warm',
-                        response: '对，就是这个表情。现在请把这个表情变成路线。'
+                        response: { zh: '别慌，路还在。跑快点就行。', en: 'Don\'t panic, the path is still there. Just run faster.' }
                     },
                     commonReplies.tease
                 ]
             },
             l09RealRun: {
-                title: { zh: 'L09 / 真题', en: 'L09 / Real Test' },
+                title: { zh: 'L09 / 新手毕业', en: 'L09 / Tutorial Ends' },
                 status: { zh: '实战开始', en: 'Live run' },
-                bubble: { zh: '这次不是教学。', en: 'This is not a tutorial.' },
+                bubble: { zh: '这回不是开玩笑了。', en: 'No joking around this time.' },
                 lines: [
-                    '我感觉得到，前面那些像是在教你怎么操作我。',
-                    '这句听起来很糟。换个说法：它们在教我们怎么一起活下来。',
-                    '现在追击者变多了。别急着证明你很聪明，先证明我能活着。'
+                    { zh: '我感觉得到，前面的关卡像是在测试我们之间的默契。', en: 'I can feel it, the previous levels were testing our coordination.' },
+                    { zh: '现在没有指导提示了，红色追击者也变多了。', en: 'Now the hints are gone, and there are more red chasers.' },
+                    { zh: '别急着证明你有多聪明，先向我证明我能活着走出去！', en: 'Don\'t rush to prove how smart you are, prove to me that I can walk out of here alive!' }
                 ],
                 replies: [
                     commonReplies.steady,
@@ -370,44 +361,43 @@
                 ]
             },
             l10BendRoom: {
-                title: { zh: 'L10 / 隐藏考：碎解突围', en: 'L10 / Hidden Trial: Break Out' },
+                title: { zh: 'L10 / 夹缝突围', en: 'L10 / Pincer Breakout' },
                 status: { zh: '隐藏信道', en: 'Hidden channel' },
-                bubble: { zh: '这个隐藏信号是什么？', en: 'What is this hidden signal?' },
+                bubble: { zh: '两个怪……它们包抄我了！', en: 'Two monsters... they\'re pincering me!' },
                 lines: [
-                    '我的终端收到一个未公开的隐藏测试信号。',
-                    '……不对劲。两只红色追击者，而且那个黄色守卫一开始就往门口靠？',
-                    '这是故意要把我逼进绝路。',
-                    '我们只有一次碎解地板的机会。你必须要找个最致命的关隘把它砸断！'
+                    { zh: '我的终端又收到一个未公开的隐藏测试信号。', en: 'My terminal received another hidden test signal.' },
+                    { zh: '两只红色追击者把我夹在中间，而且黄色守卫一开始就往门口靠？', en: 'Two red chasers are pinching me in the middle, and the yellow guard is moving to block the exit?' },
+                    { zh: '冷静点，手别抖！找个最致命的关隘把它砸断，不然死定了！', en: 'Stay calm, don\'t let your hand shake! Find the most critical path and smash it, or we\'re dead!' }
                 ],
                 replies: [
                     {
                         face: K.shock,
-                        aria: '玩得这么大？',
+                        aria: { zh: '震惊', en: 'Shocked' },
                         tone: 'warm',
-                        response: '别感叹了！你看展开图，找个路窄的地方，在它们合围前砸出一个缺口！'
+                        response: { zh: '找个路窄的地方，在它们合围前砸出一个缺口！', en: 'Find a narrow choke point and smash a gap before they close in!' }
                     },
                     {
                         face: K.steady,
-                        aria: '冷静，找好瓶颈点，一击必杀。',
+                        aria: { zh: '认真', en: 'Locked in' },
                         tone: 'steady',
-                        response: '说得好！把那条路切断，接下来我跟它们拼速度。'
+                        response: { zh: '切断它们，剩下的交给我用速度解决！', en: 'Cut them off, and leave the rest to me to outrun!' }
                     },
                     {
                         face: K.tease,
-                        aria: '刺激，这才像终极大考。',
+                        aria: { zh: '吐槽', en: 'Snark' },
                         tone: 'tease',
-                        response: '对你是刺激，对我可是生死时速。手别抖，点稳！'
+                        response: { zh: '对我来说可不是什么好玩的挑战，手点稳点！', en: 'Not exactly a fun challenge for me. Keep your clicks steady!' }
                     }
                 ]
             },
             l11LureLock: {
-                title: { zh: 'L11 / 守门预演', en: 'L11 / Door Guard Drill' },
+                title: { zh: 'L11 / 预判守门', en: 'L11 / Gate Block Predict' },
                 status: { zh: '门线危险', en: 'Door lane danger' },
-                bubble: { zh: '它开始惦记出口了。', en: 'It is thinking about the exit.' },
+                bubble: { zh: '那家伙居然守在门口！', en: 'That guy is guarding the exit!' },
                 lines: [
-                    '守钥者刚才不只是盯着钥匙。',
-                    '它好像也知道门在哪里。很好，连锁都开始有职业规划了。',
-                    '拿钥匙前先看门线。别让我拿到钥匙以后发现门口排队等我。'
+                    { zh: '那黄色怪物居然不仅盯着钥匙，它好像知道门在哪里！', en: 'That yellow monster isn\'t just staring at the key, it seems to know where the door is!' },
+                    { zh: '这地表能转，能不能想办法在它彻底把门口堵死之前，把它拧到别的面去？', en: 'The floor is rotatable. Can we twist it to another face before it chokes the exit?' },
+                    { zh: '拿钥匙前，先帮我想好退路！', en: 'Before grabbing the key, plan my retreat path first!' }
                 ],
                 replies: [
                     commonReplies.worry,
@@ -416,19 +406,381 @@
                 ]
             },
             l12FinalePrep: {
-                title: { zh: 'L12 / 出口？', en: 'L12 / Exit?' },
-                status: { zh: '出口前', en: 'Before the exit' },
-                bubble: { zh: '这门安静得很可疑。', en: 'This door is suspiciously quiet.' },
+                title: { zh: 'L12 / 最后的门？', en: 'L12 / The Final Door?' },
+                status: { zh: '第一幕终局', en: 'Act I Finale' },
+                bubble: { zh: '终于……门开了！', en: 'Finally... the door opened!' },
                 lines: [
-                    '这扇门看起来像出口。',
-                    '我讨厌“看起来像”这几个字。它通常意味着下一秒就会很丢人。',
-                    '如果门后还有东西，你不许笑。至少等我转身以后再笑。'
+                    { zh: '这扇门后面看起来一片安静。安静得很可疑。', en: 'It looks quiet behind this door. Suspicously quiet.' },
+                    { zh: '不管怎么说，我们要离开这一层了。', en: 'Regardless, we\'re leaving this layer.' },
+                    { zh: '如果这扇门后面不是出口……你绝对不许笑！', en: 'If the door doesn\'t lead outside... you are absolutely not allowed to laugh!' }
                 ],
                 replies: [
                     commonReplies.steady,
                     commonReplies.worry,
                     commonReplies.tease
                 ]
+            },
+            l13OuterShell: {
+                title: { zh: 'L13 / 外壳醒来', en: 'L13 / Outer Shell Wakes' },
+                status: { zh: '第二幕接入', en: 'Act II online' },
+                bubble: { zh: '……门后是更大的魔方。', en: '...It\'s a bigger cube behind the door.' },
+                lines: [
+                    { zh: '果然门后面不是什么出口……我们只是一颗更大魔方上的灰尘罢了。', en: 'Of course the door wasn\'t an exit... we\'re just specks of dust on a larger cube.' },
+                    { zh: '外壳展开后，格子变成了 4x4。路中间居然出现了断裂的漆黑缺口。', en: 'The shell expanded to 4x4. And there are broken pitch-black gaps in the path.' },
+                    { zh: '不过我终端上亮起了一个叫『补片』的工具。这地板……它能用贴纸补上？', en: 'But a tool called "Patch" lit up on my terminal. Can we... patch this floor with stickers?' }
+                ],
+                replies: [
+                    commonReplies.steady,
+                    commonReplies.worry,
+                    {
+                        face: K.tease,
+                        aria: { zh: '吐槽', en: 'Snark' },
+                        tone: 'tease',
+                        response: { zh: '你也觉得这地方补天很离谱吧？行，用它铺路试试。', en: 'You think patching the sky here is ridiculous too? Fine, let\'s try building a path.' }
+                    }
+                ]
+            },
+            l14FourRotate: {
+                title: { zh: 'L14 / 宽场夹击', en: 'L14 / Wide Pincer' },
+                status: { zh: '宽场追击', en: 'Wide-field chase' },
+                bubble: { zh: '空间变大，怪物也包抄我。', en: 'Board got bigger, monsters are surrounding me.' },
+                lines: [
+                    { zh: '好吧，我收回刚才的话。面积变大并不好玩。', en: 'Okay, I take it back. A larger area isn\'t fun.' },
+                    { zh: '两只追击者隔空包抄我。别复读三阶那种小步挪法了。', en: 'Two chasers are flanking me. Don\'t replay the 3x3 tiny step strategies.' },
+                    { zh: '这里空间宽一点，我们得在更宽的面上“换线”避开它们！', en: 'The space is wider here, we have to "change lanes" on a wider surface to dodge them!' }
+                ],
+                replies: [
+                    commonReplies.steady,
+                    commonReplies.worry,
+                    {
+                        face: K.tease,
+                        aria: { zh: '吐槽', en: 'Snark' },
+                        tone: 'tease',
+                        response: { zh: '你要是看错层把我拧进怪里，我就记恨你一辈子。', en: 'If you read the layers wrong and twist me into a monster, I\'ll hate you forever.' }
+                    }
+                ]
+            },
+            l15FourChase: {
+                title: { zh: 'L15 / 宽场遛锁', en: 'L15 / Kite the Keeper' },
+                status: { zh: '守钥追击', en: 'Keeper pursuit' },
+                bubble: { zh: '锁变聪明了？', en: 'Did the lock get smart?' },
+                lines: [
+                    { zh: '在 4x4 的大面上，守钥者看起来有更多空档可以绕。', en: 'On a 4x4 face, the keeper seems to leave more gaps to loop around.' },
+                    { zh: '但别忘了，空间大了，追击者绕过我的路线也变多了。', en: 'But don\'t forget, with more space, the chasers have more paths to flank me.' },
+                    { zh: '在空旷的地方遛它，别跑进死胡同里！', en: 'Kite it in the open areas, don\'t run into a dead end!' }
+                ],
+                replies: [
+                    commonReplies.steady,
+                    commonReplies.worry,
+                    {
+                        face: K.tease,
+                        aria: { zh: '吐槽', en: 'Snark' },
+                        tone: 'tease',
+                        response: { zh: '你笑得像是心里有数。行，指路吧。', en: 'You smile like you have a plan. Fine, point the way.' }
+                    }
+                ]
+            },
+            l16FoldBridge: {
+                title: { zh: 'L16 / 空间折跃', en: 'L16 / Space Jump' },
+                status: { zh: '传送接入', en: 'Portal linked' },
+                bubble: { zh: '蓝色圈圈……是门吗？', en: 'Blue rings... is it a door?' },
+                lines: [
+                    { zh: '等下，我两边脚下亮起了两个泛着蓝光的传送圆环。', en: 'Wait, two glowing blue teleportation rings just lit up on both sides.' },
+                    { zh: '它们好像把空间直接对折了，踩进去能瞬间飞到另一端。', en: 'They seem to fold space directly. Stepping in teleports me to the other side instantly.' },
+                    { zh: '好消息是能抄捷径，坏消息是——希望我被传送过去时零件还是全的。', en: 'The good news is we can take shortcuts. The bad news... hopefully I teleport in one piece.' }
+                ],
+                replies: [
+                    commonReplies.steady,
+                    commonReplies.worry,
+                    {
+                        face: K.tease,
+                        aria: { zh: '吐槽', en: 'Snark' },
+                        tone: 'tease',
+                        response: { zh: '你又笑。你确定对面没有守卫蹲着等我吗？', en: 'You\'re laughing again. Are you sure there isn\'t a guard waiting for me on the other side?' }
+                    }
+                ]
+            },
+            l17PortalChase: {
+                title: { zh: 'L17 / 门后惊魂', en: 'L17 / Door Shock' },
+                status: { zh: '传送追击', en: 'Portal pursuit' },
+                bubble: { zh: '门边还有个红光怪！', en: 'There\'s a red monster by the portal!' },
+                lines: [
+                    { zh: '传送门虽然能抄近道，但那个红色追击者就守在门旁边。', en: 'Teleportation portals are nice shortcuts, but that red chaser is guarding right next to the portal.' },
+                    { zh: '如果我冒失穿过去，大概会直接撞进它怀里。', en: 'If I jump through blindly, I\'ll walk right into its embrace.' },
+                    { zh: '仔细算好脚步，让它背对着我的时候再钻！', en: 'Calculate the steps carefully. Step through only when its back is turned!' }
+                ],
+                replies: [
+                    commonReplies.steady,
+                    commonReplies.worry,
+                    {
+                        face: K.tease,
+                        aria: { zh: '吐槽', en: 'Snark' },
+                        tone: 'tease',
+                        response: { zh: '要是被抓住了，我一定会从终端里爬出来找你算账。', en: 'If I get caught, I\'ll crawl out of the terminal and settle the score.' }
+                    }
+                ]
+            },
+            l18BridgeExam: {
+                title: { zh: 'L18 / 双面传送门', en: 'L18 / Two-way Portals' },
+                status: { zh: '折叠压测', en: 'Fold stress test' },
+                bubble: { zh: '两个追击者夹击……', en: 'Two chasers flanking...' },
+                lines: [
+                    { zh: '这次两个怪物一左一右包抄，传送门也分成了两对。', en: 'This time two monsters are flanking from left and right, and portals are split into two pairs.' },
+                    { zh: '我们需要先拧层改变传送门的位置，再折跃逃跑。', en: 'We need to twist the layer to change portal positions first, then jump to escape.' },
+                    { zh: '这根本就是个空间拼图！别发呆，快动脑子。', en: 'This is literally a spatial puzzle! Don\'t space out, use your brain.' }
+                ],
+                replies: [
+                    commonReplies.steady,
+                    commonReplies.worry,
+                    {
+                        face: K.tease,
+                        aria: { zh: '吐槽', en: 'Snark' },
+                        tone: 'tease',
+                        response: { zh: '“问题不大”是吧？行，我信你，这次。', en: '"No big deal" right? Fine, I\'ll trust you, for now.' }
+                    }
+                ]
+            },
+            l19Void: {
+                title: { zh: 'L19 / 空洞悬崖', en: 'L19 / Void Cliffs' },
+                status: { zh: '地面缺失', en: 'Missing floor' },
+                bubble: { zh: '那大片空格是深渊。', en: 'Those empty tiles are an abyss.' },
+                lines: [
+                    { zh: '前面碎了非常多格子，连成了一片深渊。', en: 'Many tiles ahead are broken, forming an abyss.' },
+                    { zh: '好消息是怪物也跨不过去，坏消息是我们也没有直达的路了。', en: 'Good news is the monsters can\'t cross it either. Bad news is we have no direct route left.' },
+                    { zh: '我们得贴着边缘绕行，别把我画到悬崖外面去！', en: 'We have to loop around the edge. Don\'t draw my line off the cliff!' }
+                ],
+                replies: [commonReplies.steady, commonReplies.worry, commonReplies.tease]
+            },
+            l20VoidRotate: {
+                title: { zh: 'L20 / 偏转悬崖', en: 'L20 / Rotating Abysses' },
+                status: { zh: '破面偏转', en: 'Broken-face drift' },
+                bubble: { zh: '洞也跟着转啊！', en: 'The hole rotates too!' },
+                lines: [
+                    { zh: '当我以为缺口只是障碍时，你拧层居然连缺口也一起拧走了！', en: 'Just when I thought the gaps were only obstacles, you twisted the layer and rotated the gaps too!' },
+                    { zh: '不过把缺口转到怪物脚下，好像能直接把它们堵死？', en: 'But rotating the gap under a monster\'s feet seems to block them completely?' },
+                    { zh: '很好，第一次觉得这地方的垃圾建筑有点用处。', en: 'Great. First time feeling the garbage architecture here has a use.' }
+                ],
+                replies: [commonReplies.steady, commonReplies.worry, commonReplies.tease]
+            },
+            l21Patch: {
+                title: { zh: 'L21 / 铺路演练', en: 'L21 / Bridge Patching' },
+                status: { zh: '一次性地面', en: 'One-use floor' },
+                bubble: { zh: '这纸糊的地板靠谱吗？', en: 'Is this paper-thin floor safe?' },
+                lines: [
+                    { zh: '这块补片铺上去之后，我一走过去它就会碎掉。', en: 'Once this patch is placed, it will crumble the moment I step off.' },
+                    { zh: '这代表后面的怪物也过不来，算是个一次性防御桥梁。', en: 'Which means the monsters behind can\'t cross either. A one-time defensive bridge.' },
+                    { zh: '用它把前面的孤岛钥匙连起来！', en: 'Use it to connect the isolated key ahead!' }
+                ],
+                replies: [commonReplies.steady, commonReplies.worry, commonReplies.tease]
+            },
+            l22BrokenCorner: {
+                title: { zh: 'L22 / 角落残局', en: 'L22 / Corner Endgame' },
+                status: { zh: '缺角遛锁', en: 'Corner-cut kiting' },
+                bubble: { zh: '角被咬掉了，路更窄。', en: 'The corner is bitten off, narrower road.' },
+                lines: [
+                    { zh: '这个魔方缺了一整个角，路线变得非常狭窄。', en: 'This cube is missing an entire corner, making the route extremely narrow.' },
+                    { zh: '我和怪物都只能在独木桥上挤。你必须通过旋转改变对齐方式。', en: 'The monster and I are squeezed on a single plank. You must rotate to change alignment.' },
+                    { zh: '别让我和它在死角里撞衫。', en: 'Just don\'t let me corner-block with it.' }
+                ],
+                replies: [commonReplies.steady, commonReplies.worry, commonReplies.tease]
+            },
+            l23Beacon: {
+                title: { zh: 'L23 / 诱饵调度', en: 'L23 / Baiting Control' },
+                status: { zh: '敌人调度', en: 'Enemy scheduling' },
+                bubble: { zh: '我们来耍一下它。', en: 'Let\'s trick it.' },
+                lines: [
+                    { zh: '那个红光怪物把出路堵得死死的。直接走是送货上门。', en: 'That red light monster is choking the exit. Walking straight in is delivery service.' },
+                    { zh: '但我手上的终端亮起了『诱饵信标』。扔出去它就会傻傻挪过去。', en: 'But the "Decoy Beacon" lit up on my terminal. Throw it and it dumbly moves towards it.' },
+                    { zh: '把它引开，别让它注意到我！', en: 'Bait it away, don\'t let it spot me!' }
+                ],
+                replies: [commonReplies.steady, commonReplies.worry, commonReplies.tease]
+            },
+            l24BrokenExam: {
+                title: { zh: 'L24 / 工具大混战', en: 'L24 / Tool Mayhem' },
+                status: { zh: '工具混合', en: 'Tool mix' },
+                bubble: { zh: '补片和信标，别按错。', en: 'Patch and beacon, don\'t misclick.' },
+                lines: [
+                    { zh: '这次缺口、补片、信标全都在控制面板上亮了。', en: 'This time, gaps, patches, and beacons are all active on the panel.' },
+                    { zh: '我先警告你，胡乱按一通只会让我死得很有节奏感。', en: 'I warning you, mashing buttons will only make me die in a rhythmic fashion.' },
+                    { zh: '看清它们的动作，先引诱，再铺路逃跑！', en: 'Watch their moves. Bait first, then patch to escape!' }
+                ],
+                replies: [commonReplies.steady, commonReplies.worry, commonReplies.tease]
+            },
+            l25DoublePortal: {
+                title: { zh: 'L25 / 多维选路', en: 'L25 / Multi-dimensional Paths' },
+                status: { zh: '多门判断', en: 'Multi-portal read' },
+                bubble: { zh: '两个门，通向哪里？', en: 'Two doors, leading where?' },
+                lines: [
+                    { zh: '场上有两个不同颜色的传送门，各自连着不同的折叠面。', en: 'There are two different-colored portals on the board, leading to different folded faces.' },
+                    { zh: '进错门就会直接被怪物迎面撞飞。', en: 'Stepping into the wrong one gets me vaporized by a monster.' },
+                    { zh: '看清楚出口线的终点，别走错！', en: 'Trace the exit route to its end, don\'t mess up!' }
+                ],
+                replies: [commonReplies.steady, commonReplies.worry, commonReplies.tease]
+            },
+            l26PatchTail: {
+                title: { zh: 'L26 / 过河拆桥', en: 'L26 / Burn the Bridge' },
+                status: { zh: '补片断追', en: 'Patch cuts pursuit' },
+                bubble: { zh: '铺路，走完，碎掉。', en: 'Patch, walk, shatter.' },
+                lines: [
+                    { zh: '这次追击者追得太紧了。', en: 'The chasers are too close this time.' },
+                    { zh: '我们必须利用补片踩完即碎的特性，在逃跑时“断尾”！', en: 'We must use the step-and-break patch to "cut the tail" as we escape!' },
+                    { zh: '把桥踩断，看它们在悬崖对岸急得直打转！', en: 'Break the bridge, and watch them panic on the other side of the cliff!' }
+                ],
+                replies: [commonReplies.steady, commonReplies.worry, commonReplies.tease]
+            },
+            l27BeaconGuard: {
+                title: { zh: 'L27 / 骗走门卫', en: 'L27 / Trick the Guard' },
+                status: { zh: '骗开守钥者', en: 'Bait the keeper away' },
+                bubble: { zh: '把那个大黄色引开。', en: 'Lure that big yellow guy away.' },
+                lines: [
+                    { zh: '那个黄色保安堵在必经之路上。', en: 'That yellow guard is blocking the path.' },
+                    { zh: '把信标丢到死角，骗它转头挪开。', en: 'Throw the beacon into a dead corner to trick it into looking away.' },
+                    { zh: '只要它挪开一格，我就能直接抢进内圈！', en: 'As long as it moves one tile, I can sprint into the inner circle!' }
+                ],
+                replies: [commonReplies.steady, commonReplies.worry, commonReplies.tease]
+            },
+            l28VoidPortal: {
+                title: { zh: 'L28 / 深渊传送', en: 'L28 / Abyss Teleport' },
+                status: { zh: '破面捷径', en: 'Broken-face shortcut' },
+                bubble: { zh: '没路了，只能传送。', en: 'No path left, portal only.' },
+                lines: [
+                    { zh: '前面的整条路都被悬崖撕开了，常规画线根本通不过。', en: 'The entire road ahead is torn by a cliff. Regular paths won\'t connect.' },
+                    { zh: '我们必须利用传送门实现跨深渊的“折跃”。', en: 'We must use portals to execute a cross-abyss jump.' },
+                    { zh: '这地方逼我学会飞。虽然只是传送的那种飞。', en: 'This place is forcing me to learn how to fly. Well, teleportation-flying.' }
+                ],
+                replies: [commonReplies.steady, commonReplies.worry, commonReplies.tease]
+            },
+            l29PatchGate: {
+                title: { zh: 'L29 / 终点补路', en: 'L29 / Final Tile Patch' },
+                status: { zh: '撤离线', en: 'Escape line' },
+                bubble: { zh: '补片必须留到最后。', en: 'The patch must be saved.' },
+                lines: [
+                    { zh: '这里缺口很多，但我们的补片次数非常有限。', en: 'Many gaps here, but our patch charges are very limited.' },
+                    { zh: '别在前面乱花。如果把补片用完了，门口的断桥我们拿头过去？', en: 'Don\'t waste them early. If we run out, how are we crossing the broken bridge at the exit?' },
+                    { zh: '看准逃跑的最后一格再补！', en: 'Save the patch for the final step of the escape!' }
+                ],
+                replies: [commonReplies.steady, commonReplies.worry, commonReplies.tease]
+            },
+            l30PortalPincer: {
+                title: { zh: 'L30 / 门端夹击战', en: 'L30 / Portal Flank Fight' },
+                status: { zh: '门端夹击', en: 'Portal-end pincer' },
+                bubble: { zh: '传送门另一端有怪！', en: 'Monster at portal exit!' },
+                lines: [
+                    { zh: '两个追击者从两头堵门，逼我们必须钻门。', en: 'Two chasers are blocking the paths, forcing us to use the portal.' },
+                    { zh: '但是门另一端也守着一只。这根本就是个双头陷阱！', en: 'But another chaser is guarding the exit. This is a double-ended trap!' },
+                    { zh: '转动空间，把门那一端的怪转走再穿！', en: 'Twist the space to rotate the monster away from the exit before jumping!' }
+                ],
+                replies: [commonReplies.steady, commonReplies.worry, commonReplies.tease]
+            },
+            l31VoidLock: {
+                title: { zh: 'L31 / 把悬崖当盾牌', en: 'L31 / Shielding Abyss' },
+                status: { zh: '缺口调位', en: 'Gap positioning' },
+                bubble: { zh: '把悬崖转过去挡住它们。', en: 'Twist the abyss to block them.' },
+                lines: [
+                    { zh: '这一关我们要把破碎的悬崖拧过去，变成阻挡敌人的墙。', en: 'This level we need to twist the broken abyss to act as a wall against enemies.' },
+                    { zh: '如果路连不通，就把怪物的路直接断掉。', en: 'If the route won\'t connect, cut the monster\'s route instead.' },
+                    { zh: '只要我过得去，它们过不来，那就算我们赢。', en: 'As long as I can cross and they can\'t, we win.' }
+                ],
+                replies: [commonReplies.steady, commonReplies.worry, commonReplies.tease]
+            },
+            l32BeaconPortal: {
+                title: { zh: 'L32 / 诱引跳跃', en: 'L32 / Lure and Leap' },
+                status: { zh: '骗一拍再穿', en: 'Bait, then portal' },
+                bubble: { zh: '先丢信标，再进门。', en: 'Throw beacon first, then enter.' },
+                lines: [
+                    { zh: '怪死死守在传送门出口。', en: 'The monster is camping the portal exit.' },
+                    { zh: '往反方向丢一个诱饵，引开它的一瞬间，我们直接穿门跑路！', en: 'Throw a decoy in the opposite direction. The moment it turns away, we warp!' },
+                    { zh: '时机要抓得极其精准，别慢了！', en: 'The timing has to be split-second. Don\'t lag!' }
+                ],
+                replies: [commonReplies.steady, commonReplies.worry, commonReplies.tease]
+            },
+            l33PatchPortal: {
+                title: { zh: 'L33 / 补路折跃', en: 'L33 / Patch & Warp' },
+                status: { zh: '补洞接门', en: 'Patch into portal' },
+                bubble: { zh: '先补上地，再穿门。', en: 'Patch the floor first, then warp.' },
+                lines: [
+                    { zh: '传送门浮在一个孤立的碎格子上。', en: 'The portal is floating on an isolated broken tile.' },
+                    { zh: '我必须先在它脚下补上一块地板，才能踩进传送阵里。', en: 'I must patch a floor under it first before I can step into the portal.' },
+                    { zh: '动作要快，怪已经到背后了！', en: 'Be quick, the monsters are right behind us!' }
+                ],
+                replies: [commonReplies.steady, commonReplies.worry, commonReplies.tease]
+            },
+            l34PortalTrap: {
+                title: { zh: 'L34 / 传送迷宫', en: 'L34 / Teleport Maze' },
+                status: { zh: '门序判断', en: 'Portal order read' },
+                bubble: { zh: '门很多，走错就死。', en: 'Many portals, wrong choice is death.' },
+                lines: [
+                    { zh: '这层摆了四五个传送门，像个大型万花筒。', en: 'This layer has four or five portals, like a giant kaleidoscope.' },
+                    { zh: '绝对不能闭着眼睛乱进，有的门通往出口，有的门通往怪物嘴里。', en: 'You absolutely cannot blindly enter. Some lead to the exit, some lead to a monster\'s mouth.' },
+                    { zh: '在大脑里把路线理清楚再走！', en: 'Trace the path in your head before moving!' }
+                ],
+                replies: [commonReplies.steady, commonReplies.worry, commonReplies.tease]
+            },
+            l35VoidGate: {
+                title: { zh: 'L35 / 绝境防线', en: 'L35 / Desperate Line' },
+                status: { zh: '门线被抢', en: 'Door lane contested' },
+                bubble: { zh: '它狂暴以后要抢门！', en: 'It\'s going to rush the door after key!' },
+                lines: [
+                    { zh: '钥匙拿到后，那只大黄色守门怪会以两格的速度抄近道去堵出口。', en: 'After picking up the key, the yellow guard will rush the door at 2-tile speed.' },
+                    { zh: '加上地表缺口，我们撤离的路线只有一条。', en: 'With the floor gaps, there is only one exit route.' },
+                    { zh: '必须提前计算好它的合围时间，手画路线绝对不能出错！', en: 'Calculate its intercept time beforehand. The path must be perfect!' }
+                ],
+                replies: [commonReplies.steady, commonReplies.worry, commonReplies.tease]
+            },
+            l36BeaconPincer: {
+                title: { zh: 'L36 / 诱引夹击者', en: 'L36 / Distract Chasers' },
+                status: { zh: '夹击诱导', en: 'Pincer baiting' },
+                bubble: { zh: '用信标调度两只怪。', en: 'Use the beacon to redirect both.' },
+                lines: [
+                    { zh: '两只红色追击者把我卡在角落。', en: 'Two red chasers have me pinned in a corner.' },
+                    { zh: '把信标丢在它们合流的地方，一次性改变两者轨道！', en: 'Throw the beacon at their intersection point to change both paths at once!' },
+                    { zh: '只要争取到这一回合，就能直接溜出重围！', en: 'Gain just this one turn, and we can slip out!' }
+                ],
+                replies: [commonReplies.steady, commonReplies.worry, commonReplies.tease]
+            },
+            l37PatchExam: {
+                title: { zh: 'L37 / 终极铺路', en: 'L37 / Ultimate Patching' },
+                status: { zh: '唯一补片', en: 'One patch only' },
+                bubble: { zh: '别把桥铺错了。', en: 'Don\'t patch the wrong bridge.' },
+                lines: [
+                    { zh: '这里只有一个空位可以补，而且补完之后怪会从别处包抄。', en: 'There is only one gap we can patch, and once patched, monsters flank from elsewhere.' },
+                    { zh: '这代表铺路不仅是为了我，也是在给怪搭桥。', en: 'Which means patching isn\'t just for me, it build a bridge for them too.' },
+                    { zh: '想清楚哪条桥最安全！', en: 'Figure out which bridge is safest!' }
+                ],
+                replies: [commonReplies.steady, commonReplies.worry, commonReplies.tease]
+            },
+            l38PortalGuard: {
+                title: { zh: 'L38 / 门后拉扯', en: 'L38 / Gateway Kiting' },
+                status: { zh: '钓开守卫', en: 'Lure the keeper off' },
+                bubble: { zh: '利用传送门遛大黄色。', en: 'Use the portal to kite the big yellow guy.' },
+                lines: [
+                    { zh: '黄色保安死守在出口的传送门上。', en: 'The yellow guard is camped on the exit portal.' },
+                    { zh: '我先去反方向把它钓出来，你再通过传送门把我拉回去！', en: 'I\'ll draw it out in the opposite direction, then you warp me back through portals!' },
+                    { zh: '听起来像战术，可别把我当风筝放飞了！', en: 'Sounds like a tactic. Just don\'t snap the string!' }
+                ],
+                replies: [commonReplies.steady, commonReplies.worry, commonReplies.tease]
+            },
+            l39BeaconExam: {
+                title: { zh: 'L39 / 诱引大考', en: 'L39 / Decoy Exam' },
+                status: { zh: '诱饵考试', en: 'Beacon exam' },
+                bubble: { zh: '这是最后一关诱引了。', en: 'This is the final decoy test.' },
+                lines: [
+                    { zh: '这一关的追击者和守卫混合分布。诱饵必须在最关键的回合调动核心敌人。', en: 'Chasers and guards are mixed here. Decoys must redirect the key threat at the critical turn.' },
+                    { zh: '一旦用错时机，就没有任何挽回余地。', en: 'Misuse the timing and there\'s no room for recovery.' },
+                    { zh: '别慌，盯着全局图，看清楚它们的威胁线！', en: 'Don\'t panic. Watch the map and read the threat lines!' }
+                ],
+                replies: [commonReplies.steady, commonReplies.worry, commonReplies.tease]
+            },
+            l40ActTwoFinale: {
+                title: { zh: 'L40 / 终点大门', en: 'L40 / The Final Exit' },
+                status: { zh: '第二幕终局', en: 'Act II finale' },
+                bubble: { zh: '这扇门，会是出口吗？', en: 'Will this door be the exit?' },
+                lines: [
+                    { zh: '我们终于又走到一扇终点大门前了。', en: 'We finally reached another exit door.' },
+                    { zh: '虽然我已经不太相信门了，但我们没有别的选择。', en: 'Though I don\'t really trust doors anymore, we have no other choice.' },
+                    { zh: '你看好轴向，我踩稳最后一步。要是门后面还是魔方，我真的要崩溃了！', en: 'Watch the rotation axis, I\'ll step the final step. If it\'s more cube behind the door, I\'m going to lose it!' }
+                ],
+                replies: [commonReplies.steady, commonReplies.worry, commonReplies.tease]
             },
             eventKeyCollected: {
                 title: { zh: '钥匙已取得', en: 'Key Secured' },
@@ -450,9 +802,9 @@
                 status: { zh: '空间锁定', en: 'Space locked' },
                 bubble: { zh: '你真的拧了？', en: 'You actually twisted it?' },
                 lines: [
-                    { zh: '你真的把整个地方拧了。', en: 'You really twisted the whole place.' },
-                    { zh: '我不喜欢。我的胃也不喜欢。', en: 'I hate it. My stomach has filed a report.' },
-                    { zh: '但如果这能救命，我可以暂时假装自己很冷静。', en: 'But if it keeps me alive, I can cosplay as calm for a minute.' }
+                    { zh: '卧槽，你居然能直接转动这个空间？！', en: 'Oh my god, you can actually rotate this space?!' },
+                    { zh: '我的胃现在还在半空中，下次转之前能不能提前打个招呼？！', en: 'My stomach is still in mid-air. Can you give me a heads-up before rotating next time?!' },
+                    { zh: '不过……路确实接上了，行吧，如果你能带路，我暂时假装自己很冷静。', en: 'But... the path did connect. Fine, if you can guide, I\'ll pretend to be calm for now.' }
                 ],
                 replies: [
                     commonReplies.steady,
@@ -470,9 +822,9 @@
                 status: { zh: '追击升级', en: 'Threat escalated' },
                 bubble: { zh: '它急了。它真的急了。', en: 'It is mad. Very mad.' },
                 lines: [
-                    { zh: '它刚才是不是加速了？', en: 'Did it just speed up?' },
-                    { zh: '好，钥匙不是奖励，是开关。拿到以后它就开始疯跑。', en: 'Great. The key is not a reward, it is a switch. Touch it and the keeper starts sprinting.' },
-                    { zh: '下次拿之前先想好退路。对，我说的是下次，希望不是遗言。', en: 'Plan the retreat before the grab. Yes, I said next time. Hopefully not famous last words.' }
+                    { zh: '它……它刚才是不是尖叫了一声？', en: 'Did... did it just scream?' },
+                    { zh: '我拿到钥匙之后，它的眼睛突然变红了，而且飘得比刚才快了一倍！', en: 'The moment I grabbed the key, its eyes turned red and it started floating twice as fast!' },
+                    { zh: '快画线！它追过来了！！这把钥匙根本就是个警报器！', en: 'Draw the line! It\'s chasing me like crazy!! This key is literally just an alarm!' }
                 ],
                 replies: [
                     commonReplies.steady,
@@ -485,9 +837,9 @@
                 status: { zh: '信号抖动', en: 'Signal shaking' },
                 bubble: { zh: '……我刚才是不是没了？', en: '...Did I just disappear?' },
                 lines: [
-                    { zh: '我刚才断了一下。', en: 'I blacked out for a second.' },
-                    { zh: '手机弹窗说可以回滚。很好，它说得像这不疼一样。', en: 'The phone says rollback is available. Cute. It says that like it did not hurt.' },
-                    { zh: '重来可以。别把我当按钮，好吗？', en: 'We can retry. Just do not treat me like a button, okay?' }
+                    { zh: '……我刚才是不是断线没了？', en: '...Did I just lose connection and disappear?' },
+                    { zh: '手机弹窗说可以回滚到上一回合。说得像刚才不疼一样。', en: 'The phone says we can rollback. Speaks as if that didn\'t hurt.' },
+                    { zh: '重来可以。但求求你，别把我当无辜的试验品乱送，好吗？', en: 'We can retry. But please, don\'t feed me to monsters like a test subject, okay?' }
                 ],
                 replies: [
                     {
@@ -510,9 +862,9 @@
                 status: { zh: '短暂安全', en: 'Briefly safe' },
                 bubble: { zh: '门开了。先别得意。', en: 'Door opened. Do not get smug.' },
                 lines: [
-                    '门开了。',
-                    { zh: '我承认，你这次带得还行。', en: 'Fine. You guided that one decently.' },
-                    { zh: '只许高兴三秒。三、二……算了，先让我喘口气。', en: 'You get three seconds to celebrate. Three, two... never mind, let me breathe.' }
+                    { zh: '呼……总算过来了。门开了。', en: 'Whew... made it through. The door opened.' },
+                    { zh: '我承认，你这次带路指引得还行。', en: 'I admit, your guidance was decent this time.' },
+                    { zh: '只许高兴三秒。三、二……算了，先让我喘口气，前面还不知道有什么。', en: 'You get three seconds to celebrate. Three, two... never mind, let me catch my breath.' }
                 ],
                 replies: [
                     commonReplies.steady,
@@ -530,11 +882,9 @@
                 status: { zh: '外壳展开', en: 'Outer shell opened' },
                 bubble: { zh: '门后不是外面。', en: 'The door is not outside.' },
                 lines: [
-                    { zh: '门后不是出口。', en: 'The door was not an exit.' },
-                    { zh: '是更大的立方体。', en: 'It is a bigger cube.' },
-                    { zh: '我刚才想起来一点点。这里可能不是牢房，是测试场。', en: 'I remembered a little. This might not be a prison. It might be a test chamber.' },
-                    { zh: '它在看我们怎么逃。更糟的是，它可能学得挺快。', en: 'It is watching how we escape. Worse, it may be learning fast.' },
-                    { zh: '别露出那种表情。我还没说完，也还没死。', en: 'Do not make that face. I am not done talking, and I am not dead.' }
+                    { zh: '门后不是外面……是更大的立方体！', en: 'It\'s not outside behind the door... it\'s a bigger cube!' },
+                    { zh: '这根本不是什么牢房，是个在不断学习我们路线的折叠迷宫！', en: 'This isn\'t a cell, it\'s a folding maze that learns from our escape routes!' },
+                    { zh: '它在进化……别摆出那种无能为力的表情，我们还没死呢。继续！', en: 'It\'s learning... don\'t make that helpless face, we aren\'t dead yet. Let\'s go!' }
                 ],
                 replies: [
                     {
@@ -551,368 +901,6 @@
                         response: { zh: '你还笑。很好，外侧的人胆子挺大。先别让我后悔这么说。', en: 'You are still laughing. Bold for someone outside the cube. Do not make me regret saying that.' }
                     }
                 ]
-            },
-            l13OuterShell: {
-                title: { zh: 'L13 / 外壳醒来', en: 'L13 / Outer Shell Wakes' },
-                status: { zh: '第二幕接入', en: 'Act II online' },
-                bubble: { zh: '格子变多了。', en: 'There are more tiles.' },
-                lines: [
-                    '我不想打击你，但门后的确不是出口。',
-                    '外壳展开后，格子变多了。不是一点点，是那种“设计师睡醒了继续加班”的多。',
-                    '先别急着学新东西。我们先确认一件事：在更大的棋盘上，你还看得见我。'
-                ],
-                replies: [
-                    commonReplies.steady,
-                    commonReplies.worry,
-                    {
-                        face: K.tease,
-                        aria: { zh: '吐槽', en: 'Snark' },
-                        tone: 'tease',
-                        response: '你也觉得它变大得很没礼貌吧？好，第二幕第一条共识达成。'
-                    }
-                ]
-            },
-            l14FourRotate: {
-                title: { zh: 'L14 / 宽场夹击', en: 'L14 / Wide Pincer' },
-                status: { zh: '宽场追击', en: 'Wide-field chase' },
-                bubble: { zh: '空间变大，麻烦也变宽。', en: 'The space got bigger. So did the trouble.' },
-                lines: [
-                    '我收回刚才那句。光是变大确实没什么意思。',
-                    '但如果追击者也学会包抄，那就不一样了。',
-                    '别用三阶那套小步挪法。这里空间大一点，脑子也得大一点。'
-                ],
-                replies: [
-                    commonReplies.steady,
-                    commonReplies.worry,
-                    {
-                        face: K.tease,
-                        aria: { zh: '吐槽', en: 'Snark' },
-                        tone: 'tease',
-                        response: '你要是看错层，我就假装自己没看见。假的，我会记很久。'
-                    }
-                ]
-            },
-            l15FourChase: {
-                title: { zh: 'L15 / 宽场遛锁', en: 'L15 / Kite the Keeper' },
-                status: { zh: '守钥追击', en: 'Keeper pursuit' },
-                bubble: { zh: '锁也进第二幕了。', en: 'The lock made it to Act II too.' },
-                lines: [
-                    '四阶以后，守钥者看起来没那么堵了。',
-                    '这不是它变善良，是空间变大以后它有更多方式恶心我们。',
-                    '把它遛开，但别拖太久。追击者很擅长把“慢慢来”翻译成“抓到了”。'
-                ],
-                replies: [
-                    commonReplies.steady,
-                    commonReplies.worry,
-                    {
-                        face: K.tease,
-                        aria: { zh: '吐槽', en: 'Snark' },
-                        tone: 'tease',
-                        response: '你这表情很欠，但至少还在线。行，继续。'
-                    }
-                ]
-            },
-            l16FoldBridge: {
-                title: { zh: 'L16 / 偷门不遛锁', en: 'L16 / Door Shortcut' },
-                status: { zh: '传送接入', en: 'Portal linked' },
-                bubble: { zh: '可以少遛一次锁。', en: 'We can skip one keeper dance.' },
-                lines: [
-                    '这两个门端确实互相挨着。',
-                    '好消息：我们可以借它绕过守钥者正面那段麻烦路。',
-                    '坏消息：这个地方从来不发纯好消息。穿过去以后别站着欣赏风景。'
-                ],
-                replies: [
-                    commonReplies.steady,
-                    commonReplies.worry,
-                    {
-                        face: K.tease,
-                        aria: { zh: '吐槽', en: 'Snark' },
-                        tone: 'tease',
-                        response: '笑什么。你不会以为只有你会穿门吧？天真，但还挺有精神。'
-                    }
-                ]
-            },
-            l17PortalChase: {
-                title: { zh: 'L17 / 门边追击', en: 'L17 / Chase at the Door' },
-                status: { zh: '传送追击', en: 'Portal pursuit' },
-                bubble: { zh: '好了，现在开始像第二幕了。', en: 'Okay. Now this feels like Act II.' },
-                lines: [
-                    '传送门能把两块远处的格子当邻居。',
-                    '单独看不难。麻烦的是，门边还有追击者催你做决定。',
-                    '别慌。先看门端，再决定什么时候穿门。听起来很简单，对吧？当然是骗你的。'
-                ],
-                replies: [
-                    commonReplies.steady,
-                    commonReplies.worry,
-                    {
-                        face: K.tease,
-                        aria: { zh: '吐槽', en: 'Snark' },
-                        tone: 'tease',
-                        response: '你笑得很像已经会了。很好，等会儿别让我捡你的自信。'
-                    }
-                ]
-            },
-            l18BridgeExam: {
-                title: { zh: 'L18 / 传送门小考', en: 'L18 / Portal Quiz' },
-                status: { zh: '折叠压测', en: 'Fold stress test' },
-                bubble: { zh: '先拧一下，再穿门。', en: 'Twist first. Portal second.' },
-                lines: [
-                    '这次传送门旁边不太太平。',
-                    '一个追击者已经够烦了。两个追击者就像这地方觉得我们太幸福。',
-                    '先把局面拧歪一拍，再穿门。对，听起来很麻烦，但活着的人有资格嫌麻烦。'
-                ],
-                replies: [
-                    commonReplies.steady,
-                    commonReplies.worry,
-                    {
-                        face: K.tease,
-                        aria: { zh: '吐槽', en: 'Snark' },
-                        tone: 'tease',
-                        response: '你这个表情像在说“问题不大”。我先记下来，等会儿用来嘲笑你。'
-                    }
-                ]
-            },
-            l19Void: {
-                title: { zh: 'L19 / 少了一格', en: 'L19 / One Tile Missing' },
-                status: { zh: '地面缺失', en: 'Missing floor' },
-                bubble: { zh: '那边没地了。', en: 'There is no floor there.' },
-                lines: [
-                    '我知道这句话很蠢，但那边真的没地了。',
-                    '别把线画进黑洞里。它看起来不接受协商。',
-                    '好消息是，它们也过不去。坏消息是，我也不想靠坏地板活命。'
-                ],
-                replies: [commonReplies.steady, commonReplies.worry, commonReplies.tease]
-            },
-            l20VoidRotate: {
-                title: { zh: 'L20 / 洞也会转', en: 'L20 / Holes Rotate Too' },
-                status: { zh: '破面偏转', en: 'Broken-face drift' },
-                bubble: { zh: '洞也跟着转？', en: 'The holes rotate too?' },
-                lines: [
-                    '你拧世界的时候，洞也跟着走。',
-                    '这地方连坏掉的部分都很敬业。真烦。',
-                    '但如果洞能挡它们，那我暂时允许它坏得有价值一点。'
-                ],
-                replies: [commonReplies.steady, commonReplies.worry, commonReplies.tease]
-            },
-            l21Patch: {
-                title: { zh: 'L21 / 临时补片', en: 'L21 / Temporary Patch' },
-                status: { zh: '一次性地面', en: 'One-use floor' },
-                bubble: { zh: '你要我踩这个？', en: 'You want me to step on that?' },
-                lines: [
-                    '这个补片看起来像临时地板。',
-                    '“临时”和“地板”放在一起，一般不是好词。',
-                    '但如果我踩过去以后它碎掉，后面的东西也过不来。行，这个坏主意我喜欢一点。'
-                ],
-                replies: [commonReplies.steady, commonReplies.worry, commonReplies.tease]
-            },
-            l22BrokenCorner: {
-                title: { zh: 'L22 / 断角钥匙', en: 'L22 / Broken Corner Key' },
-                status: { zh: '缺角遛锁', en: 'Corner-cut kiting' },
-                bubble: { zh: '角没了，路也歪了。', en: 'The corner is gone. So is the easy route.' },
-                lines: [
-                    '这不是普通缺口，是整块角被咬掉了。',
-                    '路变窄了。对我不友好，对守钥者也不友好。',
-                    '我们可以利用它。听起来很坏，但这里先坏为敬。'
-                ],
-                replies: [commonReplies.steady, commonReplies.worry, commonReplies.tease]
-            },
-            l23Beacon: {
-                title: { zh: 'L23 / 诱饵信标', en: 'L23 / Decoy Beacon' },
-                status: { zh: '敌人调度', en: 'Enemy scheduling' },
-                bubble: { zh: '骗谁？', en: 'Who are we fooling?' },
-                lines: [
-                    '这个信标会把它们引走一拍。',
-                    '不是暂停时间，不是让它们失忆，就是骗一下。',
-                    '骗完就跑。不要站在原地欣赏它们被骗。'
-                ],
-                replies: [commonReplies.steady, commonReplies.worry, commonReplies.tease]
-            },
-            l24BrokenExam: {
-                title: { zh: 'L24 / 破面小考', en: 'L24 / Broken Face Quiz' },
-                status: { zh: '工具混合', en: 'Tool mix' },
-                bubble: { zh: '东西好多，别乱按。', en: 'Lots of buttons. Do not mash them.' },
-                lines: [
-                    '缺口、补片、诱饵一起出现了。',
-                    '我先声明：把所有按钮按一遍不叫策略，叫慌。',
-                    '先看哪一拍会死，再决定哪个工具救那一拍。'
-                ],
-                replies: [commonReplies.steady, commonReplies.worry, commonReplies.tease]
-            },
-            l25DoublePortal: {
-                title: { zh: 'L25 / 双门择路', en: 'L25 / Two Portal Choice' },
-                status: { zh: '多门判断', en: 'Multi-portal read' },
-                bubble: { zh: '门变多了。', en: 'More doors. Of course.' },
-                lines: [
-                    '两个传送门。很好，这地方开始给选择题了。',
-                    '问题是，错门也很快。快到送死那种快。',
-                    '先看哪一对能接上钥匙和出口。别被亮光骗了。'
-                ],
-                replies: [commonReplies.steady, commonReplies.worry, commonReplies.tease]
-            },
-            l26PatchTail: {
-                title: { zh: 'L26 / 碎桥断尾', en: 'L26 / Break the Tail' },
-                status: { zh: '补片断追', en: 'Patch cuts pursuit' },
-                bubble: { zh: '碎掉也许是好事。', en: 'Breaking might be good. Weird.' },
-                lines: [
-                    '补片踩完会碎。',
-                    '我本来想骂它质量差，但如果后面的追击者过不来……',
-                    '好吧，第一次见到坏地板这么有职业道德。'
-                ],
-                replies: [commonReplies.steady, commonReplies.worry, commonReplies.tease]
-            },
-            l27BeaconGuard: {
-                title: { zh: 'L27 / 诱饵换岗', en: 'L27 / Beacon Shift' },
-                status: { zh: '骗开守钥者', en: 'Bait the keeper away' },
-                bubble: { zh: '把锁骗走。', en: 'Trick the lock away.' },
-                lines: [
-                    '守钥者挡着关键线。',
-                    '信标能把它的注意力拽开一拍。',
-                    '只有一拍。你要是拿这一拍发呆，我会很有意见。'
-                ],
-                replies: [commonReplies.steady, commonReplies.worry, commonReplies.tease]
-            },
-            l28VoidPortal: {
-                title: { zh: 'L28 / 破面传送', en: 'L28 / Broken Portal' },
-                status: { zh: '破面捷径', en: 'Broken-face shortcut' },
-                bubble: { zh: '洞逼我们看门。', en: 'The holes force us to use the door.' },
-                lines: [
-                    '普通路线被缺口切开了。',
-                    '传送门现在不是炫技，是少绕一大圈。',
-                    '我还是不喜欢门。但我更不喜欢被追上。'
-                ],
-                replies: [commonReplies.steady, commonReplies.worry, commonReplies.tease]
-            },
-            l29PatchGate: {
-                title: { zh: 'L29 / 补片换门', en: 'L29 / Patch for the Door' },
-                status: { zh: '撤离线', en: 'Escape line' },
-                bubble: { zh: '补片别乱花。', en: 'Do not waste the patch.' },
-                lines: [
-                    '这块补片看起来能救命，也能被浪费。',
-                    '别看到第一个洞就补。我们要的是出口，不是装修。',
-                    '留给真正会卡死撤离的地方。'
-                ],
-                replies: [commonReplies.steady, commonReplies.worry, commonReplies.tease]
-            },
-            l30PortalPincer: {
-                title: { zh: 'L30 / 双追穿门', en: 'L30 / Double Chase Portal' },
-                status: { zh: '门端夹击', en: 'Portal-end pincer' },
-                bubble: { zh: '门端不安全。', en: 'Portal ends are not safe.' },
-                lines: [
-                    '两个追击者把普通路线压得很窄。',
-                    '传送门能省时间，但门端不是安全屋。',
-                    '穿过去以后继续走。不要在那里发表获救感言。'
-                ],
-                replies: [commonReplies.steady, commonReplies.worry, commonReplies.tease]
-            },
-            l31VoidLock: {
-                title: { zh: 'L31 / 洞转锁线', en: 'L31 / Rotate the Gap' },
-                status: { zh: '缺口调位', en: 'Gap positioning' },
-                bubble: { zh: '洞也算棋子。', en: 'The hole is a piece too.' },
-                lines: [
-                    '这回要看的不是哪条路能走，而是哪块坏路会被你拧到哪里。',
-                    '把洞当障碍会烦。把洞当棋子会好一点。',
-                    '我不保证我喜欢这个想法。只是它可能有用。'
-                ],
-                replies: [commonReplies.steady, commonReplies.worry, commonReplies.tease]
-            },
-            l32BeaconPortal: {
-                title: { zh: 'L32 / 信标穿门', en: 'L32 / Beacon Portal' },
-                status: { zh: '骗一拍再穿', en: 'Bait, then portal' },
-                bubble: { zh: '先骗，再穿。', en: 'Bait first. Portal after.' },
-                lines: [
-                    '信标负责骗开门端压力。',
-                    '传送门负责把那一拍变成距离。',
-                    '听起来像计划。希望执行的时候也像。'
-                ],
-                replies: [commonReplies.steady, commonReplies.worry, commonReplies.tease]
-            },
-            l33PatchPortal: {
-                title: { zh: 'L33 / 补片穿门', en: 'L33 / Patch Portal' },
-                status: { zh: '补洞接门', en: 'Patch into portal' },
-                bubble: { zh: '先补脚下。', en: 'Patch underfoot first.' },
-                lines: [
-                    '补片解决脚边这个缺口。',
-                    '传送门解决远处那段距离。',
-                    '两个工具各干各的。别让它们抢戏，我会晕。'
-                ],
-                replies: [commonReplies.steady, commonReplies.worry, commonReplies.tease]
-            },
-            l34PortalTrap: {
-                title: { zh: 'L34 / 错门陷阱', en: 'L34 / Wrong Door Trap' },
-                status: { zh: '门序判断', en: 'Portal order read' },
-                bubble: { zh: '错门也很快。', en: 'Wrong doors are fast too.' },
-                lines: [
-                    '这不是“看见门就钻”的题。',
-                    '门很多，安全的顺序只有那么几种。',
-                    '你先看。我负责假装自己一点都不紧张。'
-                ],
-                replies: [commonReplies.steady, commonReplies.worry, commonReplies.tease]
-            },
-            l35VoidGate: {
-                title: { zh: 'L35 / 守门破面', en: 'L35 / Broken Gate Guard' },
-                status: { zh: '门线被抢', en: 'Door lane contested' },
-                bubble: { zh: '它要去门口。', en: 'It wants the door.' },
-                lines: [
-                    '拿到钥匙以后，它会往门口堵。',
-                    '再加上缺口，撤离线会变得很窄。',
-                    '先把门线想好。临场发挥听起来帅，通常死得也快。'
-                ],
-                replies: [commonReplies.steady, commonReplies.worry, commonReplies.tease]
-            },
-            l36BeaconPincer: {
-                title: { zh: 'L36 / 诱饵断尾', en: 'L36 / Beacon Tail Cut' },
-                status: { zh: '夹击诱导', en: 'Pincer baiting' },
-                bubble: { zh: '只能骗一只。', en: 'We can only fool one.' },
-                lines: [
-                    '诱饵不能让所有敌人都去散步。',
-                    '它只能骗走最关键的一只。',
-                    '剩下的，靠你点稳。靠我不尖叫。都很重要。'
-                ],
-                replies: [commonReplies.steady, commonReplies.worry, commonReplies.tease]
-            },
-            l37PatchExam: {
-                title: { zh: 'L37 / 补片救场', en: 'L37 / Patch Rescue' },
-                status: { zh: '唯一补片', en: 'One patch only' },
-                bubble: { zh: '一块补片，别浪费。', en: 'One patch. Do not waste it.' },
-                lines: [
-                    '这里只有一块补片。',
-                    '补对地方是逃生，补错地方是给地板贴创可贴。',
-                    '我不想成为创可贴测评员。'
-                ],
-                replies: [commonReplies.steady, commonReplies.worry, commonReplies.tease]
-            },
-            l38PortalGuard: {
-                title: { zh: 'L38 / 门后钓锁', en: 'L38 / Bait Behind the Door' },
-                status: { zh: '钓开守卫', en: 'Lure the keeper off' },
-                bubble: { zh: '先钓开，再穿。', en: 'Lure first, portal after.' },
-                lines: [
-                    '守钥者会把门线变得很烦。',
-                    '传送门能绕，但你得先让它站错位置。',
-                    '这叫战术。不是我怕它，绝对不是。'
-                ],
-                replies: [commonReplies.steady, commonReplies.worry, commonReplies.tease]
-            },
-            l39BeaconExam: {
-                title: { zh: 'L39 / 诱饵夹击考', en: 'L39 / Beacon Pincer Exam' },
-                status: { zh: '诱饵考试', en: 'Beacon exam' },
-                bubble: { zh: '骗一只，跑全局。', en: 'Fool one, run the whole board.' },
-                lines: [
-                    '这关诱饵不是保命符，是调度器。',
-                    '骗走关键那只，剩下的还会照样追。',
-                    '换句话说，它们笨，但不够笨。烦。'
-                ],
-                replies: [commonReplies.steady, commonReplies.worry, commonReplies.tease]
-            },
-            l40ActTwoFinale: {
-                title: { zh: 'L40 / 第二层出口？', en: 'L40 / Second-Layer Exit?' },
-                status: { zh: '第二幕终局', en: 'Act II finale' },
-                bubble: { zh: '这门也太安静了。', en: 'This door is way too quiet.' },
-                lines: [
-                    '又是一扇门。',
-                    '我已经不太相信门了。门在这里的职业规划很可疑。',
-                    '但我们还是得走。你看传送端，我看脚下。要是门后还是魔方，我真的会骂出来。'
-                ],
-                replies: [commonReplies.steady, commonReplies.worry, commonReplies.tease]
             }
         }
     };

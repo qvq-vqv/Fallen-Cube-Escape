@@ -197,24 +197,24 @@
             {
                 type: 'dialog',
                 text: {
-                    zh: '钥匙在那边，路没了。很好，地板开始摆烂了。',
-                    en: 'The key is there. The floor is not. Excellent. The floor quit.'
+                    zh: '卧槽！！！——刚才整层地面是不是突然转过去了？！',
+                    en: 'What the hell!!! Did the entire floor just rotate?!'
                 },
                 tone: 'worry'
             },
             {
                 type: 'dialog',
                 text: {
-                    zh: '如果路不来找我，那就把世界拧过来。听起来很疯，但我现在不挑。',
-                    en: 'If the path will not come to me, twist the world over. Insane, but I am not picky.'
+                    zh: '我差点直接大头朝下栽下去！你……你居然能直接转动这个空间？！',
+                    en: 'I almost fell off head-first! You... you can actually rotate this space?!'
                 },
                 tone: 'steady'
             },
             {
                 type: 'dialog',
                 text: {
-                    zh: '那个折叠按钮在发光。别问我为什么它比我冷静。',
-                    en: 'The twist button is glowing. Do not ask why it is calmer than me.'
+                    zh: '不过钥匙在对面，路被断开悬空了。快，用折叠面板把这层拧过去！',
+                    en: 'But the key is opposite, and the path is broken. Quick, open the panel and twist the layer!'
                 },
                 openTools: true,
                 tone: 'steady'
@@ -233,12 +233,44 @@
                 tone: 'steady'
             }
         ],
+        L05: [
+            {
+                type: 'dialog',
+                text: {
+                    zh: '等等，你转动那一层的时候，那把钥匙也跟着转走了？！',
+                    en: 'Wait, when you rotated that layer, the key rotated with it too?!'
+                },
+                tone: 'worry'
+            },
+            {
+                type: 'dialog',
+                text: {
+                    zh: '原来物体是跟着地板一起转的。你能旋转一下中间那一层，把对面的路接上吗？',
+                    en: 'So items ride with the floor. Can you rotate the middle layer to connect the path?'
+                },
+                openTools: true,
+                tone: 'steady'
+            },
+            {
+                type: 'twist',
+                text: {
+                    zh: '试试逆时针拧动中间层（Y1）来把路对齐！',
+                    en: 'Try counter-clockwise rotating the middle layer (Y1) to align the path!'
+                },
+                axis: 'Y',
+                layer: 1,
+                direction: 'CCW',
+                focusCell: { face: 4, row: 1, col: 0 },
+                focus: { x: 48, y: 42 },
+                tone: 'steady'
+            }
+        ],
         L06: [
             {
                 type: 'dialog',
                 text: {
-                    zh: '黄色那个不是装饰。它看起来像“钥匙保安”，而且没工资也很敬业。',
-                    en: 'The yellow one is not decoration. Looks like unpaid key security.'
+                    zh: '那个黄色的铁壳怪是什么？它一直绕着钥匙打转……它看起来像是这把钥匙的‘贴身保安’。',
+                    en: 'What is that yellow iron monster? It keeps circling the key... Looks like a personal bodyguard.'
                 },
                 focusCell: { face: 4, row: 1, col: 2 },
                 focus: { x: 52, y: 40 },
@@ -247,16 +279,16 @@
             {
                 type: 'dialog',
                 text: {
-                    zh: '它会被我引开。拿到钥匙后，它大概会更不讲理。',
-                    en: 'I can lure it away. After the key, it probably gets less reasonable.'
+                    zh: '它发现我了！只要踩进同一面它就会追我一步。我去当诱饵，你负责让我别白死！',
+                    en: 'It spotted me! It chases me by 1 tile if I enter its face. I\'ll be the bait, don\'t let me die!'
                 },
                 tone: 'panic'
             },
             {
                 type: 'move',
                 text: {
-                    zh: '我去当诱饵。你负责别让我白当。',
-                    en: 'I will be the bait. You make it worth it.'
+                    zh: '往左下角移一步，把黄色守卫引开！',
+                    en: 'Step to the bottom-left to lure the yellow keeper away!'
                 },
                 targetCell: { face: 4, row: 2, col: 1 },
                 tone: 'steady'
@@ -276,8 +308,8 @@
             {
                 type: 'dialog',
                 text: {
-                    zh: '但他不能跨越面。只要把他的上下出路拆成悬崖，他就被废了。',
-                    en: 'But he cannot cross face boundaries. Break his upper and lower cells into voids, and he is toast.'
+                    zh: '但我终端的控制面板上亮起了一个叫『碎解』的东西。只要把它的必经之路砸成虚空，它就被困住了！',
+                    en: 'But a tool called "Break" just lit up on my terminal. Smash its path into a void to trap it!'
                 },
                 tone: 'steady'
             },
@@ -313,20 +345,119 @@
                 tone: 'steady'
             }
         ],
-        L13: [
+        L08: [
             {
                 type: 'dialog',
                 text: {
-                    zh: '门后还是魔方。好，今天的现实感很幽默。',
-                    en: 'After the door: more cube. Reality has jokes today.'
+                    zh: '黄色保安今天气色不太对。总之先拿到钥匙再说。',
+                    en: 'The yellow keeper looks angry today. Regardless, let\'s grab the key first.'
+                },
+                tone: 'worry'
+            },
+            {
+                type: 'move',
+                targetCell: { face: 4, row: 0, col: 1 },
+                text: {
+                    zh: '踩上钥匙格，拿取钥匙！',
+                    en: 'Step on the key tile to collect it!'
+                },
+                tone: 'steady'
+            },
+            {
+                type: 'dialog',
+                text: {
+                    zh: '它……它刚才是不是尖叫了一声？我拿到钥匙之后，它进入狂暴状态，移动速度变成 2 格了！快跑！',
+                    en: 'Did... did it just scream? Once I got the key, it enraged and its speed doubled to 2 tiles! Run!'
+                },
+                tone: 'panic'
+            }
+        ],
+        L09: [
+            {
+                type: 'dialog',
+                text: {
+                    zh: '好吧，看来‘新手训练’结束了。前面有红光怪，还有那个黄色保安，路也被切断了。',
+                    en: 'Okay, tutorial phase ends here. Red chasers, yellow keeper, and path cut.'
+                },
+                tone: 'steady'
+            },
+            {
+                type: 'dialog',
+                text: {
+                    zh: '这大概是第一阶段的综合实战。加油，别在最关键的时候把我送掉！',
+                    en: 'This is the stage final test. Guide me well, don\'t get me killed!'
+                },
+                tone: 'steady'
+            }
+        ],
+        L10: [
+            {
+                type: 'dialog',
+                text: {
+                    zh: '两只红色追击者把我夹在中间，而且黄色守卫一开始就往门口靠？',
+                    en: 'Two red chasers are pinching me, and the yellow guard moves to block the exit?'
                 },
                 tone: 'worry'
             },
             {
                 type: 'dialog',
                 text: {
-                    zh: '那块临时地板看着很薄。薄也行，能活一次就算赢。',
-                    en: 'That temporary floor looks thin. Thin is fine if it saves me once.'
+                    zh: '我们只有一次碎解地板的机会。你必须要找个最致命的关隘把它砸断，不然死定了！',
+                    en: 'We have only one break charge. Find the most critical path and break it, or we\'re dead!'
+                },
+                tone: 'steady'
+            }
+        ],
+        L11: [
+            {
+                type: 'dialog',
+                text: {
+                    zh: '那黄色怪物居然守在门上！它是怎么做到这么有灵性的？',
+                    en: 'That yellow keeper is actually guarding the door! How is it so intelligent?'
+                },
+                tone: 'worry'
+            },
+            {
+                type: 'dialog',
+                text: {
+                    zh: '这地表能转，能不能想办法在它彻底把门口堵死之前，把它拧到别的面去？',
+                    en: 'The floor is rotatable. Can we twist it to another face before it chokes the exit?'
+                },
+                tone: 'steady'
+            }
+        ],
+        L12: [
+            {
+                type: 'dialog',
+                text: {
+                    zh: '终于……门开了！我们要离开这一层了。',
+                    en: 'Finally... the door opened! We\'re leaving this layer.'
+                },
+                tone: 'steady'
+            },
+            {
+                type: 'dialog',
+                text: {
+                    zh: '但这扇门后面感觉安静得很可疑……如果这扇门后面不是出口，你绝对不许笑！',
+                    en: 'But it feels suspiciously quiet behind this door... If it\'s not the exit, don\'t you dare laugh!'
+                },
+                tone: 'steady'
+            }
+        ],
+        L13: [
+            {
+                type: 'dialog',
+                text: {
+                    zh: '果然门后面不是什么出口……外壳展开后，格子变成了 4x4。',
+                    en: 'Of course the door wasn\'t an exit... the shell expanded to 4x4.'
+                },
+                tone: 'worry'
+            },
+            {
+                type: 'dialog',
+                text: {
+                    zh: '不过我终端上亮起了一个叫『补片』的工具。这地板……它能用贴纸补上？',
+                    en: 'But a tool called "Patch" lit up on my terminal. Can we... patch this floor with stickers?'
                 },
                 tone: 'steady'
             },
@@ -346,16 +477,16 @@
             {
                 type: 'dialog',
                 text: {
-                    zh: '蓝色圈圈。看起来像门，也可能像胃。我们先假设是门。',
-                    en: 'Blue ring. Could be a door. Could be a stomach. Let us assume door.'
+                    zh: '等下，我两边脚下亮起了两个泛着蓝光的传送圆环。',
+                    en: 'Wait, two glowing blue teleportation rings just lit up on both sides.'
                 },
                 tone: 'steady'
             },
             {
                 type: 'dialog',
                 text: {
-                    zh: '它能把我甩到另一端。希望不是以零件形式。',
-                    en: 'It can throw me to the other side. Hopefully in one piece.'
+                    zh: '它们好像把空间直接对折了，踩进去能瞬间飞到另一端。希望我被传送过去时零件还是全的。',
+                    en: 'They seem to fold space directly, warping me to the other side. Hopefully in one piece.'
                 },
                 tone: 'steady'
             },
@@ -363,8 +494,8 @@
                 type: 'move',
                 targetCell: { face: 4, row: 3, col: 0 },
                 text: {
-                    zh: '另一个圈亮了。行，试试看。',
-                    en: 'The other ring lit up. Fine. Let us try.'
+                    zh: '踩进蓝圈，飞到对面去！',
+                    en: 'Step into the blue ring to warp to the other side!'
                 },
                 tone: 'steady'
             }
@@ -373,16 +504,16 @@
             {
                 type: 'dialog',
                 text: {
-                    zh: '它挡得太正了。直接过去就是给它送货上门。',
-                    en: 'It is blocking too cleanly. Walking in is delivery service.'
+                    zh: '那个红光怪物把出路堵得死死的。直接过去就是给它送货上门。',
+                    en: 'That red light monster is choking the exit. Walking straight in is delivery service.'
                 },
                 tone: 'worry'
             },
             {
                 type: 'dialog',
                 text: {
-                    zh: '给它一个假目标。它要是上当，我不嘲笑它，最多记下来。',
-                    en: 'Give it a fake target. If it falls for it, I will not laugh. Much.'
+                    zh: '但我手上的终端亮起了『诱饵信标』。扔出去它就会傻傻挪过去。',
+                    en: 'But the "Decoy Beacon" lit up on my terminal. Throw it and it dumbly moves towards it.'
                 },
                 tone: 'steady'
             },
@@ -391,8 +522,8 @@
                 tool: 'beacon',
                 targetCell: { face: 1, row: 0, col: 0 },
                 text: {
-                    zh: '把诱饵丢到亮的位置。演技交给它。',
-                    en: 'Drop the decoy on the lit spot. Let it act.'
+                    zh: '把诱饵丢到亮的位置。别站在原地看它被骗。',
+                    en: 'Drop the decoy on the lit spot. Don\'t stand and watch it get tricked.'
                 },
                 openTools: true,
                 tone: 'steady'
