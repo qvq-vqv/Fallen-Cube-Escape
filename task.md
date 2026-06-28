@@ -1,7 +1,7 @@
 # 🎬 Milestone 11: Decoupled Tutorial System, Draggable Bubbles, and Inspect-Scanner (2026-06-28)
 
-> 状态：`[STATUS: WAITING_FOR_QA]`
-> 执行者：Codex (gpt5.5 / 物理写码)
+> 状态：`[STATUS: AUDIT_PASSED]`
+> 执行者：主管智能体 (Antigravity / 人工精修)
 > 红线：彻底隔离操作与语言，废除天书学术词汇，对白降权只渲染情绪；实装自由拖拽/防误触/默认闭合的聊天球与工具球；第一关视角强制拖拽手势与进度条联动；第二关高亮通话、Trust与Esc科普；L06黄怪、L07碎解、L13补片等教学套用新标；残局卡册开发Hover精美悬浮扫描框（新机制/怪数/简介）。
 
 - [x] **M11.1 自由拖拽悬浮聊天球与工具箱球实装 (`index.html` & `style.css` & `main.js`)**

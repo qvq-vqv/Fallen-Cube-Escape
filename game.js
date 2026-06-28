@@ -132,7 +132,7 @@ class GameEngine {
             this.tutorialActive = false;
         }
 
-        this.gameState = 'playing';
+        this.gameState = isInspect ? 'setup' : 'playing';
         this.updateUI();
     }
 

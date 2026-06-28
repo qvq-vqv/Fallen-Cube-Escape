@@ -80,6 +80,8 @@ class RenderEngine {
         this.tutorialPointerCone = null;
         this.tutorialCellHighlightRing = null;
         this.tutorialWarningSprite = null;
+        this.tutorialArrowMesh = null;
+        this.tutorialGreenTileMesh = null;
     }
 
     // 初始化 3D 场景
@@ -213,10 +215,14 @@ class RenderEngine {
         if (!this.renderer?.domElement || this.boardPointerAttached) return;
         this.raycaster = this.raycaster || new THREE.Raycaster();
         this.pointer = this.pointer || new THREE.Vector2();
+        this.lookPointerDown = false;
         this.renderer.domElement.addEventListener('pointerdown', this.boundPointerDown);
         this.renderer.domElement.addEventListener('pointermove', this.boundPointerMove);
         this.renderer.domElement.addEventListener('pointerup', this.boundPointerUp);
         this.renderer.domElement.addEventListener('pointerleave', this.boundPointerUp);
+        this.renderer.domElement.addEventListener('pointerdown', () => { this.lookPointerDown = true; });
+        window.addEventListener('pointerup', () => { this.lookPointerDown = false; });
+        window.addEventListener('pointercancel', () => { this.lookPointerDown = false; });
         this.boardPointerAttached = true;
     }
 
@@ -2877,6 +2883,29 @@ class RenderEngine {
         return sprite;
     }
 
+    createTutorialArrowTexture() {
+        const canvas = document.createElement('canvas');
+        canvas.width = 128;
+        canvas.height = 128;
+        const ctx = canvas.getContext('2d');
+        ctx.clearRect(0, 0, 128, 128);
+        ctx.shadowColor = '#00ff88';
+        ctx.shadowBlur = 12;
+        ctx.fillStyle = '#00ff88';
+        ctx.beginPath();
+        ctx.moveTo(64, 16);
+        ctx.lineTo(104, 60);
+        ctx.lineTo(76, 60);
+        ctx.lineTo(76, 112);
+        ctx.lineTo(52, 112);
+        ctx.lineTo(52, 60);
+        ctx.lineTo(24, 60);
+        ctx.closePath();
+        ctx.fill();
+        const texture = new THREE.CanvasTexture(canvas);
+        return texture;
+    }
+
     showTutorialPointer(cellId) {
         if (cellId === null || cellId === undefined || !this.scene || !this.game) return;
         this.activeTutorialCellId = cellId;
@@ -2921,6 +2950,51 @@ class RenderEngine {
             if (this.tutorialCellHighlightRing.parent !== this.scene) {
                 this.scene.add(this.tutorialCellHighlightRing);
             }
+
+            // Create solid green passable tile base
+            if (!this.tutorialGreenTileMesh) {
+                const geometry = new THREE.PlaneGeometry(0.88, 0.88);
+                const material = new THREE.MeshBasicMaterial({
+                    color: 0x00ff88,
+                    transparent: true,
+                    opacity: 0.28,
+                    depthWrite: false
+                });
+                this.tutorialGreenTileMesh = new THREE.Mesh(geometry, material);
+                this.scene.add(this.tutorialGreenTileMesh);
+            }
+            this.tutorialGreenTileMesh.position.copy(pos.clone().addScaledVector(normal, 0.01));
+            this.tutorialGreenTileMesh.quaternion.setFromUnitVectors(new THREE.Vector3(0, 0, 1), normal);
+
+            // Create dynamic green arrow if player is adjacent to the cell (valid direction of travel)
+            const playerCell = this.game.cells[this.game.playerPos];
+            if (playerCell && cellId !== this.game.playerPos) {
+                const playerPos = this.getCellWorldPosition(this.game.playerPos, 'token');
+                const targetPos = this.getCellWorldPosition(cellId, 'token');
+                const moveDir = targetPos.clone().sub(playerPos);
+                if (moveDir.lengthSq() > 0.0001) {
+                    if (!this.tutorialArrowMesh) {
+                        const texture = this.createTutorialArrowTexture();
+                        const geometry = new THREE.PlaneGeometry(0.72, 0.72);
+                        const material = new THREE.MeshBasicMaterial({
+                            map: texture,
+                            transparent: true,
+                            opacity: 0.95,
+                            blending: THREE.AdditiveBlending,
+                            depthWrite: false
+                        });
+                        this.tutorialArrowMesh = new THREE.Mesh(geometry, material);
+                        this.scene.add(this.tutorialArrowMesh);
+                    }
+                    this.tutorialArrowMesh.position.copy(pos.clone().addScaledVector(normal, 0.025));
+                    
+                    const zAxis = normal.clone().normalize();
+                    const yAxis = moveDir.projectOnPlane(normal).normalize();
+                    const xAxis = new THREE.Vector3().crossVectors(yAxis, zAxis).normalize();
+                    const mat = new THREE.Matrix4().makeBasis(xAxis, yAxis, zAxis);
+                    this.tutorialArrowMesh.quaternion.setFromRotationMatrix(mat);
+                }
+            }
         }
     }
 
@@ -2936,6 +3010,8 @@ class RenderEngine {
         
         const startPosition = this.camera.position.clone();
         const startTime = performance.now();
+        
+        this.presentationMode = 'game';
         
         if (this.controls) {
             this.controls.enabled = false;
@@ -3045,7 +3121,7 @@ class RenderEngine {
         if (!this.game?.tutorialActive || !this.tutorialLookBaseline) return;
         const step = this.game.activeTutorialSteps?.[this.game.currentTutorialStepIndex];
         if (step?.type !== 'look') return;
-        if (!this.pointerDown || this.cameraFlight) {
+        if (!this.lookPointerDown || this.cameraFlight) {
             this.tutorialLookLastAngles = null;
             return;
         }
@@ -3085,6 +3161,14 @@ class RenderEngine {
         }
         if (this.tutorialCellHighlightRing) {
             this.scene.remove(this.tutorialCellHighlightRing);
+        }
+        if (this.tutorialArrowMesh) {
+            this.scene.remove(this.tutorialArrowMesh);
+            this.tutorialArrowMesh = null;
+        }
+        if (this.tutorialGreenTileMesh) {
+            this.scene.remove(this.tutorialGreenTileMesh);
+            this.tutorialGreenTileMesh = null;
         }
     }
 
@@ -3540,6 +3624,12 @@ class RenderEngine {
                 const ringScale = 1.0 + 0.08 * Math.sin(pulseSpeed);
                 this.tutorialCellHighlightRing.material.opacity = ringOpacity;
                 this.tutorialCellHighlightRing.scale.setScalar(ringScale);
+            }
+
+            // 2.5 目标单元格呼吸方向箭头
+            if (this.tutorialArrowMesh && this.activeTutorialCellId !== null) {
+                const pulse = 1.0 + Math.sin(Date.now() * 0.009) * 0.08;
+                this.tutorialArrowMesh.scale.set(pulse, pulse, 1);
             }
 
             // 3. Twist 旋转层高亮

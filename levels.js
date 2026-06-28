@@ -223,8 +223,8 @@
             {
                 type: 'twist',
                 text: {
-                    zh: '看亮起来的那一层。轻点，我还站在这东西上。',
-                    en: 'Watch the lit layer. Easy. I am standing on this thing.'
+                    zh: '试试把最顶部（我站的这层）水平向右拧90度，把路直接拼通！',
+                    en: 'Try horizontally rotating the very top layer (where I am standing) to the right by 90 degrees to align the path!'
                 },
                 axis: 'Y',
                 layer: 0,
@@ -267,28 +267,50 @@
             {
                 type: 'dialog',
                 text: {
-                    zh: '它堵路了。很有职业精神，也很讨厌。',
-                    en: 'It is blocking the way. Professional. Annoying.'
+                    zh: '那黄色的大家伙堵在那里守门。我们可没法强攻过去。',
+                    en: 'That yellow giant is guarding the gate. We cannot headbutt our way through.'
                 },
+                focusCell: { face: 4, row: 1, col: 2 },
+                focus: { x: 50, y: 40 },
                 tone: 'worry'
             },
             {
                 type: 'dialog',
                 text: {
-                    zh: '如果它非要走那条路……那条路可以不存在。',
-                    en: 'If it insists on using that path... the path can stop existing.'
+                    zh: '但他不能跨越面。只要把他的上下出路拆成悬崖，他就被废了。',
+                    en: 'But he cannot cross face boundaries. Break his upper and lower cells into voids, and he is toast.'
                 },
                 tone: 'steady'
             },
             {
                 type: 'tool',
                 tool: 'break',
-                targetCell: { face: 4, row: 1, col: 1 },
+                targetCell: { face: 4, row: 0, col: 2 },
                 text: {
-                    zh: '亮起来的地方，可以拆。',
-                    en: 'The lit place can be broken.'
+                    zh: '打开工具箱，把大家伙上方的这一格拆掉！',
+                    en: 'Open the toolbox and shatter the cell directly above him!'
                 },
                 openTools: true,
+                tone: 'steady'
+            },
+            {
+                type: 'tool',
+                tool: 'break',
+                targetCell: { face: 4, row: 2, col: 2 },
+                text: {
+                    zh: '干得漂亮！再把大家伙下方这一格也敲碎，彻底困住他！',
+                    en: 'Nice! Now shatter the cell directly below him to trap him completely!'
+                },
+                openTools: true,
+                tone: 'steady'
+            },
+            {
+                type: 'move',
+                targetCell: { face: 4, row: 1, col: 1 },
+                text: {
+                    zh: '他现在沦为单格孤岛守卫了。绕后走，拿上钥匙！',
+                    en: 'He is now trapped on a single island cell. Loop around and grab the key!'
+                },
                 tone: 'steady'
             }
         ],
@@ -568,14 +590,14 @@
                         tip: { zh: '拆路，不是拆自己', en: 'Break the road, not Dawn' },
                         visual: 'break'
                     },
-                    bestTurns: 5,
+                    bestTurns: 7,
                     bestRotations: 0,
                     player: at(0, 1, 1),
                     key: at(4, 1, 0),
                     exit: at(1, 1, 1),
                     rotationEnabled: false,
                     guardianAggro: 'guardDoor',
-                    breakCharges: 1,
+                    breakCharges: 2,
                     validation: {
                         solvable: true,
                         breakTool: true,

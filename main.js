@@ -13,6 +13,14 @@ document.addEventListener('DOMContentLoaded', () => {
     window.renderEngine = render;
     window.audioFeedback = audio;
     window.gameFeel = feel;
+
+    const originalUpdateUI = game.updateUI;
+    game.updateUI = function() {
+        originalUpdateUI.call(game);
+        if (typeof updateFloatingToolsCount === 'function') {
+            updateFloatingToolsCount();
+        }
+    };
     feel.init();
 
     const prologueOverlay = document.getElementById('prologue-overlay');
@@ -1289,6 +1297,7 @@ document.addEventListener('DOMContentLoaded', () => {
         gameContainer.style.display = 'grid';
         gameContainer.classList.add('preplay-stage', 'inspect-stage');
         game.initLevel(index, true);
+        hideTutorialDialogue();
         game.setRealtimeMode?.(false);
         game.stopRealtime?.();
         game.gameState = 'setup';
@@ -1675,6 +1684,9 @@ document.addEventListener('DOMContentLoaded', () => {
             const nextY = Math.max(8, Math.min(window.innerHeight - btn.offsetHeight - 8, p.y - drag.offsetY));
             btn.style.setProperty('--bubble-x', `${nextX}px`);
             btn.style.setProperty('--bubble-y', `${nextY}px`);
+            if (btn.id === 'tools-float-bubble') {
+                positionFloatingToolboxMenu();
+            }
         });
         btn.addEventListener('pointerup', event => {
             if (!drag) return;
@@ -1692,6 +1704,54 @@ document.addEventListener('DOMContentLoaded', () => {
             drag = null;
             btn.classList.remove('is-dragging');
         });
+    }
+
+    function positionFloatingToolboxMenu() {
+        const menu = document.getElementById('floating-toolbox-menu');
+        if (!menu || !toolsFloatBubble) return;
+        const rect = toolsFloatBubble.getBoundingClientRect();
+        menu.style.left = `${rect.left + rect.width / 2 - menu.offsetWidth / 2}px`;
+        menu.style.bottom = `${window.innerHeight - rect.top + 8}px`;
+    }
+
+    function toggleFloatingToolboxMenu(force = null) {
+        const menu = document.getElementById('floating-toolbox-menu');
+        if (!menu) return;
+        const shouldShow = force === null
+            ? menu.classList.contains('is-hidden')
+            : Boolean(force);
+        menu.classList.toggle('is-hidden', !shouldShow);
+        if (shouldShow) {
+            positionFloatingToolboxMenu();
+        }
+    }
+
+    function updateFloatingToolsCount() {
+        const floatingBreak = document.getElementById('floating-break-count');
+        const floatingPatch = document.getElementById('floating-patch-count');
+        const floatingBeacon = document.getElementById('floating-beacon-count');
+        
+        if (floatingBreak) floatingBreak.textContent = game.breakCharges;
+        if (floatingPatch) floatingPatch.textContent = game.patchCharges;
+        if (floatingBeacon) floatingBeacon.textContent = game.beaconCharges;
+
+        const badgeCount = (game.breakCharges || 0) + (game.patchCharges || 0) + (game.beaconCharges || 0);
+        const toolsFloatBadge = document.getElementById('tools-float-badge');
+        if (toolsFloatBadge) {
+            toolsFloatBadge.textContent = badgeCount > 9 ? '9+' : String(badgeCount);
+            const showBadge = badgeCount > 0 && (game.patchCharges > 0 || game.beaconCharges > 0 || game.breakCharges > 0);
+            toolsFloatBadge.classList.toggle('is-hidden', !showBadge);
+        }
+
+        const hasTools = game.patchCharges > 0 || game.beaconCharges > 0 || game.breakCharges > 0 || game.activePatchCells.size > 0 || game.beaconCell !== null;
+        if (toolsFloatBubble) {
+            toolsFloatBubble.classList.toggle('is-hidden', !hasTools);
+            toolsFloatBubble.classList.toggle('has-tools', hasTools);
+            if (!hasTools) {
+                const menu = document.getElementById('floating-toolbox-menu');
+                menu?.classList.add('is-hidden');
+            }
+        }
     }
 
     function appendRouteBubble() {
@@ -1735,7 +1795,7 @@ document.addEventListener('DOMContentLoaded', () => {
         await showLoadingSequence(game.levels[selectedLevelIndex]);
         game.initLevel(selectedLevelIndex, false);
         game.applyRealtimeTuning?.(settingsState);
-        game.setRealtimeMode?.(true);
+        game.setRealtimeMode?.(selectedLevelIndex >= 12);
         game.stopRealtime?.();
         renderUnreadBadges();
         renderLevelComms(selectedLevelIndex);
@@ -1743,7 +1803,9 @@ document.addEventListener('DOMContentLoaded', () => {
         updateLayerDropdown(game.N);
         initRenderScene();
         await render.flyToGameCamera?.(980);
-        game.startRealtime?.();
+        if (selectedLevelIndex >= 12) {
+            game.startRealtime?.();
+        }
         if (game.tutorialActive) {
             updateTutorialUI();
             game.setRealtimePaused?.(true);
@@ -1764,8 +1826,10 @@ document.addEventListener('DOMContentLoaded', () => {
         if (levelId) localStorage.removeItem(`dawnCubeTutorialDismissed:${levelId}`);
         setBulletTimeActive(false);
         game.initLevel(game.currentLevelIndex, false);
-        game.setRealtimeMode?.(true);
-        game.startRealtime?.();
+        game.setRealtimeMode?.(game.currentLevelIndex >= 12);
+        if (game.currentLevelIndex >= 12) {
+            game.startRealtime?.();
+        }
         renderUnreadBadges();
         render.buildCube3D();
         render.spawnEntities3D();
@@ -2116,16 +2180,20 @@ document.addEventListener('DOMContentLoaded', () => {
         setPhoneCollapsed(!phonePanel?.classList.contains('is-collapsed'));
     });
     setupDraggableBubble(commsFloatBubble, 'dawnCubeCommsBubblePos', { x: window.innerWidth - 156, y: window.innerHeight - 92 }, () => {
-        openPhonePanel('comms');
+        const dialogueConsole = document.getElementById('tutorial-dialogue-console');
+        if (dialogueConsole) {
+            dialogueConsole.classList.toggle('is-hidden');
+        }
         audio.play('uiConfirm');
     });
     setupDraggableBubble(toolsFloatBubble, 'dawnCubeToolsBubblePos', { x: window.innerWidth - 82, y: window.innerHeight - 92 }, () => {
-        openPhonePanel('tasks');
+        toggleFloatingToolboxMenu();
         audio.play('uiConfirm');
     });
     window.addEventListener('resize', () => {
         placeFloatBubble(commsFloatBubble, 'dawnCubeCommsBubblePos', { x: window.innerWidth - 156, y: window.innerHeight - 92 });
         placeFloatBubble(toolsFloatBubble, 'dawnCubeToolsBubblePos', { x: window.innerWidth - 82, y: window.innerHeight - 92 });
+        positionFloatingToolboxMenu();
     });
     landingArchiveBtn?.addEventListener('click', openArchiveRoom);
     landingCreditsBtn?.addEventListener('click', openCredits);
@@ -2264,6 +2332,8 @@ document.addEventListener('DOMContentLoaded', () => {
         btn.addEventListener('click', () => {
             if (render.isAnimating) return;
             game.setToolMode(btn.dataset.toolMode);
+            const menu = document.getElementById('floating-toolbox-menu');
+            menu?.classList.add('is-hidden');
         });
     });
 
@@ -2667,9 +2737,13 @@ document.addEventListener('DOMContentLoaded', () => {
     window.advanceTutorialStep = advanceTutorialStep;
     window.skipTutorial = skipTutorial;
     window.updateTutorialLookProgress = progress => {
-        const pct = Math.max(0, Math.min(100, Number(progress || 0) * 100));
-        tutorialLookProgress?.style.setProperty('--look-progress', `${pct}%`);
-        tutorialLookGesture?.classList.toggle('is-complete', pct >= 100);
+        const p = Math.max(0, Math.min(1, Number(progress || 0)));
+        const svgCircle = document.getElementById('tutorial-look-progress-svg');
+        if (svgCircle) {
+            const offset = 326.7 * (1 - p);
+            svgCircle.style.strokeDashoffset = offset;
+        }
+        tutorialLookGesture?.classList.toggle('is-complete', p >= 1);
     };
 
     // Listen to global click/pointerup events to advance dialog step in capturing phase
@@ -2692,6 +2766,24 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         }
     }, true);
+
+    // Close floating panels when clicking outside
+    document.addEventListener('pointerdown', event => {
+        const menu = document.getElementById('floating-toolbox-menu');
+        if (menu && !menu.classList.contains('is-hidden')) {
+            if (!event.target.closest('#tools-float-bubble') && !event.target.closest('#floating-toolbox-menu')) {
+                menu.classList.add('is-hidden');
+            }
+        }
+        if (game && !game.tutorialActive) {
+            const dialogueConsole = document.getElementById('tutorial-dialogue-console');
+            if (dialogueConsole && !dialogueConsole.classList.contains('is-hidden')) {
+                if (!event.target.closest('#comms-float-bubble') && !event.target.closest('#tutorial-dialogue-console')) {
+                    dialogueConsole.classList.add('is-hidden');
+                }
+            }
+        }
+    });
 
     persistSettings();
     startPhoneWaveLoop();
