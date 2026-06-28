@@ -3999,16 +3999,7 @@ body {
 }
 
 .phone-terminal.right-panel {
-    position: absolute;
-    top: clamp(1rem, 0.7rem + 1vw, 1.8rem);
-    right: clamp(0.75rem, 0.55rem + 0.7vw, 1.25rem);
-    bottom: clamp(0.75rem, 0.55rem + 0.7vw, 1.25rem);
-    z-index: 26;
-    width: clamp(19rem, 17rem + 7vw, 25rem);
-    transition:
-        transform 0.42s var(--ease-decisive),
-        opacity 0.28s var(--ease-decisive),
-        box-shadow 0.28s var(--ease-decisive);
+    display: none !important;
 }
 
 .phone-terminal.is-talking {
@@ -4228,28 +4219,31 @@ body {
     animation: tutorial-hand-swipe 1.35s var(--ease-decisive) infinite;
 }
 
-.gesture-arc {
-    width: clamp(6.5rem, 12vw, 10.5rem);
-    height: clamp(6.5rem, 12vw, 10.5rem);
-    border-radius: 50%;
-    border: 1px solid rgba(0, 240, 255, 0.22);
-    background:
-        conic-gradient(from -90deg,
-            rgba(0, 255, 136, 0.82) 0 var(--look-progress, 0%),
-            rgba(255, 255, 255, 0.1) var(--look-progress, 0%) 100%);
-    mask: radial-gradient(circle, transparent 56%, #000 58%);
-    -webkit-mask: radial-gradient(circle, transparent 56%, #000 58%);
-    box-shadow: 0 0 1.4rem rgba(0, 240, 255, 0.18);
+.progress-ring {
+    transform: rotate(-90deg);
+    filter: drop-shadow(0 0 12px rgba(0, 255, 136, 0.32));
 }
 
-.gesture-arc i {
-    display: none;
+.progress-ring__circle {
+    transition: stroke-dashoffset 80ms var(--ease-decisive);
+    stroke-linecap: round;
 }
 
-.tutorial-look-gesture.is-complete .gesture-arc {
-    background:
-        conic-gradient(from -90deg,
-            rgba(255, 183, 0, 0.96) 0 100%);
+.tutorial-look-gesture.is-complete .progress-ring__circle {
+    stroke: var(--neon-yellow) !important;
+    filter: drop-shadow(0 0 16px rgba(255, 183, 0, 0.52));
+}
+
+.gesture-text {
+    position: absolute;
+    bottom: -2rem;
+    font-family: var(--font-data);
+    font-size: 0.68rem;
+    font-weight: 900;
+    color: #8bdcff;
+    text-shadow: 0 0 8px rgba(0, 240, 255, 0.42);
+    letter-spacing: 0.06em;
+    white-space: nowrap;
 }
 
 @keyframes tutorial-hand-swipe {
@@ -4587,4 +4581,82 @@ body {
 
 #phone-panel .terminal-panel[data-terminal-panel="comms"] .comms-choices {
     margin-top: 15px;
+}
+
+/* Milestone 11.2: Inspect stage UI elements isolation */
+#game-container.inspect-stage .float-bubble,
+#game-container.inspect-stage .float-bubble-layer,
+#game-container.inspect-stage .tutorial-dialogue-console,
+#game-container.inspect-stage #phone-terminal,
+#game-container.inspect-stage #phone-panel {
+    display: none !important;
+}
+
+/* Milestone 11.2: Decoupled Independent Toolbox Menu */
+.floating-toolbox-menu {
+    position: fixed;
+    z-index: 43;
+    display: flex;
+    flex-direction: column;
+    gap: 0.48rem;
+    align-items: center;
+    pointer-events: auto;
+    opacity: 1;
+    transform: scale(1) translateY(0);
+    transition: 
+        opacity var(--motion-fast) var(--ease-decisive), 
+        transform var(--motion-fast) var(--ease-elastic);
+}
+
+.floating-toolbox-menu.is-hidden {
+    opacity: 0;
+    pointer-events: none;
+    transform: scale(0.85) translateY(10px);
+}
+
+.tool-bubble-btn {
+    position: relative;
+    width: clamp(2.6rem, 2vw + 1.8rem, 3.2rem);
+    height: clamp(2.6rem, 2vw + 1.8rem, 3.2rem);
+    border-radius: 50%;
+    border: 1px solid rgba(0, 240, 255, 0.28);
+    background: rgba(2, 8, 16, 0.88);
+    color: #eef8ff;
+    font-size: 1.1rem;
+    display: grid;
+    place-items: center;
+    cursor: pointer;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.36), 0 0 10px rgba(0, 240, 255, 0.08);
+    transition: all var(--motion-fast) var(--ease-decisive);
+}
+
+.tool-bubble-btn:hover {
+    border-color: rgba(255, 183, 0, 0.65);
+    transform: scale(1.08);
+    box-shadow: 0 6px 16px rgba(0, 0, 0, 0.45), 0 0 16px rgba(255, 183, 0, 0.25);
+}
+
+.tool-bubble-btn.active {
+    border-color: #00ff88;
+    background: rgba(0, 255, 136, 0.15);
+    box-shadow: 0 0 16px rgba(0, 255, 136, 0.42);
+}
+
+.tool-bubble-btn span {
+    position: absolute;
+    top: -0.2rem;
+    right: -0.2rem;
+    background: #ff1d55;
+    color: #fff;
+    font-size: 0.52rem;
+    font-family: var(--font-data);
+    font-weight: bold;
+    padding: 0.05rem 0.25rem;
+    border-radius: 999px;
+    border: 1px solid #fff;
+}
+
+.tool-bubble-btn:disabled {
+    opacity: 0.25;
+    pointer-events: none;
 }

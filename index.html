@@ -163,8 +163,12 @@
                 </aside>
                 <div id="tutorial-blackout" class="tutorial-blackout" aria-hidden="true"></div>
                 <div id="tutorial-look-gesture" class="tutorial-look-gesture is-hidden" aria-hidden="true">
+                    <svg class="progress-ring" width="120" height="120">
+                        <circle class="progress-ring__circle-bg" stroke="rgba(255,255,255,0.15)" stroke-width="6" fill="transparent" r="52" cx="60" cy="60"/>
+                        <circle id="tutorial-look-progress-svg" class="progress-ring__circle" stroke="#00ff88" stroke-width="6" fill="transparent" r="52" cx="60" cy="60" stroke-dasharray="326.7" stroke-dashoffset="326.7"/>
+                    </svg>
                     <span class="gesture-hand"></span>
-                    <span class="gesture-arc"><i id="tutorial-look-progress"></i></span>
+                    <span class="gesture-text">DRAG TO ROTATE / 拖拽旋转视角</span>
                 </div>
                 <section id="tutorial-dialogue-console" class="tutorial-dialogue-console is-hidden" aria-live="polite">
                     <canvas id="tutorial-led-mascot" class="tutorial-led-mascot" width="144" height="144" aria-label="E-7 点阵表情"></canvas>
@@ -181,13 +185,19 @@
 
         <div id="float-bubble-layer" class="float-bubble-layer" aria-label="悬浮快捷球">
             <button id="comms-float-bubble" class="float-bubble comms-bubble" type="button" aria-label="打开 Dawn 通讯">
-                <span>☎</span>
+                <span>💬</span>
                 <b id="comms-float-badge" class="float-bubble-badge is-hidden">0</b>
             </button>
             <button id="tools-float-bubble" class="float-bubble tools-bubble" type="button" aria-label="打开工具箱">
-                <span>✦</span>
+                <span>⚙️</span>
                 <b id="tools-float-badge" class="float-bubble-badge is-hidden">0</b>
             </button>
+            <div id="floating-toolbox-menu" class="floating-toolbox-menu is-hidden" aria-label="工具快捷菜单">
+                <button class="tool-bubble-btn" data-tool-mode="route" title="移动路径">🏃</button>
+                <button class="tool-bubble-btn" data-tool-mode="break" id="btn-floating-break" title="碎解工具">🔨<span id="floating-break-count">0</span></button>
+                <button class="tool-bubble-btn" data-tool-mode="patch" id="btn-floating-patch" title="补片工具">🟩<span id="floating-patch-count">0</span></button>
+                <button class="tool-bubble-btn" data-tool-mode="beacon" id="btn-floating-beacon" title="信标工具">📡<span id="floating-beacon-count">0</span></button>
+            </div>
         </div>
 
         <!-- 右侧 E-7 手机：抽屉式通讯 / 档案 -->

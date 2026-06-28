@@ -1071,6 +1071,28 @@ class GameEngine {
         if (this.toolMode === 'beacon') return this.placeBeacon(cellId);
         if (this.toolMode === 'break') return this.placeBreak(cellId);
         if (this.realtimeMode) return this.requestRealtimeMove(cellId);
+
+        // Turn-based mode tutorial movement auto-confirm
+        if (this.tutorialActive) {
+            const step = this.activeTutorialSteps[this.currentTutorialStepIndex];
+            if (step && step.type === 'move') {
+                if (cellId === step.targetCellId) {
+                    this.clearPlannedPath();
+                    this.appendPathCell(cellId);
+                    this.executePlannedPath();
+                    this.currentTutorialStepIndex++;
+                    if (typeof window !== 'undefined' && window.updateTutorialUI) {
+                        window.updateTutorialUI();
+                    }
+                    return true;
+                } else {
+                    this.playFeel?.('invalid');
+                    this.showFeel?.('当前步骤强引导中。请按照指示移动！', 'warn');
+                    return false;
+                }
+            }
+        }
+
         this.appendPathCell(cellId);
         return true;
     }
@@ -1495,6 +1517,16 @@ class GameEngine {
 
     appendPathCell(targetId) {
         if (this.gameState !== 'playing') return;
+        if (this.tutorialActive) {
+            const step = this.activeTutorialSteps[this.currentTutorialStepIndex];
+            if (step && step.type === 'move') {
+                if (targetId !== step.targetCellId) {
+                    this.playFeel?.('invalid');
+                    this.showFeel?.('当前步骤强引导中。请按照指示移动！', 'warn');
+                    return;
+                }
+            }
+        }
         if (this.playerAP <= 0) {
             this.playFeel('invalid');
             this.showFeel('行动点不足，先确认或结束回合', 'warn');

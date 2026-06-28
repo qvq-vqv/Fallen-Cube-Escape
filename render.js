@@ -82,6 +82,7 @@ class RenderEngine {
         this.tutorialWarningSprite = null;
         this.tutorialArrowMesh = null;
         this.tutorialGreenTileMesh = null;
+        this.isOrbitActive = false;
     }
 
     // 初始化 3D 场景
@@ -185,6 +186,13 @@ class RenderEngine {
         this.controls.dampingFactor = 0.05;
         this.controls.maxDistance = 20;
         this.controls.minDistance = 6.8;
+        this.isOrbitActive = false;
+        this.controls.addEventListener('start', () => {
+            this.isOrbitActive = true;
+        });
+        this.controls.addEventListener('end', () => {
+            this.isOrbitActive = false;
+        });
         this.attachBoardPointerHandlers();
         
         // 3. 添加光源：读图层不依赖光照，光源只负责空间质感
@@ -3121,7 +3129,7 @@ class RenderEngine {
         if (!this.game?.tutorialActive || !this.tutorialLookBaseline) return;
         const step = this.game.activeTutorialSteps?.[this.game.currentTutorialStepIndex];
         if (step?.type !== 'look') return;
-        if (!this.lookPointerDown || this.cameraFlight) {
+        if (!this.isOrbitActive || this.cameraFlight) {
             this.tutorialLookLastAngles = null;
             return;
         }
