@@ -122,8 +122,8 @@
             {
                 type: 'dialog',
                 text: {
-                    zh: '等下，那个黄色的东西……钥匙？真经典，经典得有点可疑。',
-                    en: 'Wait, that yellow thing... a key? Classic. Suspiciously classic.'
+                    zh: '等下，那个黄色的东西……是钥匙！拿到它我们才能开门。先拿到它再说。',
+                    en: 'Wait, that yellow thing... a key! We need it to unlock the exit. Let\'s get it first.'
                 },
                 openComms: true,
                 focusCell: { face: 4, row: 1, col: 0 },
@@ -133,45 +133,33 @@
             {
                 type: 'dialog',
                 text: {
-                    zh: '门大概率不会白给。先拿钥匙，我不想跟锁讲道理。',
-                    en: 'The door probably wants payment. Key first. I am not arguing with a lock.'
+                    zh: '对了，你刚才应该看到了我的健康状态。那我的情绪监控（Trust）呢？它也是正常运转的。',
+                    en: 'By the way, you saw my health status. What about my trust level? It is also active.'
                 },
                 tone: 'steady'
             },
             {
-                type: 'move',
+                type: 'dialog',
                 text: {
-                    zh: '亮格在等你。我也在等，别问我急不急。',
-                    en: 'The lit tile is waiting. So am I. Calmly. Totally.'
+                    zh: '如果我的关系信任值过低，我可能会拒绝服从指令，甚至会随机乱走。',
+                    en: 'If trust drops too low, I might refuse to obey your moves or even wander around randomly.'
                 },
-                targetCell: { face: 0, row: 2, col: 1 },
                 tone: 'steady'
             },
             {
-                type: 'move',
+                type: 'esc',
                 text: {
-                    zh: '它离我更近了。很好，我讨厌白跑。',
-                    en: 'It is closer now. Good. I hate pointless cardio.'
+                    zh: '按下 ESC 键（或点击左上角菜单 ☰），打开暂停控制面板。',
+                    en: 'Press ESC key (or click top-left ☰ menu) to open the control panel.'
                 },
-                targetCell: { face: 4, row: 0, col: 1 },
                 tone: 'steady'
             },
             {
-                type: 'move',
+                type: 'closeEsc',
                 text: {
-                    zh: '继续。钥匙就在那儿晃，像在嘲笑我。',
-                    en: 'Keep going. The key is right there, mocking me.'
+                    zh: '看，这是我的信任值，目前为 80（已高亮）。把它保持在安全线以上。现在关闭面板开始行动吧！',
+                    en: 'Look, this is my trust value, currently at 80 (highlighted). Keep it safe. Now close the panel and action!'
                 },
-                targetCell: { face: 4, row: 1, col: 1 },
-                tone: 'steady'
-            },
-            {
-                type: 'move',
-                text: {
-                    zh: '拿它。要是这钥匙咬人，我先怪你。',
-                    en: 'Take it. If the key bites, I blame you first.'
-                },
-                targetCell: { face: 4, row: 1, col: 0 },
                 tone: 'steady'
             }
         ],

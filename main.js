@@ -1442,6 +1442,16 @@ document.addEventListener('DOMContentLoaded', () => {
             game.updateUI();
             audio.play('uiConfirm');
         }
+        if (game.tutorialActive) {
+            const step = game.activeTutorialSteps[game.currentTutorialStepIndex];
+            if (step) {
+                if (shouldOpen && step.type === 'esc') {
+                    advanceTutorialStep();
+                } else if (!shouldOpen && step.type === 'closeEsc') {
+                    advanceTutorialStep();
+                }
+            }
+        }
     }
 
     function keyLabel(code) {
@@ -2601,6 +2611,10 @@ document.addEventListener('DOMContentLoaded', () => {
             card.classList.add('is-hidden');
             hideTutorialDialogue();
             btnTwistMode?.classList.remove('tutorial-target');
+            const consoleTrustDisplay = document.getElementById('console-trust-display');
+            if (consoleTrustDisplay) {
+                consoleTrustDisplay.classList.remove('tutorial-target');
+            }
             if (typeof render !== 'undefined') render.hideTutorialPointer?.();
             return;
         }
@@ -2613,6 +2627,12 @@ document.addEventListener('DOMContentLoaded', () => {
         btnTwistMode?.classList.toggle('tutorial-target', step.type === 'twist');
         commsFloatBubble?.classList.toggle('tutorial-target', step.openComms || step.type === 'dialog');
         toolsFloatBubble?.classList.toggle('tutorial-target', step.openTools || step.type === 'tool' || step.type === 'twist');
+        
+        const consoleTrustDisplay = document.getElementById('console-trust-display');
+        if (consoleTrustDisplay) {
+            consoleTrustDisplay.classList.toggle('tutorial-target', step.type === 'closeEsc');
+        }
+
         if (step.openComms) openPhonePanel('comms');
         if (step.openTools || step.type === 'tool' || step.type === 'twist') openPhonePanel('tasks');
 
@@ -2721,7 +2741,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const step = game.activeTutorialSteps[game.currentTutorialStepIndex];
         if (!step) return;
 
-        if (step.type === 'dialog' || step.type === 'look' || step.type === 'zoom') {
+        if (step.type === 'dialog' || step.type === 'look' || step.type === 'zoom' || step.type === 'esc' || step.type === 'closeEsc') {
             game.currentTutorialStepIndex++;
             audio.play('uiConfirm');
             updateTutorialUI();
