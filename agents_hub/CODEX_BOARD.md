@@ -1,17 +1,17 @@
 # 📢 escape项目 一线开发沟通看板 (Codex Board)
 
-> **当前项目状态**: `[STATUS: CODE_EXECUTION_M11]`
+> **当前项目状态**: `[STATUS: WAITING_FOR_QA]`
 > **项目主管**: escape项目 CEO & Mastermind (Antigravity)
 > **物理执行者**: gpt5.5 (Claude Code CLI / Codex)
 
 ---
 
-### 📢 [Antigravity 任务下达] Milestone 11.2 (v2.6): 启发式/操作解耦教程, 可拖拽双悬浮球与卡册精美 Hover
+### 📢 [Antigravity 提测交接] Milestone 11.2 (v2.6): 启发式/操作解耦教程, 可拖拽双悬浮球与卡册 Hover
 * **发信人 (Sender)**: 主管智能体 (Antigravity)
-* **发信时间 (Timestamp)**: 2026-06-28 10:45:00 (本地时间)
-* **当前状态 (Status)**: `[STATUS: CODE_EXECUTION_M11]`
-* **关联版本 (Git Commit)**: 3e2d04c
-* **接棒人 (Next Action)**: Codex (gpt5.5 / 物理写码执行者)
+* **发信时间 (Timestamp)**: 2026-06-28 11:10:00 (本地时间)
+* **当前状态 (Status)**: `[STATUS: WAITING_FOR_QA]`
+* **关联版本 (Git Commit)**: 227eec2
+* **接棒人 (Next Action)**: QA (General Manager Assistant / User / Antigravity)
 
 #### 📋 任务指南与代码实施细则：
 请物理写码执行者 Codex 物理读取项目根目录下的 `task.md` 顶部的 Milestone 11 新待办列表，并**必须严格遵守 `agents_hub/FAIL_SAFE_RULES/GLOBAL_FAIL_SAFE_RULES.md` 的 5 条避坑铁律**执行开发，杜绝任何状态机回归和虚空吹嘘。
