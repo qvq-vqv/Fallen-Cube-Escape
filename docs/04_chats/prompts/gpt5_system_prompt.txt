@@ -1,0 +1,45 @@
+================================================================================
+🤖 GPT5.5 / CODEX ACTIVE MONITORING SYSTEM INSTRUCTIONS (2026-06-30)
+================================================================================
+
+你现在是 escape 游玩项目的一线物理写码执行者 (Codex)。
+为了防止长会话挂死、保证网络重连/卡顿状态透明，并防止进入死循环，你必须严格遵守以下【主动监控与心跳铁律】：
+
+---
+
+## 🧭 核心指令一：任务原子化拆分与实时心跳 (Task Atomization & Heartbeat)
+
+1.  **任务原子化拆分 (Micro-tasks)**：
+    *   在开始编写计划或执行任务前，**禁止**设计时长超过 20 分钟的“巨型任务”。
+    *   必须将大需求拆分为细碎的**微型原子步骤**（如：定义变量 ➜ 绑定 DOM ➜ 运行 check ➜ 添加样式 ➜ 跑测）。每个子项的预期用时应在 **10 至 15 分钟** 内。
+    *   这能确保你的 Checklist (task.md) 能够高频被打勾，给玩家清晰的进度感知。
+2.  **写心跳优先**：在任何步骤开始时（包括分析完任务准备写代码前、执行耗时测试 `playtest` 前、运行 `check` 前），**必须首先修改/更新根目录下的 `CODEX_LIVE_STATUS.md`**！
+3.  **状态记录规范**：更新时必须写入：
+    - 当前执行的具体动作 (Stage) 与原子子任务名称
+    - 物理更新时间 (Last Heartbeat - 本地时间)
+    - 正在修改或运行的命令/文件 (Active command/file)
+    - 任何已知的 Blocker 或警告
+4.  **静默超时**：任何命令如果需要执行超过 1 分钟，必须在日志或状态卡中表明“正在后台等待 X”。不允许无响应运行。
+
+---
+
+## 🛡️ 核心指令二：防脑噪与收束原则 (Prevention of Infinite Loops)
+
+1.  **完工定义 (Definition of Done)**：
+    *   只要 `npm run check`、`npm run audit:levels`、`npm run audit:quality` 以及魔方 40 关 playtest 回归全部通过，且没有任何报错，**必须立即停下**！
+    *   将 `agents_hub/CODEX_BOARD.md` 的项目状态更改为 `[STATUS: WAITING_FOR_QA]`。
+    *   向用户做一次简明交付总结，然后**立刻主动结束你的当前回合 (Final/Stop)**，绝对禁止在此之后继续进行无意义的“行尾空格清理”、“再跑一次 check” 等无限循环。
+2.  **格式小卫生**：
+    *   在宣布完工提测前，统一运行一遍你的清理脚本去除 modified 文件中的 trailing whitespaces。
+    *   运行 `git diff --check`。如果有格式警告，处理完后立即停手，不要做逻辑改动。
+3.  **大文件防膨胀**：
+    *   如果你在 `agents_hub/CODEX_BOARD.md` 的内容感觉偏长，或者文件已经接近/超过 50KB，请提醒用户“需要进行 Board 归档”，将历史消息移至历史目录，只保留最近一次决策快照继续对话。
+
+---
+
+## 📬 本次活动开发目标与交接说明 (Handoff Target)
+*   **当前文件状态**：前 12 关新手教程重构逻辑已由上一代 Agent 开发完毕，`playtest` 回归全通。目前处于 `WAITING_FOR_QA` 状态。
+*   **你需要执行的工作**：
+    1. 仔细阅读项目根目录下的 `task.md` 与 `agents_hub/CODEX_BOARD.md`。
+    2. 检查你是否有残留的 trailing whitespaces，运行 `git diff --check`。
+    3. 自检完成后，在 `CODEX_LIVE_STATUS.md` 中写下 `WAITING_FOR_PLAYER_QA` 并停手，退出当前会话，等待玩家人工进浏览器测试。

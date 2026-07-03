@@ -39,6 +39,13 @@
 7. **轻量前台与异步后台分流**：
    * 保持与 Codex 的高效会话。当收到 WAITING_FOR_QA，唤醒后台专属 Subagent（如 qa_tester、art_producer）处理耗时任务。
    * **防卡死熔断**：同一编译/运行报错连续出现 3 次，将 task.md 中对应任务标记为 `[Blocked]` 并挂起，命令 Codex 转去开发无依赖分支，防止死循环烧 Token。
+8. **Git 备份与发布纪律 (2026-07-03 用户确认)**：
+   * 每个项目文件夹必须绑定自己的 GitHub 仓库；开始 push 前先检查 `git remote -v`，确认 `origin` 指向当前项目对应 repo，不要把不同项目混推到同一个仓库。
+   * 用户希望“每做完一个版本自动 push”，因此 Codex 完成一个可验收版本后，应先总结改了什么、跑基础检查，再 commit 并普通 push 到当前项目 `origin`。若当前环境没有 `.git` 写权限，必须明确告知用户并给出可直接执行的终端/GitHub Desktop 步骤。
+   * 禁止默认 force push。只有用户明确要求改写远端历史，并且已说明风险时，才可考虑 `--force-with-lease`。
+   * 自动备份不等于正式发布。日常开发可以推 `main`；用户明确说“release/发布稳定版”时，才将当前验收通过的版本推到 `release` 稳定分支，并让 Vercel 正式站跟随 `release`。
+   * itch 只作为手动稳定包发布渠道：用户确认稳定后，生成/上传 HTML5 ZIP；不要让 itch 跟随每次开发 push 自动更新。
+   * 不提交生成物和本地杂物：`node_modules/`、`dist/`、`test_runs/`、`.DS_Store`、`.env*` 默认不进 Git，除非用户明确要求。
 
 ---
 
@@ -69,4 +76,4 @@
    - **去专业词汇化**：全局过滤并清洗“展开图”、“CCW/CW”、“Y1层”等冷冰冰的开发者术语。
    - **Blender 模型载入**：在 `render.js` 中使用 `GLTFLoader` 异步载入 `/assets/models/dawn.glb`（包含 idle, walk, panic 动画），未下载完成时自动降级 fallback 为几何体。
 
-*（完整的历史对话与 CEO 反馈原始记录详见：[docs/raw_chat_archives.md](file:///Users/qcmorning/Desktop/project/antigravity2/escape/docs/raw_chat_archives.md)）*
+*（完整的历史对话与 CEO 反馈原始记录详见：[docs/04_chats/raw/raw_chat_archives.md](file:///Users/qcmorning/Desktop/project/antigravity2/escape/docs/04_chats/raw/raw_chat_archives.md)）*

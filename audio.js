@@ -68,7 +68,9 @@ class AudioFeedback {
         if (!btn) return;
         btn.classList.toggle('muted', this.muted);
         btn.setAttribute('aria-pressed', String(!this.muted));
-        btn.innerText = this.muted ? '声音 关' : '声音 开';
+        btn.innerText = this.muted
+            ? (window.t?.('audio.off') || '声音 关')
+            : (window.t?.('audio.on') || '声音 开');
     }
 
     setTension(mode) {

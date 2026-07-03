@@ -87,6 +87,10 @@ function cloneState(state, action = null) {
         bridges: state.bridges.map(link => ({ ...link })),
         voids: new Set(state.voids),
         patches: new Set(state.patches),
+        vineSources: new Set(state.vineSources),
+        vines: new Set(state.vines),
+        immuneToVine: new Set(state.immuneToVine),
+        vineStepCounter: state.vineStepCounter,
         patchCharges: state.patchCharges,
         beaconCharges: state.beaconCharges,
         breakCharges: state.breakCharges,
@@ -124,6 +128,10 @@ function stateKey(state) {
         serializeLinks(state.bridges),
         serializeSet(state.voids),
         serializeSet(state.patches),
+        serializeSet(state.vineSources),
+        serializeSet(state.vines),
+        serializeSet(state.immuneToVine),
+        state.vineStepCounter,
         state.patchCharges,
         state.beaconCharges,
         state.breakCharges,
@@ -154,6 +162,7 @@ function isBridgeStep(state, from, to) {
 
 function isPlayerWalkable(engine, state, cellId) {
     if (cellId === null || cellId === undefined || !engine.cells[cellId]) return false;
+    if (state.vines.has(cellId)) return false;
     return !state.voids.has(cellId) || state.patches.has(cellId);
 }
 
@@ -173,6 +182,68 @@ function neighbors(engine, state, cellId, actor = 'player') {
     const bridge = bridgeDestination(state, cellId);
     if (bridge !== null && bridge !== undefined && canEnter(bridge)) base.push(bridge);
     return [...new Set(base)];
+}
+
+function vineNeighbors(engine, cellId) {
+    if (cellId === null || cellId === undefined || !engine.cells[cellId]) return [];
+    return Object.values(engine.cells[cellId].neighbors)
+        .filter(next => next !== null && next !== undefined && engine.cells[next]);
+}
+
+function canVineOccupy(engine, state, cellId) {
+    if (cellId === null || cellId === undefined || !engine.cells[cellId]) return false;
+    if (state.immuneToVine.has(cellId)) return false;
+    if (state.voids.has(cellId) && !state.patches.has(cellId)) return false;
+    if (cellId === state.player) return false;
+    return true;
+}
+
+function pruneVines(engine, state) {
+    if (!state.vines.size || !state.vineSources.size) return 0;
+    const visited = new Set();
+    const queue = [];
+    state.vineSources.forEach(source => {
+        if (state.vines.has(source)) {
+            visited.add(source);
+            queue.push(source);
+        }
+    });
+    for (let head = 0; head < queue.length; head++) {
+        const current = queue[head];
+        vineNeighbors(engine, current).forEach(next => {
+            if (visited.has(next) || !state.vines.has(next)) return;
+            visited.add(next);
+            queue.push(next);
+        });
+    }
+    const removed = [];
+    state.vines.forEach(cell => {
+        if (!visited.has(cell)) removed.push(cell);
+    });
+    removed.forEach(cell => state.vines.delete(cell));
+    return removed.length;
+}
+
+function spreadVines(engine, state) {
+    if (!state.vines.size) return 0;
+    const additions = new Set();
+    state.vines.forEach(cell => {
+        vineNeighbors(engine, cell).forEach(next => {
+            if (!state.vines.has(next) && canVineOccupy(engine, state, next)) additions.add(next);
+        });
+    });
+    additions.forEach(cell => state.vines.add(cell));
+    return additions.size;
+}
+
+function advanceVines(engine, state) {
+    if (!state.vines.size) return;
+    state.vineStepCounter += 1;
+    if (state.vineStepCounter >= 2) {
+        state.vineStepCounter = 0;
+        spreadVines(engine, state);
+        pruneVines(engine, state);
+    }
 }
 
 function shortestDistance(engine, state, start, target, actor = 'player') {
@@ -299,7 +370,7 @@ function isReservedBreakCell(state, cellId) {
 
 function isLegalBreakTarget(engine, state, cellId) {
     if (state.breakCharges <= 0 || !engine.cells[cellId]) return false;
-    if (isReservedBreakCell(state, cellId)) return false;
+        if (isReservedBreakCell(state, cellId)) return false;
     return !state.voids.has(cellId) || state.patches.has(cellId);
 }
 
@@ -421,6 +492,9 @@ function applyAction(engine, state, action) {
         next.bridges = next.bridges.map(link => ({ a: perm[link.a], b: perm[link.b] }));
         next.voids = new Set([...next.voids].map(cell => perm[cell]));
         next.patches = new Set([...next.patches].map(cell => perm[cell]));
+        next.vineSources = new Set([...next.vineSources].map(cell => perm[cell]));
+        next.vines = new Set([...next.vines].map(cell => perm[cell]));
+        next.immuneToVine = new Set([...next.immuneToVine].map(cell => perm[cell]));
         if (next.beaconCell !== null) next.beaconCell = perm[next.beaconCell];
         if (!next.hasKey && next.key >= 0) {
             next.key = perm[next.key];
@@ -428,6 +502,7 @@ function applyAction(engine, state, action) {
         }
         next.exit = perm[next.exit];
         next.usedRotation = true;
+        pruneVines(engine, next);
         if (!next.hasKey && next.player === next.key) {
             next.hasKey = true;
             next.key = -1;
@@ -437,6 +512,10 @@ function applyAction(engine, state, action) {
     }
     if (dead) return null;
     if (win) return { ...next, win: true };
+    const advancesVines = action.type !== 'move' || action.sequence.length > 0;
+    if (advancesVines) {
+        advanceVines(engine, next);
+    }
     if (advanceAI(engine, next)) return null;
     return next;
 }
@@ -468,6 +547,10 @@ function solve(level, index) {
         bridges: engine.bridges.map(link => ({ ...link })),
         voids: new Set(engine.voidCells || []),
         patches: new Set(engine.activePatchCells || []),
+        vineSources: new Set(engine.vineSources || []),
+        vines: new Set(engine.vineCells || []),
+        immuneToVine: new Set(engine.immuneToVineCells || []),
+        vineStepCounter: engine.vineStepCounter || 0,
         patchCharges: engine.patchCharges,
         beaconCharges: engine.beaconCharges,
         breakCharges: engine.breakCharges,

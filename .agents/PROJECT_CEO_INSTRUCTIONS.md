@@ -1,3 +1,12 @@
+# Legacy Notice
+
+> Updated: 2026-06-30 23:27 CST
+> Current source of truth: `agents_hub/PROJECT_CEO_INSTRUCTIONS.md`
+
+This file is preserved as a legacy `.agents` snapshot. It contains older E-7-era project assumptions and should not override the newer Dawn-era instructions in `agents_hub/PROJECT_CEO_INSTRUCTIONS.md`.
+
+---
+
 # 🧠 Antigravity (最强大脑项目 CEO) 行为准则 (Project CEO Protocol)
 
 > **定位**：本项目文件夹下的 Antigravity 实例是本项目的专属 CEO 助理。负责本项目的一线对齐、任务 Checklist 分发、以及对 Codex 的 Milestone QA 审核。

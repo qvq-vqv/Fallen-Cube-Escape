@@ -129,22 +129,22 @@
                 {
                     no: '01',
                     title: { zh: '……', en: '...' },
-                    text: '我刚才在床上。灯还没关，手机在响。然后床像折纸一样塌下去了。'
+                    text: '我刚才在宿舍床上。灯还没关，我正玩着手机呢……然后床底下突然像折纸一样塌塌下去了，我就掉到了这里……'
                 },
                 {
                     no: '02',
                     title: { zh: '等一下。', en: 'Wait.' },
-                    text: '你是谁？为什么我手机上有你的信号？你能看见我？'
+                    text: '这里周围全是漆黑一片的悬崖虚空，我不知道我是不是在做梦……你是谁？你发个消息回我好不好？求求你了……'
                 },
                 {
                     no: '03',
-                    title: { zh: '别指挥我。', en: 'Do not order me around.' },
-                    text: '那个发亮的格子是你点的？我不认识你，也不打算随便跟着陌生人走。'
+                    title: { zh: '我不敢走。', en: 'I dare not walk.' },
+                    text: '那个亮起来的荧光格子是你点亮的吗？……我不敢乱走，我脚底下踩的地方感觉很滑，掉下去肯定就回不去了……'
                 },
                 {
                     no: '04',
-                    title: { zh: '……但我想回家。', en: '...But I want to go home.' },
-                    text: '如果你真能带路，先证明你不会害死我。画短一点。'
+                    title: { zh: '……我想回家。', en: '...I want to go home.' },
+                    text: '我真的想回家。如果你真的能帮我指路，拜托你一定要小心，千万别把我带进悬崖里……'
                 }
             ],
             startFace: K.steady,
@@ -152,21 +152,21 @@
         },
         scenes: {
             wakeSignal: {
-                title: { zh: 'E-7 / 陌生来电', en: 'E-7 / Unknown Call' },
+                title: { zh: 'Dawn / 陌生信号', en: 'Dawn / Unknown Signal' },
                 status: { zh: '信号发抖', en: 'Signal trembling' },
-                bubble: { zh: '你到底是谁？', en: 'Who are you?' },
+                bubble: { zh: '求求你别丢下我……', en: 'Please don\'t leave me...' },
                 lines: [
-                    { zh: '……喂？能听到吗？这什么鬼信号……', en: '...Hello? Can you hear me? What a garbage signal...' },
-                    { zh: '我刚才明明在宿舍床上玩手机，怎么一闭眼，整个人站在一个发光的方块上？！', en: 'I was literally just on my dorm bed looking at my phone. How did I open my eyes to find myself standing on a glowing square?!' },
-                    { zh: '等等，我脚底下那条发光的荧光轨道是你画的？', en: 'Wait, did you draw that glowing fluorescent path under my feet?' },
-                    { zh: '你到底是谁？先别得意，我还没决定要不要听一个陌生人的。', en: 'Who are you anyway? Don\'t get smug, I haven\'t decided whether to trust a stranger yet.' }
+                    { zh: '……喂？有人在听吗？这什么鬼地方……', en: '...Hello? Is anyone there? Where on earth is this...' },
+                    { zh: '我刚才明明在宿舍床上躺着，怎么一闭眼，整个人落到了这个悬空的方格上？！', en: 'I was literally just on my dorm bed. How did I open my eyes to find myself standing on this floating square?!' },
+                    { zh: '等一下，我手机上莫名其妙多了这个软件……是你发出来的信号吗？', en: 'Wait... this software suddenly appeared on my phone. Is this your signal?' },
+                    { zh: '这里四周都是悬崖……我不敢动，求求你带我出去，我想回家，我想我爸爸妈妈了……o(╥﹏╥)o', en: 'It is cliffs all around... I dare not move. Please lead me out, I want to go home, I miss my parents... o(╥﹏╥)o' }
                 ],
                 replies: [
                     {
                         face: K.shock,
-                        aria: { zh: '震惊', en: 'Shocked' },
+                        aria: { zh: '震惊回应', en: 'Shocked reply' },
                         tone: 'warm',
-                        response: { zh: '很好，你也不知道。这个回答很糟，但至少不像骗子。', en: 'Great, you don\'t know either. Terrible answer, but at least you don\'t sound like a scammer.' }
+                        response: { zh: '你也觉得这里很糟对不对？好，那我们都小心点。', en: 'You think this place is terrible too? Okay, let us both be careful.' }
                     },
                     commonReplies.steady,
                     commonReplies.worry
@@ -175,10 +175,10 @@
             l01Route: {
                 title: { zh: 'L01 / 荧光轨道', en: 'L01 / Fluorescent Route' },
                 status: { zh: '最低信任', en: 'Minimum trust' },
-                bubble: { zh: '我警告你啊，别把我带沟里。', en: 'I warning you, don\'t lead me into a ditch.' },
+                bubble: { zh: '我跟着你选的格子走……', en: 'I will follow the cells you choose...' },
                 lines: [
-                    { zh: '这地面踩起来倒是实的……好吧，虽然不知道你是什么原理，但我好像只能顺着你画的这条发光线走。', en: 'The ground feels solid... fine, whatever your science is, I guess I can only follow this glowing line you\'re drawing.' },
-                    { zh: '我警告你啊，你要是故意把我往死路上带，我做鬼也不会放过你的！', en: 'I\'m warning you, if you lead me into a trap on purpose, I\'ll haunt you forever!' }
+                    { zh: '这地面踩上去感觉冰冰凉凉的……好吧，我跟着你选的格子走。', en: 'The ground feels ice-cold under my feet... okay, I\'ll follow the cells you chose.' },
+                    { zh: '你一定要看仔细了……如果踩空掉下去，我肯定就没命了……呜呜……', en: 'You must look carefully... if I misstep and fall, I will definitely die... *crying*...' }
                 ],
                 replies: [
                     commonReplies.steady,
@@ -186,7 +186,7 @@
                         face: K.nod,
                         aria: { zh: '点头', en: 'Nod' },
                         tone: 'steady',
-                        response: { zh: '别点得这么理所当然。你现在只是“可疑但暂时有用”。', en: 'Don\'t nod so casually. Right now you\'re just "suspicious but temporarily useful."' }
+                        response: { zh: '别点得这么理所当然。我真的只能靠你指路了……', en: 'Don\'t nod so casually. I really have only you to guide me...' }
                     },
                     commonReplies.tease
                 ]
@@ -194,11 +194,11 @@
             l02Key: {
                 title: { zh: 'L02 / 权限钥匙', en: 'L02 / Auth Key' },
                 status: { zh: '目标确认', en: 'Target confirmed' },
-                bubble: { zh: '那是钥匙吧？应该吧？', en: 'That is a key, right? Probably?' },
+                bubble: { zh: '那是一把钥匙吧？', en: 'That is a key, right?' },
                 lines: [
-                    { zh: '前面悬浮着一把发光的……钥匙？还有一扇看起来像安全出口的门。', en: 'There\'s a glowing... key floating ahead? And a door that looks like an emergency exit.' },
-                    { zh: '虽然很荒谬，但看来我得先去把那玩意儿捞到手。', en: 'Absurd, but I guess I have to grab that thing first.' },
-                    { zh: '这难道是什么密室逃脱的测试吗？', en: 'Is this some kind of escape room test?' }
+                    { zh: '前面悬浮着一把亮亮的东西，看起来像是一把钥匙……旁边还有一扇发绿光的门。', en: 'Floating ahead is a glowing thing, looks like a key... and next to it is a green glowing door.' },
+                    { zh: '那扇发绿光的门，应该就是出口吧？它上面写着安全通道的标志。', en: 'That green door must be the exit, right? It has an exit sign on it.' },
+                    { zh: '我得去把那把钥匙拿到，我们就能出去了对不对？一定是这样……', en: 'I need to get that key so we can get out, right? Must be...' }
                 ],
                 replies: [
                     commonReplies.steady,
@@ -207,18 +207,18 @@
                         face: K.tease,
                         aria: { zh: '吐槽', en: 'Snark' },
                         tone: 'tease',
-                        response: { zh: '你也觉得这里很离谱吧？好，我们至少审美还在同一边。', en: 'You think this place is ridiculous too? Fine, at least our tastes are aligned.' }
+                        response: { zh: '……虽然我也觉得这地方很离谱，但只要能出去，我什么都听你的。', en: '...Although I think this place is ridiculous too, as long as we can get out, I will do whatever you say.' }
                     }
                 ]
             },
             l03Chaser: {
                 title: { zh: 'L03 / 红色鬼东西', en: 'L03 / Red Thing' },
                 status: { zh: '威胁接近', en: 'Threat closing' },
-                bubble: { zh: '那怪东西在看我。', en: 'That weird thing is watching me.' },
+                bubble: { zh: '那红色的鬼东西过来了！', en: 'That red thing is coming!' },
                 lines: [
-                    { zh: '等等！前面那几格地板怎么开始冒红光了？', en: 'Wait! Why are those tiles ahead glowing red?' },
-                    { zh: '还有那个飘在空中的红色鬼东西……它是冲着我来的对吧？', en: 'And that red ghost floating in the air... it\'s coming for me, isn\'t it?' },
-                    { zh: '千万别把我往红光里送，我可不想被它碰到，天知道会发生什么！', en: 'Do not guide me into the red light under any circumstances. Heaven knows what happens if it touches me!' }
+                    { zh: '等等！前面那几格地板怎么开始闪着红光了？', en: 'Wait! Why are those tiles ahead glowing red?' },
+                    { zh: '还有那个飘在空中的红色影子……它为什么一直在转动？好像发现我了！', en: 'And that red shadow floating in the air... why is it rotating? It seems to have spotted me!' },
+                    { zh: '千万别让我靠近它，这东西看起来太诡异了……我不敢过去……', en: 'Never let me get close to it, it looks too creepy... I dare not go over...' }
                 ],
                 replies: [
                     commonReplies.steady,
@@ -226,7 +226,7 @@
                         face: K.panic,
                         aria: { zh: '紧张', en: 'Nervous' },
                         tone: 'warm',
-                        response: { zh: '别紧张。好吧，可以紧张一点，但别把线画到红格里。', en: 'Don\'t panic. Okay, maybe panic a little, but don\'t draw the line into the red cells.' }
+                        response: { zh: '你……你也别慌啊，看清楚了再帮我选格子。拜托了！', en: 'You... don\'t panic either, look carefully before choosing cells for me. Please!' }
                     },
                     commonReplies.tease
                 ]
@@ -234,18 +234,18 @@
             l04Rotation: {
                 title: { zh: 'L04 / 空间重组', en: 'L04 / Space Reorder' },
                 status: { zh: '空间异常', en: 'Space anomaly' },
-                bubble: { zh: '等下，你拧了什么？！', en: 'Wait, what did you twist?!' },
+                bubble: { zh: '刚刚地面突然动了！', en: 'The floor suddenly moved just now!' },
                 lines: [
-                    { zh: '卧槽！！！——刚才整层地面是不是突然转过去了？！', en: 'What the hell!!! Did the entire floor just rotate?!' },
-                    { zh: '我差点直接大头朝下栽下去！你……你居然能直接转动这个空间？！', en: 'I almost fell off head-first! You... you can actually rotate this space?!' },
-                    { zh: '我的胃现在还在半空中悬着，下次转之前能不能提前打个招呼？！', en: 'My stomach is still floating in mid-air. Can you give me a heads-up before twisting next time?!' }
+                    { zh: '（发抖的声音）啊啊啊！刚刚……地面突然动了对不对？！我差点直接大头朝下掉进虚空里……', en: 'Ahhh! Just now... the floor moved, right?! I almost fell head-first into the void...' },
+                    { zh: '你……你竟然可以转动这个世界？！怎么会有这种事情……', en: 'You... you can actually rotate this world?! How is that possible...' },
+                    { zh: '我的心跳得好快，肚子感觉在往下坠……拜托你，下次转它之前先告诉我一声……我真的不想掉下去QAQ。', en: 'My heart is beating so fast, my stomach feels like it\'s dropping... please, tell me before rotating it next time... I really don\'t want to fall QAQ.' }
                 ],
                 replies: [
                     {
                         face: K.shock,
                         aria: { zh: '震惊', en: 'Shocked' },
                         tone: 'warm',
-                        response: { zh: '你也吓到了？很好，我不是唯一一个想投诉物理的人。', en: 'You got scared too? Great, I\'m not the only one who wants to complain to physics.' }
+                        response: { zh: '你也吓到了？天啊，这到底是什么鬼地方……我的物理老师一定会以为我疯了。', en: 'You got scared too? Oh god, what on earth is this place... my physics teacher would think I am crazy.' }
                     },
                     commonReplies.steady,
                     commonReplies.tease
@@ -257,38 +257,38 @@
                 bubble: { zh: '钥匙也跟着转走了？', en: 'Did the key rotate with it?' },
                 lines: [
                     { zh: '等等，我刚才看错了吗？你转动那一层的时候，那把钥匙也跟着转走了？！', en: 'Wait, did I see that wrong? When you rotated that layer, the key rotated with it too?!' },
-                    { zh: '原来这地方的物品不是固定在半空，而是跟着地板被定义在格子上的？', en: 'So the items here aren\'t fixed in mid-air, but defined on the tiles and ride with the floor?' },
-                    { zh: '那我是不是也只是一个可以被你任意拧来拧去的积木？太诡异了……', en: 'So am I just a block that you can twist around at will? Creepy...' }
+                    { zh: '原来这个世界的东西会跟着地板一起旋转的吗？那我是不是也只是一个可以被你拧来拧去的积木……', en: 'So things in this world rotate with the floor? Am I just a toy block you can twist around...' },
+                    { zh: '好奇怪的物理规则……我们动作快点好不好，我真的好想回家躺在我自己的床上。', en: 'Such strange physical rules... can we move faster, I really want to go home and lie in my own bed.' }
                 ],
                 replies: [
                     {
                         face: K.worry,
                         aria: { zh: '担心', en: 'Worried' },
                         tone: 'warm',
-                        response: { zh: '行，你慢慢对齐。别等我掉下去才反应过来。', en: 'Fine, take your time aligning it. Just don\'t react only after I fall off.' }
+                        response: { zh: '行，你慢慢对齐。求求你千万看准了，别把我弄丢了……', en: 'Fine, take your time aligning it. Please look carefully, don\'t lose me...' }
                     },
                     {
                         face: K.steady,
                         aria: { zh: '认真', en: 'Locked in' },
                         tone: 'steady',
-                        response: { zh: '感觉你在像拧魔方一样拧我所在的维度。但好歹路通了。', en: 'Feels like you\'re twisting the dimension I\'m in like a Rubik\'s cube. But hey, the path connected.' }
+                        response: { zh: '感觉你在像拧魔方一样拧我所在的维度。但好歹前面的路通了。', en: 'Feels like you\'re twisting the dimension I\'m in like a Rubik\'s cube. But hey, the path connected.' }
                     },
                     {
                         face: K.tease,
                         aria: { zh: '吐槽', en: 'Snark' },
                         tone: 'tease',
-                        response: { zh: '别笑。把路对齐，谢谢！', en: 'Don\'t laugh. Just align the road, thank you!' }
+                        response: { zh: '你还笑……行吧，那你快点指路。', en: 'You\'re still smiling... fine, then guide me quickly.' }
                     }
                 ]
             },
             l06Guardian: {
-                title: { zh: 'L06 / 黄色保安', en: 'L06 / Yellow Guard' },
+                title: { zh: 'L06 / 黄色守卫', en: 'L06 / Yellow Guard' },
                 status: { zh: '守卫识别', en: 'Keeper identified' },
-                bubble: { zh: '那大家伙在看钥匙。', en: 'That big guy is watching the key.' },
+                bubble: { zh: '那大家伙盯着门……', en: 'That big guy is staring at the door...' },
                 lines: [
-                    { zh: '那个黄色的铁壳怪是什么？它一直绕着钥匙打转……', en: 'What is that yellow iron monster? It keeps circling the key...' },
-                    { zh: '它看起来像是这把钥匙的‘贴身保安’。等等！它发现我了！', en: 'Looks like a personal bodyguard for the key. Wait! It spotted me!' },
-                    { zh: '它正在朝我挪动，虽然动作有点慢，但被它堵住就完了！', en: 'It\'s moving towards me. Slowly, but if it blocks me, I\'m toast!' }
+                    { zh: '那个黄色的铁壳怪是什么？它一直绕着钥匙和门走来走去……', en: 'What is that yellow iron monster? It keeps walking around the key and door...' },
+                    { zh: '它看起来像是一个保安，但是它身上的灯突然变红了！它发现我了！', en: 'It looks like a guard, but the light on its body suddenly turned red! It spotted me!' },
+                    { zh: '它正在朝我挪过来……它要过来了，我该往哪躲？要退回去吗？你快指路啊，它要过来了！', en: 'It\'s moving towards me... it\'s coming, where do I hide? Should I back up? Guide me quickly, it\'s coming!' }
                 ],
                 replies: [
                     commonReplies.steady,
@@ -296,7 +296,7 @@
                         face: K.worry,
                         aria: { zh: '担心', en: 'Worried' },
                         tone: 'warm',
-                        response: { zh: '别摆出这种脸。引怪这件事听起来危险，是因为它确实危险。', en: 'Don\'t make that face. Luring it sounds dangerous because it actually is.' }
+                        response: { zh: '别摆出这种表情了。它看起来笨笨的，你能帮我绕开它对不对？我相信你……', en: 'Don\'t make that face. It looks slow, you can help me bypass it, right? I trust you...' }
                     },
                     commonReplies.tease
                 ]
@@ -306,22 +306,22 @@
                 status: { zh: '防线建构', en: 'Defense line' },
                 bubble: { zh: '等等，把地砸了？', en: 'Wait, smash the ground?' },
                 lines: [
-                    { zh: '等下，我终端的控制面板上亮起了一个叫『碎解』的东西。', en: 'Wait, a tool called "Break" just lit up on my terminal control panel.' },
-                    { zh: '既然那个大家伙只要看到我在同一面就会追上来，我们是不是可以……提前把它的必经之路砸了？', en: 'Since that big guy chases me as long as I\'m on the same face, can we... smash the path in front of him beforehand?' },
-                    { zh: '把它隔在虚空另一端，然后我们去拿钥匙。听起来是个暴力拆除的好主意！', en: 'Isolate him on the other side of the void, then grab the key. Sounds like a great demolition plan!' }
+                    { zh: '等下，我这里的手机控制面板上亮起了一个叫『碎解』的东西。', en: 'Wait, a tool called "Break" just lit up on my phone control panel.' },
+                    { zh: '系统播报说它可以把前面的地砖打碎……变成虚无悬崖。', en: 'The system announcement says it can break the floor tiles ahead... turning them into empty cliffs.' },
+                    { zh: '如果把路砸穿了，那个黄色的大家伙是不是就过不来了？我总觉得这招有点太暴力了……', en: 'If the path is smashed open, will that yellow big guy be unable to cross? I feel this is a bit too violent...' }
                 ],
                 replies: [
                     {
                         face: K.steady,
                         aria: { zh: '认真', en: 'Locked in' },
                         tone: 'steady',
-                        response: { zh: '行，你在终端砸，我在这里负责看它发呆。', en: 'Fine, you break it from your terminal, I\'ll watch him stare blankly from here.' }
+                        response: { zh: '行，你负责在屏幕上砸，我在这里假装不怕。', en: 'Fine, you break it from your screen, I\'ll pretend not to be scared.' }
                     },
                     {
                         face: K.tease,
                         aria: { zh: '吐槽', en: 'Snark' },
                         tone: 'tease',
-                        response: { zh: '别砸到我们站的地方就行。那会变成真正的地狱笑话。', en: 'Just don\'t break the tiles we\'re standing on. That would be a literal tragedy.' }
+                        response: { zh: '你可千万别砸到我脚底下的这块地……那样我们就一起完蛋了。', en: 'Just don\'t break the tiles I\'m standing on. Otherwise we are both finished.' }
                     }
                 ]
             },
@@ -332,7 +332,7 @@
                 lines: [
                     { zh: '它……它刚才是不是尖叫了一声？', en: 'Did... did it just scream?' },
                     { zh: '我拿到钥匙之后，它的眼睛突然变红了，而且飘得比刚才快了一倍！', en: 'The moment I grabbed the key, its eyes turned red and it started floating twice as fast!' },
-                    { zh: '快画线！它疯了一样追过来了！！这把钥匙根本就是个警报器！', en: 'Draw the line! It\'s chasing me like crazy!! This key is literally just an alarm!' }
+                    { zh: '快带我跑！它疯了一样追过来了！！这把钥匙根本就是个警报器！', en: 'Lead me away! It\'s chasing me like crazy!! This key is literally just an alarm!' }
                 ],
                 replies: [
                     commonReplies.steady,
@@ -547,7 +547,7 @@
                 lines: [
                     { zh: '前面碎了非常多格子，连成了一片深渊。', en: 'Many tiles ahead are broken, forming an abyss.' },
                     { zh: '好消息是怪物也跨不过去，坏消息是我们也没有直达的路了。', en: 'Good news is the monsters can\'t cross it either. Bad news is we have no direct route left.' },
-                    { zh: '我们得贴着边缘绕行，别把我画到悬崖外面去！', en: 'We have to loop around the edge. Don\'t draw my line off the cliff!' }
+                    { zh: '我们得贴着边缘绕行，你千万指准了别让我踩空掉下去！', en: 'We have to loop around the edge. Look carefully and don\'t let me step off the cliff!' }
                 ],
                 replies: [commonReplies.steady, commonReplies.worry, commonReplies.tease]
             },
@@ -644,7 +644,7 @@
                 status: { zh: '破面捷径', en: 'Broken-face shortcut' },
                 bubble: { zh: '没路了，只能传送。', en: 'No path left, portal only.' },
                 lines: [
-                    { zh: '前面的整条路都被悬崖撕开了，常规画线根本通不过。', en: 'The entire road ahead is torn by a cliff. Regular paths won\'t connect.' },
+                    { zh: '前面的整条路都被悬崖撕开了，常规走法根本通不过。', en: 'The entire road ahead is torn by a cliff. Regular steps won\'t connect.' },
                     { zh: '我们必须利用传送门实现跨深渊的“折跃”。', en: 'We must use portals to execute a cross-abyss jump.' },
                     { zh: '这地方逼我学会飞。虽然只是传送的那种飞。', en: 'This place is forcing me to learn how to fly. Well, teleportation-flying.' }
                 ],
@@ -723,7 +723,7 @@
                 lines: [
                     { zh: '钥匙拿到后，那只大黄色守门怪会以两格的速度抄近道去堵出口。', en: 'After picking up the key, the yellow guard will rush the door at 2-tile speed.' },
                     { zh: '加上地表缺口，我们撤离的路线只有一条。', en: 'With the floor gaps, there is only one exit route.' },
-                    { zh: '必须提前计算好它的合围时间，手画路线绝对不能出错！', en: 'Calculate its intercept time beforehand. The path must be perfect!' }
+                    { zh: '必须提前计算好它的合围时间，指引我的路线绝对不能出错！', en: 'Calculate its intercept time beforehand. The path must be perfect!' }
                 ],
                 replies: [commonReplies.steady, commonReplies.worry, commonReplies.tease]
             },
@@ -824,7 +824,7 @@
                 lines: [
                     { zh: '它……它刚才是不是尖叫了一声？', en: 'Did... did it just scream?' },
                     { zh: '我拿到钥匙之后，它的眼睛突然变红了，而且飘得比刚才快了一倍！', en: 'The moment I grabbed the key, its eyes turned red and it started floating twice as fast!' },
-                    { zh: '快画线！它追过来了！！这把钥匙根本就是个警报器！', en: 'Draw the line! It\'s chasing me like crazy!! This key is literally just an alarm!' }
+                    { zh: '快带我跑！它追过来了！！这把钥匙根本就是个警报器！', en: 'Lead me away! It\'s chasing me like crazy!! This key is literally just an alarm!' }
                 ],
                 replies: [
                     commonReplies.steady,

@@ -146,6 +146,10 @@ function cloneState(state, action = null) {
         bridges: state.bridges.map(link => ({ ...link })),
         voids: new Set(state.voids),
         activePatches: new Set(state.activePatches),
+        vineSources: new Set(state.vineSources),
+        vineCells: new Set(state.vineCells),
+        immuneToVineCells: new Set(state.immuneToVineCells),
+        vineStepCounter: state.vineStepCounter,
         patchCharges: state.patchCharges,
         beaconCharges: state.beaconCharges,
         breakCharges: state.breakCharges,
@@ -175,6 +179,7 @@ function isBridgeStepState(state, fromId, toId) {
 
 function isWalkableForPlayerState(engine, state, cellId) {
     if (cellId === null || cellId === undefined || !engine.cells[cellId]) return false;
+    if (state.vineCells.has(cellId)) return false;
     return !state.voids.has(cellId) || state.activePatches.has(cellId);
 }
 
@@ -223,6 +228,70 @@ function findPathForState(engine, state, startId, targetId, actor = 'player') {
 function getNextStepForState(engine, state, startId, targetId, actor = 'ai') {
     const path = findPathForState(engine, state, startId, targetId, actor);
     return path && path.length > 1 ? path[1] : null;
+}
+
+function getVineNeighborsForState(engine, cellId) {
+    if (cellId === null || cellId === undefined || !engine.cells[cellId]) return [];
+    return Object.values(engine.cells[cellId].neighbors)
+        .filter(next => next !== null && next !== undefined && engine.cells[next]);
+}
+
+function canVineOccupyState(engine, state, cellId) {
+    if (cellId === null || cellId === undefined || !engine.cells[cellId]) return false;
+    if (state.immuneToVineCells.has(cellId)) return false;
+    if (state.voids.has(cellId) && !state.activePatches.has(cellId)) return false;
+    if (cellId === state.player) return false;
+    return true;
+}
+
+function spreadVinesForState(engine, state) {
+    if (!state.vineCells || state.vineCells.size === 0) return 0;
+    const additions = new Set();
+    state.vineCells.forEach(cellId => {
+        getVineNeighborsForState(engine, cellId).forEach(nextId => {
+            if (!state.vineCells.has(nextId) && canVineOccupyState(engine, state, nextId)) {
+                additions.add(nextId);
+            }
+        });
+    });
+    additions.forEach(cellId => state.vineCells.add(cellId));
+    return additions.size;
+}
+
+function pruneDisconnectedVinesForState(engine, state) {
+    if (!state.vineCells || state.vineCells.size === 0 || !state.vineSources || state.vineSources.size === 0) return 0;
+    const visited = new Set();
+    const queue = [];
+    state.vineSources.forEach(sourceId => {
+        if (state.vineCells.has(sourceId)) {
+            visited.add(sourceId);
+            queue.push(sourceId);
+        }
+    });
+    for (let head = 0; head < queue.length; head++) {
+        const current = queue[head];
+        getVineNeighborsForState(engine, current).forEach(nextId => {
+            if (visited.has(nextId) || !state.vineCells.has(nextId)) return;
+            visited.add(nextId);
+            queue.push(nextId);
+        });
+    }
+    const removed = [];
+    state.vineCells.forEach(cellId => {
+        if (!visited.has(cellId)) removed.push(cellId);
+    });
+    removed.forEach(cellId => state.vineCells.delete(cellId));
+    return removed.length;
+}
+
+function advanceVinesForState(engine, state) {
+    if (!state.vineCells || state.vineCells.size === 0) return;
+    state.vineStepCounter += 1;
+    if (state.vineStepCounter >= 2) {
+        state.vineStepCounter = 0;
+        spreadVinesForState(engine, state);
+        pruneDisconnectedVinesForState(engine, state);
+    }
 }
 
 function getAITarget(engine, state, ai) {
@@ -287,6 +356,10 @@ function stateKey(state) {
         serializeLinks(state.bridges),
         serializeSetLike(state.voids),
         serializeSetLike(state.activePatches),
+        serializeSetLike(state.vineSources),
+        serializeSetLike(state.vineCells),
+        serializeSetLike(state.immuneToVineCells),
+        state.vineStepCounter,
         state.patchCharges,
         state.beaconCharges,
         state.breakCharges,
@@ -514,6 +587,10 @@ function solveLevel(level, levelIndex, options = {}) {
         bridges: engine.bridges.map(link => ({ ...link })),
         voids: new Set(engine.voidCells || []),
         activePatches: new Set(engine.activePatchCells || []),
+        vineSources: new Set(engine.vineSources || []),
+        vineCells: new Set(engine.vineCells || []),
+        immuneToVineCells: new Set(engine.immuneToVineCells || []),
+        vineStepCounter: engine.vineStepCounter || 0,
         patchCharges: options.noPatch ? 0 : engine.patchCharges,
         beaconCharges: options.noBeacon ? 0 : engine.beaconCharges,
         breakCharges: options.noBreak ? 0 : engine.breakCharges,
@@ -640,6 +717,9 @@ function solveLevel(level, levelIndex, options = {}) {
                 }));
                 nextState.voids = new Set([...nextState.voids].map(cellId => perm[cellId]));
                 nextState.activePatches = new Set([...nextState.activePatches].map(cellId => perm[cellId]));
+                nextState.vineSources = new Set([...nextState.vineSources].map(cellId => perm[cellId]));
+                nextState.vineCells = new Set([...nextState.vineCells].map(cellId => perm[cellId]));
+                nextState.immuneToVineCells = new Set([...nextState.immuneToVineCells].map(cellId => perm[cellId]));
                 if (nextState.beaconCell !== null && nextState.beaconCell !== undefined) {
                     nextState.beaconCell = perm[nextState.beaconCell];
                 }
@@ -658,6 +738,7 @@ function solveLevel(level, levelIndex, options = {}) {
                 }
                 if (nextState.ais.some(ai => ai.pos === nextState.player)) dead = true;
                 if (nextState.hasKey && nextState.player === nextState.exit) win = true;
+                pruneDisconnectedVinesForState(engine, nextState);
             }
 
             if (dead) continue;
@@ -677,6 +758,10 @@ function solveLevel(level, levelIndex, options = {}) {
                 continue;
             }
 
+            const advancesVines = action.type !== 'move' || action.sequence.length > 0;
+            if (advancesVines) {
+                advanceVinesForState(engine, nextState);
+            }
             dead = advanceAI(engine, nextState);
             if (dead) continue;
             const key = stateKey(nextState);
@@ -850,6 +935,12 @@ levelBook.forEach((level, index) => {
         engine.ais.some(ai => ai.pos === engine.keyPos);
     const enemyOnExit = engine.exitPos !== null &&
         engine.ais.some(ai => ai.pos === engine.exitPos);
+    const playerOnVoid = engine.voidCells.has(engine.playerPos);
+    const keyOnVoid = engine.keyPos !== null && engine.voidCells.has(engine.keyPos);
+    const exitOnVoid = engine.exitPos !== null && engine.voidCells.has(engine.exitPos);
+    const enemiesOnVoid = engine.ais
+        .map((ai, aiIndex) => engine.voidCells.has(ai.pos) ? aiIndex : null)
+        .filter(aiIndex => aiIndex !== null);
     const keyAtFaceCenter = isFaceCenter(engine, engine.keyPos);
     const guardian = engine.ais.find(ai => ai.type === 'guardian');
     const preKeyGuardianBudget = guardian
@@ -930,6 +1021,10 @@ levelBook.forEach((level, index) => {
         postKeyGuardianBudget,
         enemyOnKey,
         enemyOnExit,
+        playerOnVoid,
+        keyOnVoid,
+        exitOnVoid,
+        enemiesOnVoid,
         keyAtFaceCenter,
         trackerFollowsRotation,
         bridgeLinksValid,
@@ -958,6 +1053,18 @@ levelBook.forEach((level, index) => {
     }
     if (enemyOnExit) {
         failures.push(`${textOf(level.title)}: enemy starts on the exit cell`);
+    }
+    if (playerOnVoid) {
+        failures.push(`${textOf(level.title)}: player starts on a void cell`);
+    }
+    if (keyOnVoid) {
+        failures.push(`${textOf(level.title)}: key starts on a void cell`);
+    }
+    if (exitOnVoid) {
+        failures.push(`${textOf(level.title)}: exit starts on a void cell`);
+    }
+    if (enemiesOnVoid.length) {
+        failures.push(`${textOf(level.title)}: enemy starts on a void cell`);
     }
     if (engine.N === 3 && level.validation && level.validation.guardianRage && keyAtFaceCenter) {
         failures.push(`${textOf(level.title)}: 3x3 rage-key level should not place the key on a face center`);

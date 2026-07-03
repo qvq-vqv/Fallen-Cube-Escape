@@ -60,103 +60,103 @@
 
     const extraScenes = {
         eventKeyCollectedGuardDoor: {
-            title: '钥匙已取得',
-            status: '门线危险',
-            bubble: '它去门口了。不是吧。',
+            title: { zh: '钥匙已取得', en: 'Key secured' },
+            status: { zh: '门前危险', en: 'Exit danger' },
+            bubble: { zh: '它堵到门口了！怎么会这样……', en: 'It is blocking the exit! Why would it do that...' },
             lines: [
-                '钥匙拿到了。',
-                '等一下，它没冲我。它往门口去了。',
-                '它知道我要从那儿走。很好，连门都有人抢着堵。'
+                { zh: '钥匙拿到了……', en: 'We got the key...' },
+                { zh: '等一下，那个大块头怪物怎么没来追我？它……它直接往门口去了！', en: 'Wait. Why is that huge thing not chasing me? It... it went straight to the exit!' },
+                { zh: '它好像知道门在哪里，直接堵在门口了……呜呜，它好聪明，我们是不是出不去了……', en: 'It knows where the door is. It is blocking it... It is too smart. Are we trapped?' }
             ],
             replies: [
                 {
                     face: K.steady,
-                    aria: '认真回应',
+                    aria: { zh: '认真回应', en: 'Focused reply' },
                     tone: 'steady',
-                    response: '行。你看门线，我假装自己没有慌。'
+                    response: { zh: '别慌，你看好安全格子，我跟着你走！', en: 'Do not panic. Watch the safe tiles. I will follow you.' }
                 },
                 {
                     face: K.worry,
-                    aria: '担心回应',
+                    aria: { zh: '担心回应', en: 'Worried reply' },
                     tone: 'warm',
-                    response: '别这么看我。它还没堵死，至少现在还没。'
+                    response: { zh: '别盯着我看了，它把门口堵住了，你快帮我想想办法呀……', en: 'Stop staring at me. It blocked the exit. Please think of something...' }
                 },
                 {
                     face: K.tease,
-                    aria: '吐槽回应',
+                    aria: { zh: '吐槽回应', en: 'Teasing reply' },
                     tone: 'tease',
-                    response: '你还笑？行，门口堵人这件事也记你账上。'
+                    response: { zh: '你还笑……行，这次就算到你账上，快带我绕开它！', en: 'You are still smiling... Fine. Put this one on your tab. Get me around it!' }
                 }
             ]
         },
         eventKeyCollectedPortal: {
-            title: '钥匙已取得',
-            status: '传送撤离',
-            bubble: '钥匙拿了。别发呆。',
+            title: { zh: '钥匙已取得', en: 'Key secured' },
+            status: { zh: '传送撤离', en: 'Portal escape' },
+            bubble: { zh: '拿到钥匙了！我们快走！', en: 'Key secured! Let us move!' },
             lines: [
-                '钥匙拿到了。',
-                '传送门能省路，但它不会替我挡追击者。',
-                '你要是真想救我，下一条线就别客气。'
+                { zh: '钥匙拿到啦！', en: 'I got the key!' },
+                { zh: '不过前面还有怪物在守着，传送门虽然能省路，但我还是很害怕……', en: 'There is still a monster ahead. The portal saves distance, but I am still scared...' },
+                { zh: '你指引路线的时候一定要看准，拜托你一定要带我安全过去！', en: 'Please aim carefully when you guide me. Get me through safely.' }
             ],
             replies: [
                 {
                     face: K.steady,
-                    aria: '认真回应',
+                    aria: { zh: '认真回应', en: 'Focused reply' },
                     tone: 'steady',
-                    response: '我把这个表情理解成“马上走”。别让我理解错。'
+                    response: { zh: '我准备好了，你指哪里我走哪里。别指错啊！', en: 'I am ready. I will step where you point. Do not point wrong.' }
                 },
                 {
                     face: K.panic,
-                    aria: '紧张回应',
+                    aria: { zh: '紧张回应', en: 'Nervous reply' },
                     tone: 'warm',
-                    response: '慌可以，线别抖。尤其别抖到红格里。'
+                    response: { zh: '慌也没用，你千万看准了别让我踩进红格子……', en: 'Panicking will not help. Just do not send me into a red tile...' }
                 },
                 {
                     face: K.tease,
-                    aria: '吐槽回应',
+                    aria: { zh: '吐槽回应', en: 'Teasing reply' },
                     tone: 'tease',
-                    response: '你这个表情像在说很简单。最好是真的。'
+                    response: { zh: '你这个表情看起来胸有成竹。好吧，先相信你一次！', en: 'That face looks weirdly confident. Fine. I will trust you once.' }
                 }
             ]
         },
         eventRotateActTwo: {
-            title: '空间折叠',
-            status: '外壳偏转',
-            bubble: '别突然拧，我差点咬到舌头。',
+            title: { zh: '空间折叠', en: 'Spatial folding' },
+            status: { zh: '空间折叠', en: 'Spatial folding' },
+            bubble: { zh: '哇啊！地表又开始转动了……', en: 'Whoa! The ground is turning again...' },
             lines: [
-                '四阶拧起来声音不一样。',
-                '像这地方终于发现我们会作弊了。',
-                '别高兴太早。它会学，我们得学得更快。'
+                { zh: '这个大魔方拧起来的声音比刚才沉重好多……', en: 'This bigger cube sounds much heavier when it twists...' },
+                { zh: '就好像这个世界的主人发现我们在用旋转抄近路一样……', en: 'It feels like whoever owns this place noticed us using twists as shortcuts...' },
+                { zh: '它在学我们拧魔方的路数……我总感觉有什么更大的危险要来了，我们得学得比它更快才行……', en: 'It is learning our twisting routes. Something worse is coming. We have to learn faster than it does...' }
             ],
             replies: [
                 {
                     face: K.nod,
-                    aria: '点头回应',
+                    aria: { zh: '点头回应', en: 'Nod reply' },
                     tone: 'steady',
-                    response: '点头收到。你现在看起来像个靠谱联系人。暂时的。'
+                    response: { zh: '好的……你现在看起来很冷静，这让我也稍微安心了一点点……', en: 'Okay... You look calm right now. That helps a little.' }
                 },
                 {
                     face: K.worry,
-                    aria: '担心回应',
+                    aria: { zh: '担心回应', en: 'Worried reply' },
                     tone: 'warm',
-                    response: '担心是对的。四阶看起来宽，其实更容易被包。'
+                    response: { zh: '是啊，这个 4x4 的魔方看起来很宽敞，但其实怪物能包抄我的路也更多了……', en: 'Yeah. This 4x4 cube looks wide, but it also gives monsters more ways to cut me off...' }
                 },
                 {
                     face: K.tease,
-                    aria: '吐槽回应',
+                    aria: { zh: '吐槽回应', en: 'Teasing reply' },
                     tone: 'tease',
-                    response: '你笑得像刚刚没有把世界拧歪。很有外侧人的从容。'
+                    response: { zh: '你竟然还笑得出来……真是服了你了，外侧的人心理素质都这么好吗？', en: 'You can still smile? Impressive. Are outside people all this calm?' }
                 }
             ]
         },
         idleLowBond: {
-            title: '通讯待机',
-            status: '信号稳定',
-            bubble: '我还在。你也最好在。',
+            title: { zh: '通讯待机', en: 'Comms idle' },
+            status: { zh: '信号稳定', en: 'Signal stable' },
+            bubble: { zh: '我还在呢。你还在屏幕那边对吧？', en: 'I am still here. You are still on the other side, right?' },
             lines: [
-                '你盯着这块大方块在想什么呢？……行吧，我先等一会儿。',
-                '如果你在发呆，我现在开始有意见。',
-                '外侧的人类是不是都这样？关键时刻突然很安静。'
+                { zh: '你盯着这块大方块在想什么呢？……行吧，我先等一会儿。', en: 'What are you thinking while staring at this giant cube? ...Fine, I will wait.' },
+                { zh: '这里实在太安静了，安静得让人害怕……别丢下我一个人。', en: 'It is too quiet here. Scary quiet... Do not leave me alone.' },
+                { zh: '这地板冰凉冰凉的，而且这里连个坐的地方都没有……我想回家了。', en: 'The floor is freezing, and there is nowhere to sit... I want to go home.' }
             ],
             replies: []
         }
@@ -164,85 +164,85 @@
 
     const microReactions = {
         route: [
-            '看见线了。我走。先声明，不代表我完全信你。',
-            '两步以内，对吧？你最好数清楚，我现在没空替你数学补课。',
-            '行，我按你点的走。错了我会很有意见。'
+            { zh: '看见你的指示了。我走这。', en: 'I see your marker. Going there.' },
+            { zh: '行，听你的。我踩上去了。', en: 'Fine, following you. I am stepping on it.' },
+            { zh: '好，我按你选的走。千万别指错路了啊。', en: 'Okay. I will take your route. Please do not point wrong.' }
         ],
         playerMove: [
-            '踩稳了。',
-            '这格还行，至少没咬我。',
-            '我到了。下一步？',
-            '别让我停在红格旁边。'
+            { zh: '呼，踩稳了。', en: 'Whew. Stable tile.' },
+            { zh: '这格暂时还安全。呼……', en: 'This tile is safe for now. Whew...' },
+            { zh: '我到了，下一步往哪走？', en: 'I am here. Where next?' },
+            { zh: '千万别让我停在红格子旁边，求你了。', en: 'Please do not leave me next to a red tile.' }
         ],
         playerMoveBridge: [
-            '穿过去了。胃还在，暂时。',
-            '传送门另一头也不怎么友好。',
-            '好，省路了。别省脑子。'
+            { zh: '穿过传送门了……肚子感觉晃得好难受，我想吐……', en: 'Went through the portal... My stomach hates that.' },
+            { zh: '这里比刚才更阴暗了，这是更深的地方吗……', en: 'It is darker here. Are we deeper inside?' },
+            { zh: '我过来啦。呼，幸好没有掉下去。', en: 'I made it. Good. I did not fall.' }
         ],
         keyCollected: [
-            '拿到了。现在快走，别让我在这里发表获奖感言。',
-            '钥匙到手，别站着拍照。你也拍不到。',
-            '它亮了。门应该认这个。应该吧。'
+            { zh: '拿到了！现在我们去大门对不对？', en: 'Got it! Now we go to the door, right?' },
+            { zh: '钥匙拿到了！快带我走，我好害怕。', en: 'Key secured! Get me out. I am scared.' },
+            { zh: '它亮了，门应该可以开了对不对？', en: 'It lit up. The door should open now, right?' }
         ],
         rotate: [
-            '别突然拧，我差点咬到舌头。',
-            '世界转了。我的胃没同意。',
-            '这一下有用，但我会记仇。'
+            { zh: '天旋地转的……下次拧之前能不能说一声啊，呜呜。', en: 'Everything spun... Warn me before twisting next time.' },
+            { zh: '整个格子都转了……重力一下子变了，好难受……', en: 'The whole tile moved... Gravity feels wrong.' },
+            { zh: '路对齐了吗？拜托快带我离开这里。', en: 'Is the route aligned? Please get me out.' }
         ],
         patchPlaced: [
-            '你要我踩这个？它最好不是贴纸。',
-            '临时地板。这个名字听着就很值得怀疑。',
-            '行，我踩。但它要是碎早了，我先骂你。'
+            { zh: '你要我踩这个？它牢固吗……', en: 'You want me to step on that? Is it solid?' },
+            { zh: '临时地板……踩上去软绵绵的，我腿在发抖。', en: 'Temporary floor... It feels soft. My legs are shaking.' },
+            { zh: '那我踩上去了。千万要撑住，别让我掉下去啊。', en: 'Okay, stepping on it. Please hold.' }
         ],
         patchBroken: [
-            '碎了。好消息，后面也过不来。',
-            '它断了。很好，我第一次喜欢地板坏掉。',
-            '补片没了。别回头，回头也没路。'
+            { zh: '啊，碎了！好险，幸好我已经走过来了。', en: 'It broke! Good thing I already crossed.' },
+            { zh: '呼……刚过去地板就裂了，我差一点就……', en: 'It cracked right behind me. That was too close.' },
+            { zh: '后面的路断了。别回头，没退路了。', en: 'The way back is gone. No looking back.' }
         ],
         breakPlaced: [
-            '裂了。好消息，怪物过不来，我也过不去。',
-            '格子被你打穿了。这地方的声音听着像玻璃碎掉。',
-            '物理隔离完成。让它在对面慢慢发呆吧。'
+            { zh: '碎了。太好了，这样怪物就过不来对不对？', en: 'It broke. Great. The monster cannot cross now, right?' },
+            { zh: '前面的格子被打穿了……声音听起来像玻璃碎掉一样。', en: 'That tile shattered... It sounded like glass.' },
+            { zh: '路断掉了。让那个怪物在那边慢慢发呆吧。', en: 'Route cut. Let that thing stare from over there.' }
         ],
         beaconPlaced: [
-            '骗谁？这题我喜欢。',
-            '诱饵放好了。希望它们真的没脑子。',
-            '好，钓一下。别把我也算进去。'
+            { zh: '把诱饵放这吗？真的有用吗？', en: 'Put the decoy here? Does that really work?' },
+            { zh: '诱饵放好了。希望那些怪物的脑子不好使……', en: 'Beacon placed. I hope those things are not clever...' },
+            { zh: '它亮起来了。希望怪物真的会过去看。', en: 'It lit up. Please let the monster fall for it.' }
         ],
         beaconTriggered: [
-            '它真过去了。我们聪明了三秒。',
-            '上钩了。先别笑，跑。',
-            '它吃诱饵了。很好，智力测试通过。'
+            { zh: '它真的过去了！我们快跑！', en: 'It actually went there! Run!' },
+            { zh: '它被吸引走了！快，趁现在指路！', en: 'It took the bait! Point the route now!' },
+            { zh: '诱饵起效了。呼，我们动作快点！', en: 'Beacon worked. Move fast.' }
         ],
         aiNear: [
-            '它贴过来了。',
-            '近了。非常近。',
-            '别让它再靠一步。'
+            { zh: '它贴过来了……！', en: 'It is getting close...!' },
+            { zh: '太近了……我能闻到一股金属锈掉的味道，我好害怕！', en: 'Too close... It smells like rust. I am scared!' },
+            { zh: '别让它再靠近了，求求你！', en: 'Do not let it get closer. Please!' }
         ],
         aiMove: [
-            '它动了。',
-            '我听见它过来了。',
-            '红格不是装饰，真的。'
+            { zh: '它动了……！', en: 'It moved...!' },
+            { zh: '我听见它往我这边走了……', en: 'I heard it coming toward me...' },
+            { zh: '红格子在闪烁……它要过来了！', en: 'The red tiles are flashing... It is coming!' }
         ],
         skip: [
-            '你停下干嘛？它们不会等。',
-            '好吧，站着也是一种战术。很欠揍的那种。',
-            '这一下我不太喜欢。'
+            { zh: '你停下干嘛？它们不会等我的！', en: 'Why are we stopping? They will not wait!' },
+            { zh: '站着不动吗？……我心跳得好快，好紧张。', en: 'Standing still? My heart is going too fast.' },
+            { zh: '你是不是在思考下一步？千万别想太久啊……', en: 'Are you thinking? Please do not think too long...' }
         ],
         victory: [
-            '门开了。先让我喘一口气。',
-            '出去了？等等，别急着庆祝。',
-            '我还活着。你这次可以得意一秒。'
+            { zh: '门开了！终于……先让我喘一口气。', en: 'The door opened! Finally... Let me breathe.' },
+            { zh: '出去了吗？……天啊，我还活着。', en: 'Are we out? ...I am still alive.' },
+            { zh: '太好了，这次谢谢你带路，真的。', en: 'Good. Thank you for guiding me. Really.' }
         ],
         actFinale: [
-            '门后不是外面。',
-            '不是吧。还有一层？',
-            '我就知道这门安静得不对劲。'
+            { zh: '门后面居然不是外面……怎么会这样……', en: 'Behind the door is not outside... Why?' },
+            { zh: '不是吧……为什么还有一个更大的魔方？！', en: 'No way... Why is there a bigger cube?' },
+            { zh: '我就知道……呜呜，我们是不是永远出不去了……', en: 'I knew it... Are we never getting out?' }
         ],
         gameOver: [
-            '……我刚才是不是没了？',
-            '等下。回滚？那疼算谁的？',
-            '别把我当按钮。再来，但认真点。'
+            { zh: '……我刚才是不是没了？', en: '...Did I just disappear?' },
+            { zh: '等下。刚才好疼……那这倒带算谁的？', en: 'Wait. That hurt... Who pays for the rewind?' },
+            { zh: '求求你认真点，我不想再被那些铁壳怪物抓到了。', en: 'Please take this seriously. I do not want those metal things catching me again.' }
         ]
     };
 
@@ -251,8 +251,12 @@
     }
 
     function textOf(value) {
+        if (typeof window !== 'undefined' && window.getText) {
+            return window.getText(value);
+        }
         if (value && typeof value === 'object') {
-            return value.zh || value.en || '';
+            const lang = typeof window !== 'undefined' && window.currentLang === 'en' ? 'en' : 'zh';
+            return value[lang] || value.zh || value.en || '';
         }
         return value ?? '';
     }
@@ -307,26 +311,32 @@
     }
 
     function getBondLabel(state) {
+        const en = typeof window !== 'undefined' && window.currentLang === 'en';
         const total = Object.values(state?.tones || {}).reduce((sum, value) => sum + value, 0);
-        if (total <= 0) return '同步：未知';
+        if (total <= 0) return en ? 'Sync: unknown' : '同步：未知';
         const tone = getDominantTone(state);
         if (state.bond >= 14) {
-            if (tone === 'tease') return '同步：吵但默契';
-            if (tone === 'warm') return '同步：偏信任';
-            return '同步：稳定搭档';
+            if (tone === 'tease') return en ? 'Sync: sharp but aligned' : '同步：吵但默契';
+            if (tone === 'warm') return en ? 'Sync: trusting' : '同步：偏信任';
+            return en ? 'Sync: steady partners' : '同步：稳定搭档';
         }
-        if (tone === 'warm') return '同步：偏温柔';
-        if (tone === 'tease') return '同步：互相吐槽';
-        return '同步：稳定';
+        if (tone === 'warm') return en ? 'Sync: gentle' : '同步：偏温柔';
+        if (tone === 'tease') return en ? 'Sync: mutual teasing' : '同步：互相吐槽';
+        return en ? 'Sync: steady' : '同步：稳定';
     }
 
     function getContextLine(scene, state, game) {
-        if (!game?.currentLevel) return '通讯只在安全间隙打开；移动前先看全局地图。';
+        const en = typeof window !== 'undefined' && window.currentLang === 'en';
+        if (!game?.currentLevel) {
+            return en ? 'Comms open only in safe gaps. Read the board before moving.' : '通讯只在安全间隙打开；移动前先看全局地图。';
+        }
         const level = game.currentLevel;
         const tone = getDominantTone(state);
         const suffix = tone === 'tease'
-            ? '她嘴上嫌弃，但会继续盯着你的下一步。'
-            : (tone === 'warm' ? '她会记住你刚才的担心。' : '通讯稳定，先处理残局。');
+            ? (en ? 'She complains, but she is watching your next step.' : '她嘴上嫌弃，但会继续盯着你的下一步。')
+            : (tone === 'warm'
+                ? (en ? 'She will remember that you worried about her.' : '她会记住你刚才的担心。')
+                : (en ? 'Signal stable. Solve the board first.' : '通讯稳定，先处理残局。'));
         return `${textOf(level.title)} · ${textOf(level.chapter)}。${suffix}`;
     }
 
@@ -334,25 +344,62 @@
         if (!scene || !game?.currentLevel) return null;
         if (game.gameState !== 'playing') return scene.bubble || null;
 
+        const bi = (zh, en) => ({ zh, en });
         const levelIndex = game.currentLevelIndex || 0;
         const pool = [];
 
-        if (levelIndex >= 12) {
-            pool.push('外壳比刚才大。别让它显得比我们聪明。');
-            pool.push('四阶空间很宽，追击者也不是来散步的。');
-        } else {
-            pool.push('这地板冰凉冰凉的，而且连个坐的地方都没有……我想回家了。');
-            pool.push('（拍屏幕的动态气泡）喂——你还在听吗？我快要无聊死啦。');
+        // 1. L03 追击者首次登场：Dawn 只表达真实恐惧，不讲规则。
+        if (levelIndex === 2) {
+            pool.push(bi('那个红色的怪物一直在跟着我！它越来越近了，呜呜……', 'That red thing keeps following me! It is getting closer...'));
+            pool.push(bi('救命啊，别让那个红色大家伙抓到我！', 'Help. Do not let the red giant catch me!'));
+            pool.push(bi('我听见后面的脚步声了，心快跳出来了！', 'I can hear its steps behind me. My heart is going crazy!'));
+            pool.push(bi('快指路！我不想被它碰到。', 'Point the way. I do not want it touching me.'));
+        }
+        // 2. 常规状态：只说感受、害怕、想回家，不替系统解释机制。
+        else {
+            if (levelIndex >= 12) {
+                pool.push(bi('外壳比刚才大。别让它显得比我们聪明。', 'This shell is bigger. Do not let it look smarter than us.'));
+                pool.push(bi('整个 4x4 的大方块转起来重力好奇怪，有点头晕。', 'This 4x4 cube makes gravity feel wrong when it turns.'));
+                pool.push(bi('四阶空间很宽，追击者也不是来散步的。', 'The 4x4 space is wide, and the chaser is not here for a stroll.'));
+                pool.push(bi('我感觉那台折叠机在暗中看着我们……', 'I feel like the folding machine is watching us...'));
+            } else {
+                pool.push(bi('这地板冰凉冰凉的，而且连个坐的地方都没有……我想回家了。', 'The floor is freezing, and there is nowhere to sit... I want to go home.'));
+                if (!game.hasKey) {
+                    pool.push(bi('（拍屏幕的动态气泡）喂——你还在听吗？我快要无聊死啦。', '(taps screen) Hey, are you still listening? I am dying of boredom.'));
+                    pool.push(bi('喂，你是不是在屏幕那一端吃着零食指挥我跑路啊？', 'Hey, are you eating snacks while telling me where to run?'));
+                }
+            }
         }
 
-        if (game.hasKey) pool.push('钥匙有了。现在别浪。');
-        if (game.ais?.some(ai => ai.state === 'gate')) pool.push('门口有麻烦。它真的去堵门了。');
-        if (game.ais?.some(ai => ai.state === 'seekKey')) pool.push('它在重新找钥匙。至少它还没笨到完全离谱。');
-        if (game.bridges?.length) pool.push('传送门在那儿。好用，但不慈善。');
+        // 4. 通用动态条件追加
+        if (game.hasKey) {
+            pool.push(bi('钥匙有了。现在别浪，带我去找出口大门！', 'We have the key. Do not get fancy. Get me to the exit!'));
+            pool.push(bi('钥匙在我口袋里了，感觉暖烘烘的。我们快走吧！', 'The key is in my pocket. It feels warm. Let us go.'));
+        }
 
+        const hasChaserNear = game.ais?.some(ai => ai.state === 'chase');
+        if (hasChaserNear) {
+            pool.push(bi('它在屁股后面追着呢！千万别停步！', 'It is right behind me! Do not stop!'));
+            pool.push(bi('红格子在闪……它要追过来了，快逃！', 'The red tiles are flashing... It is coming. Run!'));
+        }
+
+        if (game.ais?.some(ai => ai.state === 'gate')) {
+            pool.push(bi('门口有麻烦。它真的去堵门了，太卑鄙了！', 'Trouble at the exit. It really blocked the door. Rude.'));
+        }
+
+        if (game.bridges?.length) {
+            pool.push(bi('传送门在那儿。好用，但我有点晕传送……', 'There is a portal. Useful, but it makes me dizzy...'));
+        }
+
+        // 5. 情感基调追加
         const tone = getDominantTone(state);
-        if (tone === 'tease') pool.push('别笑太早。你笑早了我会听见。');
-        if (tone === 'warm') pool.push('我知道你在担心。先把线画稳。');
+        if (tone === 'tease') {
+            pool.push(bi('别笑太早。你笑早了我会听见。', 'Do not laugh too early. I can hear it.'));
+            pool.push(bi('哼，我就知道你会选这格。咱们还算有点默契。', 'Hmph. I knew you would pick that tile. We are almost in sync.'));
+        } else if (tone === 'warm') {
+            pool.push(bi('我知道你在担心我……你一定要看清格子啊，求求你啦。', 'I know you are worried about me... Please read the tiles carefully.'));
+            pool.push(bi('谢谢你一直陪着我说话。有你在，我没那么害怕了。', 'Thanks for staying on the line. I am a little less scared.'));
+        }
 
         const index = Math.abs((game.turn || 1) + levelIndex + (state.bond || 0)) % pool.length;
         return pool[index] || scene.bubble || null;

@@ -26,6 +26,9 @@ document.addEventListener('DOMContentLoaded', () => {
         if (typeof updateFloatingToolsCount === 'function') {
             updateFloatingToolsCount();
         }
+        if (typeof updateToolModeFeedback === 'function') {
+            updateToolModeFeedback();
+        }
     };
     feel.init();
 
@@ -66,6 +69,10 @@ document.addEventListener('DOMContentLoaded', () => {
     const phonePanel = document.getElementById('phone-panel');
     const phoneNotch = document.getElementById('phone-notch');
     const tutorialHelperClose = document.getElementById('tutorial-helper-close');
+    const toolModeIndicator = document.getElementById('tool-mode-indicator');
+    const toolModeIcon = document.getElementById('tool-mode-icon');
+    const toolModeTitle = document.getElementById('tool-mode-title');
+    const toolModeDesc = document.getElementById('tool-mode-desc');
     const toolModeBtns = document.querySelectorAll('[data-tool-mode]');
     const btnToggleTracker = document.getElementById('btn-toggle-tracker');
     const btnClearTracker = document.getElementById('btn-clear-tracker');
@@ -111,6 +118,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const settingsOverlay = document.getElementById('settings-overlay');
     const settingsCloseBtn = document.getElementById('settings-close-btn');
     const settingsAudioBtn = document.getElementById('settings-audio-btn');
+    const settingsLowPowerBtn = document.getElementById('settings-low-power-btn');
     const settingsDevModeBtn = document.getElementById('settings-devmode-btn');
     const settingsResetTutorialsBtn = document.getElementById('settings-reset-tutorials-btn');
     const settingsClearProgressBtn = document.getElementById('settings-clear-progress-btn');
@@ -140,6 +148,13 @@ document.addEventListener('DOMContentLoaded', () => {
     const creditsCloseBtn = document.getElementById('credits-close-btn');
     const phoneClock = document.getElementById('phone-clock');
     const voiceWaveCanvas = document.getElementById('voice-wave-canvas');
+    const dawnChatWindow = document.getElementById('dawn-chat-window');
+    const dawnChatCloseBtn = document.getElementById('dawn-chat-close-btn');
+    const dawnChatLog = document.getElementById('dawn-chat-log');
+    const dawnChatNextBtn = document.getElementById('dawn-chat-next-btn');
+    const dawnChatFreeInputContainer = document.getElementById('dawn-chat-free-input-container');
+    const dawnKaomojiDock = document.getElementById('dawn-kaomoji-dock');
+    const dawnChatStatusTag = document.getElementById('dawn-chat-status-tag');
 
     const safeParseArray = (key) => {
         try {
@@ -168,6 +183,8 @@ document.addEventListener('DOMContentLoaded', () => {
         wait: 'Space',
         twist: 'Shift'
     };
+    const FREE_CHAT_ENABLED = false;
+    const TRUST_UI_ENABLED = false;
     const keybindLabels = {
         Digit1: '1',
         Digit2: '2',
@@ -179,6 +196,7 @@ document.addEventListener('DOMContentLoaded', () => {
     };
     const settingsState = {
         precision: Math.max(0, Math.min(2, Number(localStorage.getItem('dawnCubeTimerPrecision') || 1))),
+        lowPowerMode: localStorage.getItem('dawnCubeLowPowerMode') === 'true',
         devMode: localStorage.getItem('dimensionHackDevMode') === 'true',
         playerMoveMs: Math.max(360, Math.min(900, Number(localStorage.getItem('dawnCubePlayerMoveMs') || 600))),
         enemySpeedScale: Math.max(0.5, Math.min(1.8, Number(localStorage.getItem('dawnCubeEnemySpeedScale') || 1))),
@@ -188,6 +206,10 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     };
     let listeningKeybindAction = null;
+    let phoneWaveFrameId = null;
+    let lastPhoneWaveFrameAt = 0;
+    let ledMascotFrameId = null;
+    let lastLedMascotFrameAt = 0;
     window.dawnCubeSettings = settingsState;
 
     let selectedLevelIndex = 0;
@@ -200,6 +222,7 @@ document.addEventListener('DOMContentLoaded', () => {
     if (localStorage.getItem('dimensionHackActTwoUnlocked') === 'true') unlockedActs.add(2);
     const completedLevels = new Set(safeParseArray('dimensionHackCompletedLevels').filter(Number.isFinite));
     const unreadCounts = { comms: 0, tasks: 0, archive: 0 };
+    let tutorialCommsNotice = false;
     const dialogueScript = window.DIALOGUE_SCRIPT || { defaultScene: 'fallback', levelScenes: {}, eventScenes: {}, scenes: {} };
     const storyModule = window.STORY_MODULE || null;
     const storyState = storyModule?.createState ? storyModule.createState() : {
@@ -221,6 +244,7 @@ document.addEventListener('DOMContentLoaded', () => {
         achievements: new Set(safeParseArray('dimensionHackAchievements'))
     };
     let twistMode = false;
+    let lastTutorialNoticeKey = '';
 
     function persistUnlockedActs() {
         localStorage.setItem('dimensionHackUnlockedActs', JSON.stringify([...unlockedActs].sort((a, b) => a - b)));
@@ -295,66 +319,119 @@ document.addEventListener('DOMContentLoaded', () => {
     const archiveEntries = [
         {
             id: 'foldingMachine',
-            title: '折叠机',
-            body: '这座牢房会记录逃亡方式。它不像监狱，更像一台把人当训练数据的机器。'
+            title: { zh: '折叠机', en: 'Folding Machine' },
+            body: {
+                zh: '这座牢房会记录逃亡方式。它不像监狱，更像一台把人当训练数据的机器。',
+                en: 'This cell records escape methods. It feels less like a prison and more like a machine training on people.'
+            }
         },
         {
             id: 'protagonistE7',
-            title: 'E-7',
-            body: '十八岁左右的人类女孩，从床上坠入魔方牢笼。她害怕，但强撑；嘴硬，是因为她想回家。'
+            title: { zh: 'E-7', en: 'E-7' },
+            body: {
+                zh: '十八岁左右的人类女孩，从床上坠入魔方牢笼。她害怕，但强撑；嘴硬，是因为她想回家。',
+                en: 'A human girl around eighteen, dropped from her bed into a cube prison. She is scared, stubborn, and trying hard to get home.'
+            }
         },
         {
             id: 'outsideOperator',
-            title: '外侧的人',
-            body: '你能点格、拧空间、悔棋。她看不见你的世界，只知道你下一步会不会乱来。'
+            title: { zh: '外侧的人', en: 'The Outside Operator' },
+            body: {
+                zh: '你能点格、拧空间、悔棋。她看不见你的世界，只知道你下一步会不会乱来。',
+                en: 'You can click tiles, twist space, and undo mistakes. Dawn cannot see your side, only whether your next move is reckless.'
+            }
         },
         {
             id: 'guardian',
-            title: '守钥者',
-            body: '它不会再站到钥匙或门上。它守的是局势：钥匙没拿前可被引诱，钥匙拿走后会变得更急。'
+            title: { zh: '守钥者', en: 'Key Guardian' },
+            body: {
+                zh: '它不会再站到钥匙或门上。它守的是局势：钥匙没拿前可被引诱，钥匙拿走后会变得更急。',
+                en: 'It no longer stands on keys or exits. It guards the position: lure it before the key, then expect it to grow more urgent.'
+            }
         },
         {
             id: 'rotationRule',
-            title: '空间折叠',
-            body: '旋转不是按钮技能，而是世界规则。钥匙、门、敌人和人都会被一起拧走。'
+            title: { zh: '空间折叠', en: 'Spatial Folding' },
+            body: {
+                zh: '旋转不是按钮技能，而是世界规则。钥匙、门、敌人和人都会被一起拧走。',
+                en: 'Twisting is not a button skill. It is a world rule. Keys, exits, enemies, and people rotate together.'
+            }
         },
         {
             id: 'actTwoShell',
-            title: '第二层外壳',
-            body: '门后不是出口。折叠机变大了，说明它开始学习我们怎么逃。'
+            title: { zh: '第二层外壳', en: 'Second Shell' },
+            body: {
+                zh: '门后不是出口。折叠机变大了，说明它开始学习我们怎么逃。',
+                en: 'The door was not an exit. The folding machine grew larger, which means it is learning how we escape.'
+            }
         },
         {
             id: 'bridgePortal',
-            title: '传送裂缝',
-            body: '一组公开的折叠通道。它能省路，也可能让敌人更快靠近。好用，但不慈善。'
+            title: { zh: '传送裂缝', en: 'Portal Rift' },
+            body: {
+                zh: '一组公开的折叠通道。它能省路，也可能让敌人更快靠近。好用，但不慈善。',
+                en: 'A shared folding passage. It can shorten your route, or bring enemies closer. Useful, never merciful.'
+            }
         },
         {
             id: 'voidCells',
-            title: '虚空缺口',
-            body: '魔方外壳被咬掉的格子。不能走，也会随层旋转。黑洞洞的地方真的没有地。'
+            title: { zh: '虚空缺口', en: 'Void Gaps' },
+            body: {
+                zh: '魔方外壳被咬掉的格子。不能走，也会随层旋转。黑洞洞的地方真的没有地。',
+                en: 'Missing cells bitten out of the cube shell. You cannot walk there, and the gaps rotate with their layer.'
+            }
         },
         {
             id: 'patchTool',
-            title: '临时补片',
-            body: '一次性薄地板。E-7 可以踩过去，离开后碎掉；追捕者默认不能借这块碎片追上来。'
+            title: { zh: '临时补片', en: 'Temporary Patch' },
+            body: {
+                zh: '一次性薄地板。E-7 可以踩过去，离开后碎掉；追捕者默认不能借这块碎片追上来。',
+                en: 'A one-use floor tile. E-7 can cross it, then it breaks after she steps off. Pursuers cannot normally borrow it.'
+            }
         },
         {
             id: 'beaconTool',
-            title: '诱饵信标',
-            body: '一次性调敌工具。放在空地上，敌人会按正常路线被吸引过去，不会瞬移。'
+            title: { zh: '诱饵信标', en: 'Decoy Beacon' },
+            body: {
+                zh: '一次性调敌工具。放在空地上，敌人会按正常路线被吸引过去，不会瞬移。',
+                en: 'A one-use enemy lure. Place it on open floor; enemies path toward it normally instead of teleporting.'
+            }
         },
         {
             id: 'breakTool',
-            title: '主动碎解',
-            body: '把一格安全地板打碎，切断追捕路线。救命时很好用，乱用时也很会害人。'
+            title: { zh: '主动碎解', en: 'Manual Break' },
+            body: {
+                zh: '把一格安全地板打碎，切断追捕路线。救命时很好用，乱用时也很会害人。',
+                en: 'Break a safe tile to cut a chase route. Excellent in emergencies; dangerous when used carelessly.'
+            }
         }
     ];
     const achievements = [
-        { id: 'firstEscape', title: '第一次逃脱', body: '完成任意一局。她嘴上不服，心里记了一笔。' },
-        { id: 'closeEscape', title: '惊险逃脱', body: '敌人贴到一步内后仍然成功撤离。' },
-        { id: 'cleanRoute', title: '最短速通', body: '在推荐回合数内完成一局。' },
-        { id: 'actOneClear', title: '门后不是门', body: '完成 L12「出口？」并进入第二幕。' },
-        { id: 'portalCut', title: '折叠捷径', body: '使用传送裂缝完成逃脱。' }
+        {
+            id: 'firstEscape',
+            title: { zh: '第一次逃脱', en: 'First Escape' },
+            body: { zh: '完成任意一局。她嘴上不服，心里记了一笔。', en: 'Complete any level. Dawn complains, but she remembers it.' }
+        },
+        {
+            id: 'closeEscape',
+            title: { zh: '惊险逃脱', en: 'Close Escape' },
+            body: { zh: '敌人贴到一步内后仍然成功撤离。', en: 'Escape after an enemy gets within one step.' }
+        },
+        {
+            id: 'cleanRoute',
+            title: { zh: '最短速通', en: 'Clean Route' },
+            body: { zh: '在推荐回合数内完成一局。', en: 'Finish a level within the recommended turn count.' }
+        },
+        {
+            id: 'actOneClear',
+            title: { zh: '门后不是门', en: 'The Door Was Not a Door' },
+            body: { zh: '完成 L12「出口？」并进入第二幕。', en: 'Clear L12 "Exit?" and reach Act II.' }
+        },
+        {
+            id: 'portalCut',
+            title: { zh: '折叠捷径', en: 'Folding Shortcut' },
+            body: { zh: '使用传送裂缝完成逃脱。', en: 'Escape by using a portal rift.' }
+        }
     ];
 
     audio.updateToggle();
@@ -373,7 +450,7 @@ document.addEventListener('DOMContentLoaded', () => {
         gameContainer.classList.add('preplay-stage');
         render.setPresentationMode?.('landing');
         renderCommsScene(dialogueScript.defaultScene, { force: true });
-        feel.note('链路已接通', 'info');
+        feel.note(window.t?.('prologue.linkReady') || '链路已接通', 'info');
     }
 
     const prologueScripts = {
@@ -521,9 +598,10 @@ document.addEventListener('DOMContentLoaded', () => {
             badge.classList.toggle('is-hidden', count <= 0);
         });
         const commsCount = unreadCounts.comms || 0;
+        const floatCommsCount = Math.max(commsCount, tutorialCommsNotice ? 1 : 0);
         if (commsFloatBadge) {
-            commsFloatBadge.textContent = commsCount > 9 ? '9+' : String(commsCount);
-            commsFloatBadge.classList.toggle('is-hidden', commsCount <= 0);
+            commsFloatBadge.textContent = floatCommsCount > 9 ? '9+' : String(floatCommsCount);
+            commsFloatBadge.classList.toggle('is-hidden', floatCommsCount <= 0);
         }
         const toolCount = game.currentLevel
             ? Number(Boolean(game.rotationEnabled)) + Number(game.patchCharges > 0) + Number(game.beaconCharges > 0) + Number(game.breakCharges > 0)
@@ -549,6 +627,11 @@ document.addEventListener('DOMContentLoaded', () => {
         renderUnreadBadges();
     }
 
+    function setCommsTutorialNotice(active) {
+        tutorialCommsNotice = Boolean(active);
+        renderUnreadBadges();
+    }
+
     function setTerminalTab(tabName) {
         terminalTabs.forEach(tab => {
             const isActive = tab.dataset.terminalTab === tabName;
@@ -565,6 +648,14 @@ document.addEventListener('DOMContentLoaded', () => {
 
     function textOf(value) {
         return window.getText ? window.getText(value) : (value ?? '');
+    }
+
+    function formatText(key, fallback, params = {}) {
+        const template = window.t?.(key) || fallback || key;
+        return Object.entries(params).reduce(
+            (text, [name, value]) => text.replaceAll(`{${name}}`, String(value)),
+            template
+        );
     }
 
     function getDefaultPhoneCollapsed() {
@@ -584,7 +675,8 @@ document.addEventListener('DOMContentLoaded', () => {
     function getLevelStats(level) {
         const enemyCounts = getEnemyCounts(level);
         const totalEnemies = Object.values(enemyCounts).reduce((sum, count) => sum + count, 0);
-        const keyCount = level.keyCell !== null && level.keyCell !== undefined ? 1 : 0;
+        const keyCount = level.key !== null && level.key !== undefined && !level.hasKeyStart ? 1 : 0;
+        const exitCount = level.exit !== null && level.exit !== undefined ? 1 : 0;
         const newMechanics = [];
         const firstRotationIndex = getFirstLevelIndex(item => item.rotationEnabled);
         const firstBridgeIndex = getFirstLevelIndex(item => item.bridges?.length);
@@ -593,24 +685,28 @@ document.addEventListener('DOMContentLoaded', () => {
         const firstBeaconIndex = getFirstLevelIndex(item => item.beaconCharges);
         const firstBreakIndex = getFirstLevelIndex(item => item.breakCharges);
         const levelIndex = game.levels.indexOf(level);
-        if (level.rotationEnabled && levelIndex === firstRotationIndex) newMechanics.push('空间折叠');
-        if (level.bridges?.length && levelIndex === firstBridgeIndex) newMechanics.push('传送裂缝');
-        if (level.voids?.length && levelIndex === firstVoidIndex) newMechanics.push('缺面');
-        if (level.patchCharges && levelIndex === firstPatchIndex) newMechanics.push('补片');
-        if (level.beaconCharges && levelIndex === firstBeaconIndex) newMechanics.push('诱饵');
-        if (level.breakCharges && levelIndex === firstBreakIndex) newMechanics.push('碎解');
-        return { enemyCounts, totalEnemies, keyCount, newMechanics };
+        if (level.rotationEnabled && levelIndex === firstRotationIndex) newMechanics.push(window.t?.('mechanic.rotation') || '空间折叠');
+        if (level.bridges?.length && levelIndex === firstBridgeIndex) newMechanics.push(window.t?.('mechanic.bridge') || '传送裂缝');
+        if (level.voids?.length && levelIndex === firstVoidIndex) newMechanics.push(window.t?.('mechanic.void') || '缺面');
+        if (level.patchCharges && levelIndex === firstPatchIndex) newMechanics.push(window.t?.('mechanic.patch') || '补片');
+        if (level.beaconCharges && levelIndex === firstBeaconIndex) newMechanics.push(window.t?.('mechanic.beacon') || '诱饵');
+        if (level.breakCharges && levelIndex === firstBreakIndex) newMechanics.push(window.t?.('mechanic.break') || '碎解');
+        return { enemyCounts, totalEnemies, keyCount, exitCount, newMechanics };
     }
 
     function renderScannerChips(level, index, { compact = false } = {}) {
         const stats = getLevelStats(level);
         const enemyText = Object.entries(stats.enemyCounts)
-            .map(([type, count]) => `${enemyMeta[type]?.label || type} x${count}`)
-            .join(' / ') || '无敌人';
+            .map(([type, count]) => {
+                const meta = enemyMeta[type];
+                const label = meta?.labelKey ? (window.t?.(meta.labelKey) || meta.fallback) : (meta?.fallback || type);
+                return `${label} x${count}`;
+            })
+            .join(' / ') || (window.t?.('scanner.noEnemies') || '无敌人');
         const chips = [
-            `<span class="scanner-chip ${stats.totalEnemies ? 'danger' : 'safe'}">敌 ${stats.totalEnemies}</span>`,
-            `<span class="scanner-chip key">钥 ${stats.keyCount}</span>`,
-            `<span class="scanner-chip">门 1</span>`
+            `<span class="scanner-chip ${stats.totalEnemies ? 'danger' : 'safe'}">${escapeHtml(window.t?.('scanner.enemy') || '敌')} ${stats.totalEnemies}</span>`,
+            `<span class="scanner-chip key">${escapeHtml(window.t?.('scanner.key') || '钥')} ${stats.keyCount}</span>`,
+            `<span class="scanner-chip">${escapeHtml(window.t?.('scanner.exit') || '门')} ${stats.exitCount}</span>`
         ];
         if (!compact) {
             chips.push(`<span class="scanner-chip wide">${escapeHtml(enemyText)}</span>`);
@@ -618,13 +714,16 @@ document.addEventListener('DOMContentLoaded', () => {
         stats.newMechanics.forEach(name => {
             chips.push(`<span class="scanner-chip new">NEW ${escapeHtml(name)}</span>`);
         });
+        if (!level.rotationEnabled) {
+            chips.push(`<span class="scanner-chip no-twist">${escapeHtml(window.t?.('scanner.noTwist') || '无旋转')}</span>`);
+        }
         return chips.join('');
     }
 
     function setCompanionBubble(text, tone = 'info', options = {}) {
         const line = textOf(text) || '';
         if (companionBubble) companionBubble.textContent = line;
-        if (!options.suppressHeadBubble) render.setPlayerSpeechBubble?.(line, tone);
+        if (!options.suppressHeadBubble && options.allowHeadBubble) render.setPlayerSpeechBubble?.(line, tone);
         pulsePhoneVoice(tone === 'danger' ? 1300 : 900);
     }
 
@@ -649,6 +748,15 @@ document.addEventListener('DOMContentLoaded', () => {
                 node.dataset.text = node.textContent;
             }
         });
+        document.querySelectorAll('[data-i18n-placeholder]').forEach(node => {
+            node.setAttribute('placeholder', window.t?.(node.dataset.i18nPlaceholder) || node.getAttribute('placeholder') || '');
+        });
+        document.querySelectorAll('[data-i18n-title]').forEach(node => {
+            node.setAttribute('title', window.t?.(node.dataset.i18nTitle) || node.getAttribute('title') || '');
+        });
+        document.querySelectorAll('[data-i18n-aria-label]').forEach(node => {
+            node.setAttribute('aria-label', window.t?.(node.dataset.i18nAriaLabel) || node.getAttribute('aria-label') || '');
+        });
         langToggleBtns.forEach(btn => {
             btn.textContent = window.currentLang === 'en' ? 'EN / 中' : '中 / EN';
             btn.setAttribute('aria-label', window.currentLang === 'en' ? 'Switch to Chinese' : '切换到英文');
@@ -669,6 +777,7 @@ document.addEventListener('DOMContentLoaded', () => {
         renderLevelCards();
         renderLevelBrief();
         renderSettingsPanel();
+        audio.updateToggle();
         game.updateUI?.();
     }
     window.updateUILanguage = applyLanguage;
@@ -684,8 +793,8 @@ document.addEventListener('DOMContentLoaded', () => {
                 .filter(entry => archiveState.entries.has(entry.id))
                 .map(entry => `
                     <article class="archive-card">
-                        <span>${escapeHtml(entry.title)}</span>
-                        <p>${escapeHtml(entry.body)}</p>
+                        <span>${escapeHtml(textOf(entry.title))}</span>
+                        <p>${escapeHtml(textOf(entry.body))}</p>
                     </article>
                 `)
                 .join('') || `<p class="archive-empty">${escapeHtml(window.t?.('archive.empty') || '还没有新档案。先活过这一局。')}</p>`;
@@ -698,8 +807,8 @@ document.addEventListener('DOMContentLoaded', () => {
                         <article class="achievement-card ${unlocked ? 'unlocked' : 'locked'}">
                             <span class="achievement-icon">${unlocked ? '◆' : '◇'}</span>
                             <div>
-                                <strong>${escapeHtml(achievement.title)}</strong>
-                                <p>${escapeHtml(unlocked ? achievement.body : (window.t?.('archive.locked') || '未解锁'))}</p>
+                                <strong>${escapeHtml(textOf(achievement.title))}</strong>
+                                <p>${escapeHtml(unlocked ? textOf(achievement.body) : (window.t?.('archive.locked') || '未解锁'))}</p>
                             </div>
                         </article>
                     `;
@@ -715,8 +824,8 @@ document.addEventListener('DOMContentLoaded', () => {
                 .map(achievement => {
                     const unlocked = archiveState.achievements.has(achievement.id);
                     return `<article class="archive-room-item ${unlocked ? 'unlocked' : 'locked'}">
-                        <strong>${unlocked ? '◆' : '◇'} ${escapeHtml(achievement.title)}</strong>
-                        <p>${escapeHtml(unlocked ? achievement.body : (window.t?.('archive.locked') || '未解锁'))}</p>
+                        <strong>${unlocked ? '◆' : '◇'} ${escapeHtml(textOf(achievement.title))}</strong>
+                        <p>${escapeHtml(unlocked ? textOf(achievement.body) : (window.t?.('archive.locked') || '未解锁'))}</p>
                     </article>`;
                 })
                 .join('');
@@ -725,8 +834,8 @@ document.addEventListener('DOMContentLoaded', () => {
             const unlockedEntries = archiveEntries.filter(entry => archiveState.entries.has(entry.id));
             archiveRoomEntries.innerHTML = unlockedEntries
                 .map(entry => `<article class="archive-room-item">
-                    <strong>▣ ${escapeHtml(entry.title)}</strong>
-                    <p>${escapeHtml(entry.body)}</p>
+                    <strong>▣ ${escapeHtml(textOf(entry.title))}</strong>
+                    <p>${escapeHtml(textOf(entry.body))}</p>
                 </article>`)
                 .join('') || `<p class="archive-empty">${escapeHtml(window.t?.('archive.empty') || '还没有新档案。先活过这一局。')}</p>`;
         }
@@ -765,6 +874,12 @@ document.addEventListener('DOMContentLoaded', () => {
         phoneClock.textContent = now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
     }
 
+    function isUiElementVisible(element) {
+        if (!element || !element.isConnected) return false;
+        if (element.closest('.is-hidden, [aria-hidden="true"]')) return false;
+        return element.getClientRects().length > 0;
+    }
+
     function drawVoiceWave(talking = false) {
         const canvas = voiceWaveCanvas;
         const ctx = canvas?.getContext?.('2d');
@@ -800,10 +915,22 @@ document.addEventListener('DOMContentLoaded', () => {
         pulsePhoneVoice.timer = window.setTimeout(() => phonePanel?.classList.remove('is-talking'), duration);
     }
 
-    function startPhoneWaveLoop() {
+    function schedulePhoneWaveLoop() {
+        if (phoneWaveFrameId !== null || document.hidden) return;
+        if (!isUiElementVisible(voiceWaveCanvas)) return;
+        phoneWaveFrameId = requestAnimationFrame(startPhoneWaveLoop);
+    }
+
+    function startPhoneWaveLoop(now = performance.now()) {
+        phoneWaveFrameId = null;
+        if (document.hidden || !isUiElementVisible(voiceWaveCanvas)) return;
         updatePhoneClock();
-        drawVoiceWave(phonePanel?.classList.contains('is-talking'));
-        requestAnimationFrame(startPhoneWaveLoop);
+        const frameInterval = settingsState.lowPowerMode ? 1000 / 8 : 1000 / 30;
+        if (!lastPhoneWaveFrameAt || now - lastPhoneWaveFrameAt >= frameInterval) {
+            drawVoiceWave(phonePanel?.classList.contains('is-talking'));
+            lastPhoneWaveFrameAt = now;
+        }
+        schedulePhoneWaveLoop();
     }
 
     async function showLoadingSequence(level) {
@@ -856,10 +983,11 @@ document.addEventListener('DOMContentLoaded', () => {
         }
         const { steady, warm, tease } = commsState.tones;
         const total = steady + warm + tease;
-        if (total <= 0) return '同步：未知';
-        if (warm >= steady && warm >= tease) return '同步：偏温柔';
-        if (tease >= steady && tease >= warm) return '同步：互相吐槽';
-        return '同步：稳定';
+        const en = window.currentLang === 'en';
+        if (total <= 0) return en ? 'Sync: unknown' : '同步：未知';
+        if (warm >= steady && warm >= tease) return en ? 'Sync: gentle' : '同步：偏温柔';
+        if (tease >= steady && tease >= warm) return en ? 'Sync: mutual teasing' : '同步：互相吐槽';
+        return en ? 'Sync: steady' : '同步：稳定';
     }
 
     function renderCommsScene(sceneId, options = {}) {
@@ -888,7 +1016,7 @@ document.addEventListener('DOMContentLoaded', () => {
         if (commsContextLine) {
             commsContextLine.textContent = storyModule?.getContextLine?.(scene, commsState, game)
                 || (game.currentLevel
-                    ? `${textOf(game.currentLevel.title)} · ${textOf(game.currentLevel.chapter)}。${window.t?.('comms.contextShort') || '玩家只回表情；她会慢慢讲。'}`
+                    ? `${textOf(game.currentLevel.title)} · ${textOf(game.currentLevel.chapter)}. ${window.t?.('comms.contextShort') || '玩家只回表情；她会慢慢讲。'}`
                     : (window.t?.('comms.context') || '通讯只在安全间隙展开；路线直接在 3D 魔方上画。'));
         }
 
@@ -967,8 +1095,10 @@ document.addEventListener('DOMContentLoaded', () => {
         const line = storyModule?.getMicroReaction?.(detail, game, commsState);
         if (!line) return;
         if (companionStatus) companionStatus.textContent = detail.type === 'gameOver'
-            ? '信号抖动'
-            : (detail.type === 'victory' ? '短暂安全' : '现场反应');
+            ? (window.t?.('comms.statusSignalJitter') || '信号抖动')
+            : (detail.type === 'victory'
+                ? (window.t?.('comms.statusBriefSafe') || '短暂安全')
+                : (window.t?.('comms.statusReaction') || '现场反应'));
         setCompanionBubble(line, detail.type === 'gameOver' ? 'danger' : (detail.type === 'victory' ? 'info' : 'warn'));
         markUnread('comms');
     }
@@ -986,7 +1116,7 @@ document.addEventListener('DOMContentLoaded', () => {
             if (commsContextLine) {
                 commsContextLine.textContent = storyModule?.getContextLine?.(scene, commsState, currentGame)
                     || (currentGame?.currentLevel
-                        ? `${textOf(currentGame.currentLevel.title)} · ${textOf(currentGame.currentLevel.chapter)}。${window.t?.('comms.contextShort') || '玩家只回表情；她会慢慢讲。'}`
+                        ? `${textOf(currentGame.currentLevel.title)} · ${textOf(currentGame.currentLevel.chapter)}. ${window.t?.('comms.contextShort') || '玩家只回表情；她会慢慢讲。'}`
                         : (window.t?.('comms.context') || '通讯只在安全间隙展开；路线直接在 3D 魔方上画。'));
             }
         }
@@ -1005,9 +1135,9 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 
     const enemyMeta = {
-        chaser: { symbol: '×', label: '追击者' },
-        guardian: { symbol: '◆', label: '守钥者' },
-        ambusher: { symbol: '◇', label: '伏击者' }
+        chaser: { symbol: '×', labelKey: 'ai.name.chaser', fallback: '追击者' },
+        guardian: { symbol: '◆', labelKey: 'ai.name.guardian', fallback: '守钥者' },
+        ambusher: { symbol: '◇', labelKey: 'ai.name.ambusher', fallback: '伏击者' }
     };
 
     function getFirstLevelIndex(predicate) {
@@ -1023,9 +1153,9 @@ document.addEventListener('DOMContentLoaded', () => {
 
     function summarizeGuardianRule(level) {
         if (!level.ais || !level.ais.some(ai => ai.type === 'guardian')) return null;
-        if (level.guardianAggro === 'afterKey') return '拿钥匙后狂暴';
-        if (level.guardianAggro === 'guardDoor') return '拿钥匙后守门';
-        return '同面引诱';
+        if (level.guardianAggro === 'afterKey') return window.t?.('guardianRule.afterKey') || '拿钥匙后狂暴';
+        if (level.guardianAggro === 'guardDoor') return window.t?.('guardianRule.guardDoor') || '拿钥匙后守门';
+        return window.t?.('guardianRule.sameFace') || '同面引诱';
     }
 
     function makeMetaToken({ type = 'tool', symbol, count = 1, label, muted = false }) {
@@ -1042,12 +1172,13 @@ document.addEventListener('DOMContentLoaded', () => {
         const firstBridgeIndex = getFirstLevelIndex(item => item.bridges?.length);
         const icons = [];
         Object.entries(getEnemyCounts(level)).forEach(([type, count]) => {
-            const meta = enemyMeta[type] || { symbol: '?', label: type };
+            const meta = enemyMeta[type] || { symbol: '?', fallback: type };
+            const label = meta.labelKey ? (window.t?.(meta.labelKey) || meta.fallback) : meta.fallback;
             icons.push(makeMetaToken({
                 type: `enemy enemy-${type}`,
                 symbol: meta.symbol,
                 count,
-                label: `${meta.label} x${count}`
+                label: `${label} x${count}`
             }));
         });
 
@@ -1055,22 +1186,28 @@ document.addEventListener('DOMContentLoaded', () => {
             icons.push(makeMetaToken({
                 type: 'tool tool-rotation',
                 symbol: '⟳',
-                label: '空间折叠已开放'
+                label: window.t?.('mechanic.rotationOpen') || '空间折叠已开放'
+            }));
+        } else if (!level.rotationEnabled && includeAlwaysTools) {
+            icons.push(makeMetaToken({
+                type: 'rule rule-no-twist',
+                symbol: '—',
+                label: window.t?.('scanner.noTwist') || '无旋转'
             }));
         }
         if (level.bridges?.length && (includeAlwaysTools || index === firstBridgeIndex)) {
             icons.push(makeMetaToken({
                 type: 'tool tool-bridge',
                 symbol: '◉',
-                label: '传送裂缝首次出现'
+                label: window.t?.('mechanic.bridgeFirst') || '传送裂缝首次出现'
             }));
         }
         if (level.voids?.length) {
             icons.push(makeMetaToken({
                 type: 'tool',
-                symbol: '裂',
+                symbol: '∅',
                 count: level.voids.length,
-                label: `虚空缺口 x${level.voids.length}`
+                label: formatText('mechanic.voidCount', '虚空缺口 x{count}', { count: level.voids.length })
             }));
         }
         if (level.patchCharges) {
@@ -1078,23 +1215,23 @@ document.addEventListener('DOMContentLoaded', () => {
                 type: 'tool',
                 symbol: '+',
                 count: level.patchCharges,
-                label: `临时补片 x${level.patchCharges}`
+                label: formatText('mechanic.patchCount', '临时补片 x{count}', { count: level.patchCharges })
             }));
         }
         if (level.beaconCharges) {
             icons.push(makeMetaToken({
                 type: 'tool',
-                symbol: '诱',
+                symbol: 'B',
                 count: level.beaconCharges,
-                label: `诱饵信标 x${level.beaconCharges}`
+                label: formatText('mechanic.beaconCount', '诱饵信标 x{count}', { count: level.beaconCharges })
             }));
         }
         if (level.breakCharges) {
             icons.push(makeMetaToken({
                 type: 'tool',
-                symbol: '碎',
+                symbol: '×',
                 count: level.breakCharges,
-                label: `碎解次数 x${level.breakCharges}`
+                label: formatText('mechanic.breakCount', '碎解次数 x{count}', { count: level.breakCharges })
             }));
         }
 
@@ -1214,7 +1351,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 renderLevelCards();
                 renderLevelBrief();
                 enterInspectPreview(index);
-                feel.note(`${textOf(level.title)} 已选中`, 'info');
+                feel.note(`${textOf(level.title)} ${window.t?.('setup.selectedNote') || '已选中'}`, 'info');
             });
             levelListEl.appendChild(card);
         });
@@ -1250,8 +1387,8 @@ document.addEventListener('DOMContentLoaded', () => {
             <div class="brief-title">${escapeHtml(textOf(level.title))} · ${escapeHtml(textOf(level.chapter))}</div>
             <p>${escapeHtml(textOf(level.concept))}</p>
             <div class="brief-meta">
-                <span>最佳回合 ${level.bestTurns}</span>
-                <span>最佳旋转 ${level.bestRotations}</span>
+                <span>${escapeHtml(window.t?.('setup.bestTurns') || '最佳回合')} ${level.bestTurns}</span>
+                <span>${escapeHtml(window.t?.('setup.bestRotations') || '最佳旋转')} ${level.bestRotations}</span>
                 ${renderLevelMetaIcons(level, selectedLevelIndex, { includeAlwaysTools: true })}
             </div>
         `;
@@ -1261,7 +1398,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const level = game.levels[selectedLevelIndex];
         if (!level) return;
         const stats = getLevelStats(level);
-        if (inspectTitle) inspectTitle.textContent = '战术简报';
+        if (inspectTitle) inspectTitle.textContent = window.t?.('inspect.title') || '战术简报';
         if (inspectGoal) {
             inspectGoal.innerHTML = `
                 <span class="briefing-kicker">${escapeHtml(textOf(level.title))} · ${escapeHtml(textOf(level.chapter))}</span>
@@ -1279,13 +1416,13 @@ document.addEventListener('DOMContentLoaded', () => {
                         ${renderScannerChips(level, selectedLevelIndex)}
                     </div>
                     <div class="scanner-icons">
-                        ${renderLevelMetaIcons(level, selectedLevelIndex, { includeAlwaysTools: true }) || '<span class="scanner-chip safe">基础逃生</span>'}
+                        ${renderLevelMetaIcons(level, selectedLevelIndex, { includeAlwaysTools: true }) || `<span class="scanner-chip safe">${escapeHtml(window.t?.('inspect.basicEscape') || '基础逃生')}</span>`}
                     </div>
                 </article>
                 <article class="briefing-log">
                     <span>BRIEFING LOG</span>
                     <p>${escapeHtml(textOf(level.concept))}</p>
-                    <small>建议回合 ${Number(level.bestTurns || 0)} · 建议折叠 ${Number(level.bestRotations || 0)}</small>
+                    <small>${escapeHtml(window.t?.('scanner.recommendedTurns') || '建议回合')} ${Number(level.bestTurns || 0)} · ${escapeHtml(window.t?.('scanner.recommendedRotations') || '建议折叠')} ${Number(level.bestRotations || 0)}</small>
                 </article>
             `;
         }
@@ -1336,10 +1473,10 @@ document.addEventListener('DOMContentLoaded', () => {
             const opt = document.createElement('option');
             opt.value = i;
 
-            let label = `${i + 1}层`;
-            if (i === 0) label += ' 底/左/后';
-            else if (i === size - 1) label += ' 顶/右/前';
-            else label += ' 中';
+            let label = formatText('fold.layerNumber', '{n}层', { n: i + 1 });
+            if (i === 0) label += ` ${window.t?.('fold.layerBottom') || '底/左/后'}`;
+            else if (i === size - 1) label += ` ${window.t?.('fold.layerTop') || '顶/右/前'}`;
+            else label += ` ${window.t?.('fold.layerMiddle') || '中'}`;
 
             opt.innerText = label;
             rotateLayerSelect.appendChild(opt);
@@ -1411,9 +1548,9 @@ document.addEventListener('DOMContentLoaded', () => {
         if (openArchive) {
             unlockArchive('foldingMachine');
             unlockArchive('protagonistE7');
-            feel.note('档案矩阵已同步到右侧手机，进入残局后可查看', 'info');
+            feel.note(window.t?.('archive.syncedNote') || '档案矩阵已同步到右侧手机，进入残局后可查看', 'info');
         } else {
-            feel.note('残局目录已打开', 'info');
+            feel.note(window.t?.('setup.openNote') || '残局目录已打开', 'info');
         }
     }
 
@@ -1421,13 +1558,19 @@ document.addEventListener('DOMContentLoaded', () => {
         twistMode = Boolean(enabled);
         btnTwistMode?.classList.toggle('active', twistMode);
         btnTwistMode?.setAttribute('aria-pressed', String(twistMode));
+        document.body?.classList.toggle('twist-interaction-active', twistMode);
         render.setInteractionMode?.(twistMode ? 'twist' : 'route');
         if (twistMode) {
             game.clearPlannedPath();
-            feel.note('空间折叠：拖拽魔方面拧当前层，世界流速放慢', 'info');
+            feel.note(window.t?.('note.twistOn') || '空间折叠：拖拽魔方面拧当前层，世界流速放慢', 'info');
         } else {
             render.clearLayerHighlight?.();
-            feel.note(game.realtimeMode ? '直控模式：点击相邻格移动' : '路线模式：在 3D 表面画路', 'info');
+            feel.note(
+                game.realtimeMode
+                    ? (window.t?.('note.directMode') || '直控模式：点击相邻格移动')
+                    : (window.t?.('note.routeMode') || '路线模式：在 3D 表面画路'),
+                'info'
+            );
         }
     }
 
@@ -1471,12 +1614,25 @@ document.addEventListener('DOMContentLoaded', () => {
 
     function persistSettings() {
         localStorage.setItem('dawnCubeTimerPrecision', String(settingsState.precision));
+        localStorage.setItem('dawnCubeLowPowerMode', String(settingsState.lowPowerMode));
         localStorage.setItem('dimensionHackDevMode', String(settingsState.devMode));
         localStorage.setItem('dawnCubePlayerMoveMs', String(settingsState.playerMoveMs));
         localStorage.setItem('dawnCubeEnemySpeedScale', String(settingsState.enemySpeedScale));
         localStorage.setItem('dawnCubeKeybinds', JSON.stringify(settingsState.keybinds));
         window.dawnCubeSettings = settingsState;
+        applyPerformanceMode();
         game.applyRealtimeTuning?.(settingsState);
+    }
+
+    function applyPerformanceMode() {
+        const lowPower = Boolean(settingsState.lowPowerMode);
+        document.body?.classList.toggle('low-power-mode', lowPower);
+        document.body?.classList.toggle('page-hidden-motion-paused', document.hidden);
+        render.applyPerformanceSettings?.({ lowPowerMode: lowPower });
+        if (!document.hidden) {
+            schedulePhoneWaveLoop();
+            scheduleLedMascotLoop();
+        }
     }
 
     function renderSettingsPanel() {
@@ -1484,6 +1640,9 @@ document.addEventListener('DOMContentLoaded', () => {
             const active = btn.dataset.settingsLang === window.currentLang;
             btn.classList.toggle('active', active);
             btn.setAttribute('aria-pressed', String(active));
+            btn.textContent = window.currentLang === 'en' && btn.dataset.settingsLang === 'zh'
+                ? 'ZH'
+                : (btn.dataset.settingsLang === 'zh' ? '中' : 'EN');
         });
         settingsPrecisionBtns.forEach(btn => {
             const active = Number(btn.dataset.settingsPrecision) === settingsState.precision;
@@ -1503,6 +1662,13 @@ document.addEventListener('DOMContentLoaded', () => {
             settingsAudioBtn.textContent = audio.muted
                 ? (window.t?.('settings.soundOff') || '关闭')
                 : (window.t?.('settings.soundOn') || '开启');
+        }
+        if (settingsLowPowerBtn) {
+            settingsLowPowerBtn.classList.toggle('active', settingsState.lowPowerMode);
+            settingsLowPowerBtn.setAttribute('aria-pressed', String(settingsState.lowPowerMode));
+            settingsLowPowerBtn.textContent = settingsState.lowPowerMode
+                ? (window.t?.('settings.lowPowerOn') || '低功耗中')
+                : (window.t?.('settings.lowPowerOff') || '标准画质');
         }
         if (settingsDevModeBtn) {
             settingsDevModeBtn.classList.toggle('active', settingsState.devMode);
@@ -1542,7 +1708,7 @@ document.addEventListener('DOMContentLoaded', () => {
             if (game.realtimeMode && game.canAutoResumeRealtimeFromInput?.()) {
                 game.setRealtimePaused?.(false);
             }
-            feel.note(`${target.textContent.replace(/\s+/g, ' ').trim()} 模式`, 'info');
+            feel.note(`${target.textContent.replace(/\s+/g, ' ').trim()} ${window.t?.('tool.modeSuffix') || '模式'}`, 'info');
             return true;
         }
         return false;
@@ -1550,7 +1716,12 @@ document.addEventListener('DOMContentLoaded', () => {
 
     function triggerWaitKeybind() {
         if (!isGameActive || render.isAnimating || game.gameState !== 'playing') return false;
-        feel.note(game.realtimeMode ? '原地稳住半拍' : '原地待命，敌人行动', game.realtimeMode ? 'info' : 'danger');
+        feel.note(
+            game.realtimeMode
+                ? (window.t?.('note.waitRealtime') || '原地稳住半拍')
+                : (window.t?.('note.waitTurn') || '跳过回合，敌人行动'),
+            game.realtimeMode ? 'info' : 'danger'
+        );
         if (!game.realtimeMode) feel.flashScreen('danger');
         game.skipTurn();
         return true;
@@ -1576,7 +1747,7 @@ document.addEventListener('DOMContentLoaded', () => {
             return true;
         }
         if (!canUseBulletTime()) {
-            if (phase === 'down' && !game.tutorialActive) feel.note('第二幕才解锁慢放。', 'info');
+            if (phase === 'down' && !game.tutorialActive) feel.note(window.t?.('note.bulletLocked') || '第二幕才解锁慢放。', 'info');
             return true;
         }
         setBulletTimeActive(phase === 'down');
@@ -1586,6 +1757,7 @@ document.addEventListener('DOMContentLoaded', () => {
     function handleGameplayKeybind(event, phase = 'down') {
         if (settingsOverlay?.classList.contains('active')) return false;
         if (escConsole?.classList.contains('active')) return false;
+        if (game && game.l03CutsceneActive) return false;
 
         if (game.tutorialActive) {
             const step = game.activeTutorialSteps[game.currentTutorialStepIndex];
@@ -1598,14 +1770,14 @@ document.addEventListener('DOMContentLoaded', () => {
                 if (step.type === 'move') {
                     if (code === keybinds.twist || code === keybinds.patch || code === keybinds.beacon || code === keybinds.break || code === keybinds.wait) {
                         game.playFeel?.('invalid');
-                        game.showFeel?.('当前步骤强引导中。请按照指示移动！', 'warn');
+                        game.showFeel?.(window.t?.('note.guidedMoveOnly') || '当前步骤强引导中。请按照指示移动！', 'warn');
                         return true;
                     }
                 }
                 if (step.type === 'twist') {
                     if (code === keybinds.patch || code === keybinds.beacon || code === keybinds.break || code === keybinds.wait) {
                         game.playFeel?.('invalid');
-                        game.showFeel?.('当前步骤强引导中。请按照指示进行空间旋转！', 'warn');
+                        game.showFeel?.(window.t?.('note.guidedTwistOnly') || '当前步骤强引导中。请按照指示进行空间旋转！', 'warn');
                         return true;
                     }
                 }
@@ -1613,8 +1785,14 @@ document.addEventListener('DOMContentLoaded', () => {
                     const targetTool = step.tool;
                     if (code === keybinds.twist || code === keybinds.wait || (code === keybinds.patch && targetTool !== 'patch') || (code === keybinds.beacon && targetTool !== 'beacon') || (code === keybinds.break && targetTool !== 'break')) {
                         game.playFeel?.('invalid');
-                        const toolNames = { patch: '补片', beacon: '信标', break: '碎解' };
-                        game.showFeel?.(`当前步骤强引导中。请使用 [${toolNames[targetTool] || targetTool}] 工具！`, 'warn');
+                        const toolNames = {
+                            patch: window.t?.('tool.patchTitle') || '补片',
+                            beacon: window.t?.('tool.beaconTitle') || '信标',
+                            break: window.t?.('tool.breakTitle') || '碎解'
+                        };
+                        game.showFeel?.(formatText('note.useTool', '当前步骤强引导中。请使用 [{tool}] 工具。', {
+                            tool: toolNames[targetTool] || targetTool
+                        }), 'warn');
                         return true;
                     }
                 }
@@ -1649,7 +1827,9 @@ document.addEventListener('DOMContentLoaded', () => {
         render.setGameViewportBias?.(!collapsed);
         if (phoneNotch) {
             phoneNotch.innerText = collapsed ? '◀' : '▶';
-            phoneNotch.setAttribute('aria-label', collapsed ? '展开 E-7 手机' : '收起 E-7 手机');
+            phoneNotch.setAttribute('aria-label', collapsed
+                ? (window.t?.('phone.expand') || '展开 E-7 手机')
+                : (window.t?.('phone.collapse') || '收起 E-7 手机'));
         }
         if (persist) localStorage.setItem(PHONE_COLLAPSED_KEY, collapsed ? 'true' : 'false');
     }
@@ -1661,6 +1841,52 @@ document.addEventListener('DOMContentLoaded', () => {
         if (tabName !== 'comms') {
             document.getElementById('phone-action-dock')?.scrollIntoView?.({ block: 'nearest' });
         }
+    }
+
+    function openDawnChatWindow({ clearNotice = true } = {}) {
+        dawnChatWindow?.classList.remove('is-hidden');
+        positionDawnChatWindow();
+        if (clearNotice) {
+            setCommsTutorialNotice(false);
+            clearUnread('comms');
+        }
+    }
+
+    function closeDawnChatWindow({ clearNotice = false } = {}) {
+        dawnChatWindow?.classList.add('is-hidden');
+        dawnChatWindow?.classList.remove('is-tutorial-active');
+        setDawnChatFollowingBubble(false);
+        dawnChatNextBtn?.classList.add('is-hidden');
+        if (clearNotice) setCommsTutorialNotice(false);
+    }
+
+    function positionDawnChatWindow() {
+        if (!dawnChatWindow || !commsFloatBubble) return;
+        const bubbleRect = commsFloatBubble.getBoundingClientRect();
+        const spacing = 12;
+        const margin = 10;
+        const chatWidth = dawnChatWindow.offsetWidth || 264;
+        const chatHeight = dawnChatWindow.offsetHeight || 304;
+        let left = bubbleRect.left + bubbleRect.width / 2 - chatWidth / 2;
+        left = Math.max(margin, Math.min(window.innerWidth - chatWidth - margin, left));
+        let top = bubbleRect.top - chatHeight - spacing;
+        dawnChatWindow.classList.toggle('is-below-bubble', top < margin);
+        if (top < margin) {
+            top = bubbleRect.bottom + spacing;
+        }
+        top = Math.max(margin, Math.min(window.innerHeight - chatHeight - margin, top));
+        dawnChatWindow.style.left = `${left}px`;
+        dawnChatWindow.style.top = `${top}px`;
+        dawnChatWindow.style.setProperty('--chat-anchor-x', `${bubbleRect.left + bubbleRect.width / 2 - left}px`);
+    }
+
+    function setDawnChatFollowingBubble(active) {
+        dawnChatWindow?.classList.toggle('is-following-bubble', Boolean(active));
+    }
+
+    function cleanupDawnBubbleDragState() {
+        setDawnChatFollowingBubble(false);
+        positionDawnChatWindow();
     }
 
     function placeFloatBubble(btn, key, fallback) {
@@ -1689,6 +1915,10 @@ document.addEventListener('DOMContentLoaded', () => {
             };
             btn.setPointerCapture?.(event.pointerId);
             btn.classList.add('is-dragging');
+            if (btn.id === 'comms-float-bubble') {
+                setDawnChatFollowingBubble(true);
+                positionDawnChatWindow();
+            }
             event.preventDefault();
         });
         btn.addEventListener('pointermove', event => {
@@ -1703,6 +1933,8 @@ document.addEventListener('DOMContentLoaded', () => {
             btn.style.setProperty('--bubble-y', `${nextY}px`);
             if (btn.id === 'tools-float-bubble') {
                 positionFloatingToolboxMenu();
+            } else if (btn.id === 'comms-float-bubble') {
+                positionDawnChatWindow();
             }
         });
         btn.addEventListener('pointerup', event => {
@@ -1715,12 +1947,24 @@ document.addEventListener('DOMContentLoaded', () => {
             localStorage.setItem(storageKey, JSON.stringify({ x: rect.left, y: rect.top }));
             const wasDrag = drag.moved || moved > 5;
             drag = null;
+            if (btn.id === 'comms-float-bubble') {
+                setDawnChatFollowingBubble(false);
+                positionDawnChatWindow();
+            }
             if (!wasDrag) onClick?.();
         });
         btn.addEventListener('pointercancel', () => {
             drag = null;
             btn.classList.remove('is-dragging');
+            if (btn.id === 'comms-float-bubble') {
+                cleanupDawnBubbleDragState();
+            }
         });
+        if (btn.id === 'comms-float-bubble') {
+            window.addEventListener('pointerup', cleanupDawnBubbleDragState, true);
+            window.addEventListener('pointercancel', cleanupDawnBubbleDragState, true);
+            window.addEventListener('blur', cleanupDawnBubbleDragState);
+        }
     }
 
     function positionFloatingToolboxMenu() {
@@ -1743,11 +1987,64 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
+    function getToolModeMeta(mode = 'route') {
+        const meta = {
+            route: {
+                icon: '➜',
+                title: window.t?.('tool.mode.routeTitle') || '移动模式',
+                desc: window.t?.('tool.mode.routeDesc') || '点击 Dawn 周围的发亮格。'
+            },
+            patch: {
+                icon: '▣',
+                title: window.t?.('tool.mode.patchTitle') || '补片模式',
+                desc: window.t?.('tool.mode.patchDesc') || '选择一个缺口，临时铺出可走格。'
+            },
+            beacon: {
+                icon: '◆',
+                title: window.t?.('tool.mode.beaconTitle') || '诱饵模式',
+                desc: window.t?.('tool.mode.beaconDesc') || '选择格子放置信标，吸引威胁源。'
+            },
+            break: {
+                icon: '✕',
+                title: window.t?.('tool.mode.breakTitle') || '碎解模式',
+                desc: window.t?.('tool.mode.breakDesc') || '选择可碎解格，打开一条短路。'
+            }
+        };
+        return meta[mode] || meta.route;
+    }
+
+    function updateToolModeFeedback() {
+        const mode = game.toolMode || 'route';
+        const meta = getToolModeMeta(mode);
+        document.body.dataset.toolMode = mode;
+
+        if (toolModeIcon) toolModeIcon.textContent = meta.icon;
+        if (toolModeTitle) toolModeTitle.textContent = meta.title;
+        if (toolModeDesc) toolModeDesc.textContent = meta.desc;
+        if (toolModeIndicator) {
+            toolModeIndicator.dataset.mode = mode;
+            toolModeIndicator.classList.toggle('is-tool-active', mode !== 'route');
+        }
+        if (toolsFloatBubble) {
+            toolsFloatBubble.classList.toggle('is-tool-active', mode !== 'route');
+            toolsFloatBubble.setAttribute('aria-pressed', String(mode !== 'route'));
+        }
+
+        const menu = document.getElementById('floating-toolbox-menu');
+        if (mode !== 'route') {
+            if (menu && !menu.classList.contains('is-hidden')) {
+                positionFloatingToolboxMenu();
+            }
+        } else if (menu) {
+            menu.classList.add('is-hidden');
+        }
+    }
+
     function updateFloatingToolsCount() {
         const floatingBreak = document.getElementById('floating-break-count');
         const floatingPatch = document.getElementById('floating-patch-count');
         const floatingBeacon = document.getElementById('floating-beacon-count');
-        
+
         if (floatingBreak) floatingBreak.textContent = game.breakCharges;
         if (floatingPatch) floatingPatch.textContent = game.patchCharges;
         if (floatingBeacon) floatingBeacon.textContent = game.beaconCharges;
@@ -1764,6 +2061,7 @@ document.addEventListener('DOMContentLoaded', () => {
         if (toolsFloatBubble) {
             toolsFloatBubble.classList.toggle('is-hidden', !hasTools);
             toolsFloatBubble.classList.toggle('has-tools', hasTools);
+            toolsFloatBubble.classList.toggle('is-tool-active', hasTools && game.toolMode !== 'route');
             if (!hasTools) {
                 const menu = document.getElementById('floating-toolbox-menu');
                 menu?.classList.add('is-hidden');
@@ -1778,9 +2076,7 @@ document.addEventListener('DOMContentLoaded', () => {
         playerLine.textContent = routeCommandPreview.textContent.replace(/^走向：/, '路线：');
         commsStoryLines.appendChild(playerLine);
         commsStoryLines.scrollTo?.({ top: commsStoryLines.scrollHeight, behavior: 'smooth' });
-        setCompanionBubble(game.trust < 55
-            ? '我会看。但我不保证每次都乖乖照做。'
-            : '行，我照这条线走。你最好是对的。', game.trust < 55 ? 'warn' : 'info');
+        setCompanionBubble(window.t?.('comms.routeSeen') || '我看到了。你先别把我往奇怪地方带。', 'info');
     }
 
     function appendCommandBubble(text) {
@@ -1821,9 +2117,17 @@ document.addEventListener('DOMContentLoaded', () => {
         initRenderScene();
         await render.flyToGameCamera?.(980);
         game.startRealtime?.();
+        const delayL03TutorialUntilRollback = selectedLevelIndex === 2 && game.tutorialActive && !game.l03RollbackTriggered;
         if (game.tutorialActive) {
-            updateTutorialUI();
-            game.setRealtimePaused?.(true);
+            if (delayL03TutorialUntilRollback) {
+                hideTutorialDialogue();
+                render.hideTutorialPointer?.();
+                lastTutorialNoticeKey = '';
+                game.setRealtimePaused?.(false);
+            } else {
+                updateTutorialUI();
+                game.setRealtimePaused?.(true);
+            }
         } else {
             if (!document.getElementById('tutorial-helper-card')?.classList.contains('is-hidden')) {
                 game.setRealtimePaused?.(true);
@@ -1834,6 +2138,55 @@ document.addEventListener('DOMContentLoaded', () => {
         audio.setTension('calm');
         feel.note(`${textOf(game.currentLevel.title)} · ${textOf(game.currentLevel.chapter)}`, 'info');
         feel.flashScreen('info');
+
+        // L03 Automated Cutscene
+        if (selectedLevelIndex === 2) {
+            game.l03CutsceneActive = true;
+            const showL03TutorialAfterRollback = () => {
+                game.l03CutsceneActive = false;
+                if (game.currentLevelIndex === 2 && game.tutorialActive && game.l03RollbackTriggered) {
+                    updateTutorialUI();
+                    game.setRealtimePaused?.(true);
+                }
+            };
+            setTimeout(async () => {
+                if (game.currentLevelIndex !== 2 || game.gameState !== 'playing') {
+                    game.l03CutsceneActive = false;
+                    return;
+                }
+
+                // Let Dawn speak
+                setCompanionBubble(window.t?.('comms.l03Curious') || "咦，那边好像有个发光的小人？……这鬼地方闷死了，我过去跟它打个招呼，万一它是能带我出去的管理员呢？", "info");
+
+                // Wait 2.8 seconds for speech bubble to show, then move
+                await new Promise(resolve => setTimeout(resolve, 2800));
+
+                if (game.currentLevelIndex !== 2 || game.gameState !== 'playing') {
+                    game.l03CutsceneActive = false;
+                    return;
+                }
+
+                // Step 1: Move Dawn to at(0, 1, 0)
+                const targetCell1 = game.resolveCoord({ face: 0, row: 1, col: 0 });
+                game.movePlayerRealtime(targetCell1);
+
+                // Wait 1.5 seconds for the move animation to complete and enemy turn to run
+                await new Promise(resolve => setTimeout(resolve, 1500));
+
+                if (game.currentLevelIndex !== 2 || game.gameState !== 'playing' || game.l03RollbackTriggered) {
+                    showL03TutorialAfterRollback();
+                    return;
+                }
+
+                // Step 2: Dawn keeps going to the monster's cell at(0, 0, 0)
+                const targetCell2 = game.resolveCoord({ face: 0, row: 0, col: 0 });
+                game.movePlayerRealtime(targetCell2);
+
+                // The contact will occur, triggering rollback.
+                setTimeout(showL03TutorialAfterRollback, 1200);
+
+            }, 1000);
+        }
     }
 
     function resetCurrentLevel() {
@@ -1849,7 +2202,7 @@ document.addEventListener('DOMContentLoaded', () => {
         render.resetCamera?.();
         if (render.plannedLine && render.scene) render.scene.remove(render.plannedLine);
         audio.setTension('calm');
-        feel.note('残局已重置', 'warn');
+        feel.note(window.t?.('note.resetLevel') || '残局已重置', 'warn');
         feel.flashScreen('warn');
         if (game.tutorialActive) {
             updateTutorialUI();
@@ -1881,14 +2234,16 @@ document.addEventListener('DOMContentLoaded', () => {
         setTerminalTab('comms');
         renderLevelCards();
         renderLevelBrief();
-        feel.note('回到残局册', 'info');
+        feel.note(window.t?.('note.backLevelBook') || '回到残局册', 'info');
     }
 
     function updateRotationHighlight() {
         const rotationPreviewChip = document.getElementById('rotation-preview-chip');
         if (rotationPreviewChip) {
-            const layerText = rotateLayerSelect.selectedOptions?.[0]?.textContent?.replace(/\s+/g, ' ') || `第 ${Number(rotateLayerSelect.value || 0) + 1} 层`;
-            rotationPreviewChip.innerText = `${rotateAxisSelect.value || 'X'} 轴 · ${layerText} · ↻ / ↺`;
+            const layerNumber = Number(rotateLayerSelect.value || 0) + 1;
+            const layerText = rotateLayerSelect.selectedOptions?.[0]?.textContent?.replace(/\s+/g, ' ')
+                || (window.t?.('fold.layerLabel') || '第 {n} 层').replace('{n}', String(layerNumber));
+            rotationPreviewChip.innerText = `${rotateAxisSelect.value || 'X'} · ${layerText} · ↻ / ↺`;
         }
 
         if (!game.rotationEnabled) {
@@ -1936,6 +2291,25 @@ document.addEventListener('DOMContentLoaded', () => {
             renderCommsScene(commsState.activeSceneId, { force: true });
         }
     });
+    document.addEventListener('visibilitychange', () => {
+        applyPerformanceMode();
+        if (document.hidden) {
+            if (phoneWaveFrameId !== null) {
+                cancelAnimationFrame(phoneWaveFrameId);
+                phoneWaveFrameId = null;
+            }
+            if (ledMascotFrameId !== null) {
+                cancelAnimationFrame(ledMascotFrameId);
+                ledMascotFrameId = null;
+            }
+        } else {
+            lastPhoneWaveFrameAt = 0;
+            lastLedMascotFrameAt = 0;
+            drawVoiceWave(phonePanel?.classList.contains('is-talking'));
+            schedulePhoneWaveLoop();
+            scheduleLedMascotLoop();
+        }
+    });
 
     terminalTabs.forEach(tab => {
         tab.addEventListener('click', () => {
@@ -1960,6 +2334,11 @@ document.addEventListener('DOMContentLoaded', () => {
         if (!btn) return;
         chooseCommsReply(Number(btn.dataset.commsChoice));
     });
+    dawnKaomojiDock?.addEventListener('click', event => {
+        const btn = event.target.closest('[data-comms-choice]');
+        if (!btn) return;
+        chooseCommsReply(Number(btn.dataset.commsChoice));
+    });
 
     function renderStoryEvent(detail, baseSceneId, fallbackKey) {
         const sceneId = storyModule?.getEventSceneId?.(detail, game, baseSceneId) || baseSceneId;
@@ -1980,23 +2359,29 @@ document.addEventListener('DOMContentLoaded', () => {
             );
             pulseCompanionReaction(detail);
         } else if (detail.type === 'rotate') {
-            appendCommandBubble(`指令：旋转 ${detail.axis} 轴第 ${Number(detail.layer || 0) + 1} 层 [${detail.direction === 'CW' ? '顺时针' : '逆时针'}]`);
+            appendCommandBubble(formatText('command.rotate', '指令：旋转 {axis} 轴第 {layer} 层 [{direction}]', {
+                axis: detail.axis,
+                layer: Number(detail.layer || 0) + 1,
+                direction: detail.direction === 'CW'
+                    ? (window.t?.('command.clockwise') || '顺时针')
+                    : (window.t?.('command.counterClockwise') || '逆时针')
+            }));
             renderStoryEvent(detail, eventScenes.firstRotation, 'firstRotation');
             pulseCompanionReaction(detail);
         } else if (detail.type === 'patchPlaced') {
-            appendCommandBubble(`指令：在 ${game.describeCell(detail.at)} 部署补片`);
+            appendCommandBubble(formatText('command.patch', '指令：在 {cell} 部署补片', { cell: game.describeCell(detail.at) }));
             pulseCompanionReaction(detail);
         } else if (detail.type === 'beaconPlaced') {
-            appendCommandBubble(`指令：在 ${game.describeCell(detail.at)} 部署诱饵`);
+            appendCommandBubble(formatText('command.beacon', '指令：在 {cell} 部署诱饵', { cell: game.describeCell(detail.at) }));
             pulseCompanionReaction(detail);
         } else if (detail.type === 'patchBroken') {
-            appendCommandBubble(`指令：碎解 ${game.describeCell(detail.at)}`);
+            appendCommandBubble(formatText('command.break', '指令：碎解 {cell}', { cell: game.describeCell(detail.at) }));
             pulseCompanionReaction(detail);
         } else if (detail.type === 'breakPlaced') {
-            appendCommandBubble(`指令：碎解 ${game.describeCell(detail.at)}`);
+            appendCommandBubble(formatText('command.break', '指令：碎解 {cell}', { cell: game.describeCell(detail.at) }));
             pulseCompanionReaction(detail);
         } else if (detail.type === 'skip') {
-            appendCommandBubble('指令：原地待命 (跳过回合)');
+            appendCommandBubble(window.t?.('command.skip') || '指令：原地待命 (跳过回合)');
             pulseCompanionReaction(detail);
         } else if (detail.type === 'gameOver') {
             markUnread('tasks');
@@ -2046,7 +2431,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     btnConfirmPath.addEventListener('click', () => {
         if (game.realtimeMode) {
-            feel.note('实时模式不用发送路线，直接点相邻格。', 'info');
+            feel.note(window.t?.('note.realtimeNoSend') || '实时模式不用发送路线，直接点相邻格。', 'info');
             return;
         }
         if (!render.isAnimating) {
@@ -2058,7 +2443,12 @@ document.addEventListener('DOMContentLoaded', () => {
 
     btnEndTurn.addEventListener('click', () => {
         if (!render.isAnimating && game.gameState === 'playing') {
-            feel.note(game.realtimeMode ? '原地稳住半拍' : '跳过回合，敌人行动', game.realtimeMode ? 'info' : 'danger');
+            feel.note(
+                game.realtimeMode
+                    ? (window.t?.('note.waitRealtime') || '原地稳住半拍')
+                    : (window.t?.('note.waitTurn') || '跳过回合，敌人行动'),
+                game.realtimeMode ? 'info' : 'danger'
+            );
             if (!game.realtimeMode) feel.flashScreen('danger');
             game.skipTurn();
         }
@@ -2067,19 +2457,24 @@ document.addEventListener('DOMContentLoaded', () => {
     btnUndo.addEventListener('click', () => {
         if (!render.isAnimating) {
             if (game.undoTurn()) {
-                feel.note(game.realtimeMode ? '已倒回 3 秒' : '已悔棋一步', 'info');
+                feel.note(
+                    game.realtimeMode
+                        ? (window.t?.('note.undoRealtime') || '已倒回 3 秒')
+                        : (window.t?.('note.undoStep') || '已悔棋一步'),
+                    'info'
+                );
             }
         }
     });
 
     btnReset.addEventListener('click', () => {
-        if (confirm('确定要重置当前残局吗？')) {
+        if (confirm(window.t?.('confirm.resetLevel') || '确定要重置当前残局吗？')) {
             resetCurrentLevel();
         }
     });
 
     btnMainMenu?.addEventListener('click', () => {
-        if (confirm('回到残局册？当前本局会暂停在这里，不会自动保存路线。')) {
+        if (confirm(window.t?.('confirm.backLevelBook') || '回到残局册？当前本局会暂停在这里，不会自动保存路线。')) {
             returnToLevelBook();
         }
     });
@@ -2087,7 +2482,7 @@ document.addEventListener('DOMContentLoaded', () => {
     btnEscMenu?.addEventListener('click', () => toggleEscConsole(true));
     btnConsoleResume?.addEventListener('click', () => toggleEscConsole(false));
     btnConsoleReset?.addEventListener('click', () => {
-        if (confirm('确定要重置当前残局吗？')) {
+        if (confirm(window.t?.('confirm.resetLevel') || '确定要重置当前残局吗？')) {
             toggleEscConsole(false);
             resetCurrentLevel();
         }
@@ -2124,8 +2519,17 @@ document.addEventListener('DOMContentLoaded', () => {
     settingsAudioBtn?.addEventListener('click', () => {
         audio.setMuted(!audio.muted);
         renderSettingsPanel();
-        feel.note(audio.muted ? '声音已关闭' : '声音已开启', audio.muted ? 'warn' : 'good');
+        feel.note(audio.muted ? (window.t?.('audio.offNote') || '声音已关闭') : (window.t?.('audio.onNote') || '声音已开启'), audio.muted ? 'warn' : 'good');
         if (!audio.muted) audio.start().then(() => audio.play('uiConfirm'));
+    });
+    settingsLowPowerBtn?.addEventListener('click', () => {
+        settingsState.lowPowerMode = !settingsState.lowPowerMode;
+        persistSettings();
+        renderSettingsPanel();
+        const note = settingsState.lowPowerMode
+            ? (window.currentLang === 'en' ? 'Low power mode on' : '低功耗/屏幕共享模式已开启')
+            : (window.currentLang === 'en' ? 'Standard visuals restored' : '已恢复标准画质');
+        feel.note(note, settingsState.lowPowerMode ? 'good' : 'info');
     });
     settingsDevModeBtn?.addEventListener('click', () => {
         settingsState.devMode = !settingsState.devMode;
@@ -2133,7 +2537,12 @@ document.addEventListener('DOMContentLoaded', () => {
         renderSettingsPanel();
         renderLevelCards();
         renderLevelBrief();
-        feel.note(settingsState.devMode ? '开发者模式：关卡全解锁' : '开发者模式已关闭', settingsState.devMode ? 'good' : 'info');
+        feel.note(
+            settingsState.devMode
+                ? (window.t?.('settings.devOnNote') || '开发者模式：关卡全解锁')
+                : (window.t?.('settings.devOffNote') || '开发者模式已关闭'),
+            settingsState.devMode ? 'good' : 'info'
+        );
     });
     settingsResetTutorialsBtn?.addEventListener('click', () => {
         Object.keys(localStorage).forEach(key => {
@@ -2142,17 +2551,18 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         });
         audio.play('uiConfirm');
-        feel.note('所有教学提示已恢复', 'good');
+        feel.note(window.t?.('settings.resetTutorialsNote') || '所有教学提示已恢复', 'good');
         if (game.currentLevel && game.currentLevel.tutorialSteps?.length > 0) {
             game.initLevel(game.currentLevelIndex, false);
             updateTutorialUI();
             if (typeof render !== 'undefined') {
-                render.initLevelVisuals();
+                render.buildCube3D();
+                render.spawnEntities3D();
             }
         }
     });
     settingsClearProgressBtn?.addEventListener('click', () => {
-        const confirmed = window.confirm('清除所有关卡进度、档案、成就和信任值？这个操作不能撤销。');
+        const confirmed = window.confirm(window.t?.('settings.clearConfirm') || '清除所有关卡进度、档案和成就？这个操作不能撤销。');
         if (!confirmed) return;
         [
             'dimensionHackCompletedLevels',
@@ -2180,7 +2590,7 @@ document.addEventListener('DOMContentLoaded', () => {
         renderArchiveRoom();
         renderSettingsPanel();
         audio.play('uiConfirm');
-        feel.note('进度已清除，回到第一关。', 'warn');
+        feel.note(window.t?.('settings.clearDone') || '进度已清除，回到第一关。', 'warn');
     });
     keybindButtons.forEach(btn => {
         btn.addEventListener('click', () => {
@@ -2193,9 +2603,22 @@ document.addEventListener('DOMContentLoaded', () => {
         setPhoneCollapsed(!phonePanel?.classList.contains('is-collapsed'));
     });
     setupDraggableBubble(commsFloatBubble, 'dawnCubeCommsBubblePos', { x: window.innerWidth - 156, y: window.innerHeight - 92 }, () => {
-        const dialogueConsole = document.getElementById('tutorial-dialogue-console');
-        if (dialogueConsole) {
-            dialogueConsole.classList.toggle('is-hidden');
+        const tutorialStep = game.activeTutorialSteps?.[game.currentTutorialStepIndex];
+        if (game.tutorialActive && isSystemTutorialStep(tutorialStep)) {
+            setCommsTutorialNotice(true);
+            audio.play('invalid');
+            feel.note(
+                window.currentLang === 'en'
+                    ? 'Finish the system guide first. Dawn will wait.'
+                    : '先完成系统引导，Dawn 的消息会等你。',
+                'info'
+            );
+            return;
+        }
+        if (dawnChatWindow?.classList.contains('is-hidden')) {
+            openDawnChatWindow({ clearNotice: true });
+        } else {
+            closeDawnChatWindow();
         }
         audio.play('uiConfirm');
     });
@@ -2206,6 +2629,7 @@ document.addEventListener('DOMContentLoaded', () => {
     window.addEventListener('resize', () => {
         placeFloatBubble(commsFloatBubble, 'dawnCubeCommsBubblePos', { x: window.innerWidth - 156, y: window.innerHeight - 92 });
         placeFloatBubble(toolsFloatBubble, 'dawnCubeToolsBubblePos', { x: window.innerWidth - 82, y: window.innerHeight - 92 });
+        positionDawnChatWindow();
         positionFloatingToolboxMenu();
     });
     landingArchiveBtn?.addEventListener('click', openArchiveRoom);
@@ -2239,9 +2663,19 @@ document.addEventListener('DOMContentLoaded', () => {
         if (!game.tutorialActive) return;
         const step = game.activeTutorialSteps[game.currentTutorialStepIndex];
         if (step?.type !== 'dialog') return;
+        if (!isSystemTutorialStep(step)) return;
         event.preventDefault();
         event.stopPropagation();
         advanceTutorialStep();
+    });
+    dawnChatNextBtn?.addEventListener('click', event => {
+        event.preventDefault();
+        event.stopPropagation();
+    });
+    dawnChatCloseBtn?.addEventListener('click', event => {
+        event.preventDefault();
+        event.stopPropagation();
+        closeDawnChatWindow();
     });
     tutorialDialogueClose?.addEventListener('click', event => {
         event.preventDefault();
@@ -2273,44 +2707,51 @@ document.addEventListener('DOMContentLoaded', () => {
         }
         if (event.key === 'Escape') {
             event.preventDefault();
-            
+
             // 1. 如果设置页面活跃，则直接关闭设置
             if (settingsOverlay?.classList.contains('active')) {
                 closeSettings();
                 return;
             }
-            
+
             // 2. 如果档案矩阵活跃，则关闭并回到主菜单
             if (archiveOverlay?.classList.contains('active')) {
                 closeArchiveRoom();
                 return;
             }
-            
+
             // 3. 如果制作名单活跃，则关闭并回到主菜单
             if (creditsOverlay?.classList.contains('active')) {
                 closeCredits();
                 return;
             }
-            
+
             // 4. 如果选关册活跃，则关闭选关册，回到主菜单
             if (setupOverlay?.classList.contains('active')) {
                 showLanding();
                 return;
             }
-            
+
             // 5. 如果处于战术检视 (Inspect Mode)，退出检视返回选关册
             if (inspectOverlay?.classList.contains('active')) {
                 exitInspectPreview();
                 return;
             }
-            
-            // 6. 如果在游戏活跃状态下，切换暂停控制台的显示与隐藏
+
+            // 6. 如果正在使用工具，Esc 先回到普通移动，避免误操作
+            if (isGameActive && game.toolMode && game.toolMode !== 'route') {
+                game.setToolMode('route');
+                toggleFloatingToolboxMenu(false);
+                return;
+            }
+
+            // 7. 如果在游戏活跃状态下，切换暂停控制台的显示与隐藏
             if (isGameActive) {
                 toggleEscConsole();
                 return;
             }
-            
-            // 7. 在主菜单无额外层时，Esc 忽略
+
+            // 8. 在主菜单无额外层时，Esc 忽略
             return;
         }
         if (handleGameplayKeybind(event, 'down')) {
@@ -2350,8 +2791,7 @@ document.addEventListener('DOMContentLoaded', () => {
         btn.addEventListener('click', () => {
             if (render.isAnimating) return;
             game.setToolMode(btn.dataset.toolMode);
-            const menu = document.getElementById('floating-toolbox-menu');
-            menu?.classList.add('is-hidden');
+            toggleFloatingToolboxMenu(game.toolMode !== 'route');
         });
     });
 
@@ -2394,7 +2834,12 @@ document.addEventListener('DOMContentLoaded', () => {
     btnGameoverUndo.addEventListener('click', () => {
         if (!render.isAnimating && game.undoTurn()) {
             gameoverOverlay.classList.remove('active', 'jump-alert', 'signal-lost');
-            feel.note(game.realtimeMode ? '倒回 3 秒，重新推演' : '回到上一步，重新推演', 'info');
+            feel.note(
+                game.realtimeMode
+                    ? (window.t?.('note.undoRealtimeReview') || '倒回 3 秒，重新推演')
+                    : (window.t?.('note.undoStepReview') || '回到上一步，重新推演'),
+                'info'
+            );
         }
     });
 
@@ -2402,7 +2847,9 @@ document.addEventListener('DOMContentLoaded', () => {
         if (!failureAnalysis) return;
         const shouldShow = failureAnalysis.classList.contains('is-hidden');
         failureAnalysis.classList.toggle('is-hidden', !shouldShow);
-        btnToggleAnalysis.innerText = shouldShow ? '收起残局复盘' : '查看残局复盘';
+        btnToggleAnalysis.innerText = shouldShow
+            ? (window.t?.('gameover.hideReview') || '收起残局复盘')
+            : (window.t?.('gameover.review') || '查看残局复盘');
         if (shouldShow) {
             game.renderFailureAnalysis(analysisToneSelect?.value || 'coach');
             audio.play('uiConfirm');
@@ -2446,7 +2893,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const nextMuted = !audio.muted;
         audio.setMuted(nextMuted);
         renderSettingsPanel();
-        feel.note(audio.muted ? '声音已关闭' : '声音已开启', audio.muted ? 'warn' : 'good');
+        feel.note(audio.muted ? (window.t?.('audio.offNote') || '声音已关闭') : (window.t?.('audio.onNote') || '声音已开启'), audio.muted ? 'warn' : 'good');
         if (!audio.muted) {
             audio.start().then(() => audio.play('uiConfirm'));
         }
@@ -2456,6 +2903,117 @@ document.addEventListener('DOMContentLoaded', () => {
     // MILESTONE 7: INTERACTIVE TUTORIAL ENGINE
     // ----------------------------------------------------
     let tutorialTypingTimer = null;
+    let lastDawnTutorialMessageKey = '';
+    let tutorialUiArrow = null;
+    let tutorialSecondaryFocusTimer = null;
+    let tutorialSecondaryFocusRetryTimer = null;
+
+    function getTutorialStepText(step) {
+        return step?.text?.[window.currentLang || 'zh'] || step?.text?.zh || '';
+    }
+
+    function isSystemTutorialStep(step) {
+        if (!step) return false;
+        return step.type !== 'dialog' || step.tone === 'system' || step.speaker === '系统广播';
+    }
+
+    function ensureTutorialUiArrow() {
+        if (!tutorialUiArrow) {
+            tutorialUiArrow = document.createElement('div');
+            tutorialUiArrow.className = 'tutorial-ui-arrow is-hidden';
+            tutorialUiArrow.setAttribute('aria-hidden', 'true');
+            document.body.appendChild(tutorialUiArrow);
+        }
+        return tutorialUiArrow;
+    }
+
+    function hideTutorialUiArrow() {
+        tutorialUiArrow?.classList.add('is-hidden');
+    }
+
+    function showTutorialUiArrow(targetEl) {
+        if (!targetEl) {
+            hideTutorialUiArrow();
+            return;
+        }
+        const rect = targetEl.getBoundingClientRect();
+        if (!rect.width || !rect.height) {
+            hideTutorialUiArrow();
+            return;
+        }
+        const arrow = ensureTutorialUiArrow();
+        const targetOnRight = rect.left > window.innerWidth * 0.52;
+        const x = targetOnRight ? rect.left - 42 : rect.right + 10;
+        const y = rect.top + rect.height / 2;
+        arrow.textContent = '➜';
+        arrow.classList.toggle('points-left', !targetOnRight);
+        arrow.style.left = `${Math.max(10, Math.min(window.innerWidth - 44, x))}px`;
+        arrow.style.top = `${Math.max(10, Math.min(window.innerHeight - 44, y))}px`;
+        arrow.classList.remove('is-hidden');
+    }
+
+    function getTutorialUiTarget(step) {
+        if (!step) return null;
+        if (step.uiTarget === 'twist') return btnTwistMode || toolsFloatBubble;
+        if (step.uiTarget === 'tools') return toolsFloatBubble;
+        if (step.uiTarget === 'esc') return btnEscMenu;
+        if (step.type === 'esc') return btnEscMenu;
+        if (step.type === 'closeEsc') return btnConsoleResume || escConsole;
+        if (step.openTools || step.type === 'tool') return toolsFloatBubble;
+        if (step.type === 'twist') return btnTwistMode || toolsFloatBubble;
+        return null;
+    }
+
+    function updateTutorialControlTargets(step, isSystemStep) {
+        btnTwistMode?.classList.toggle('tutorial-target', step?.type === 'twist' || step?.uiTarget === 'twist');
+        btnEscMenu?.classList.toggle('tutorial-target', step?.type === 'esc' || step?.uiTarget === 'esc');
+        commsFloatBubble?.classList.remove('tutorial-target');
+        toolsFloatBubble?.classList.toggle('tutorial-target', step?.openTools || step?.type === 'tool' || step?.uiTarget === 'tools');
+        const uiTarget = getTutorialUiTarget(step);
+        showTutorialUiArrow(uiTarget);
+    }
+
+    function clearTutorialControlTargets() {
+        btnTwistMode?.classList.remove('tutorial-target');
+        btnEscMenu?.classList.remove('tutorial-target');
+        commsFloatBubble?.classList.remove('tutorial-target');
+        toolsFloatBubble?.classList.remove('tutorial-target');
+        hideTutorialUiArrow();
+    }
+
+    function clearTutorialSecondaryFocusTimers() {
+        if (tutorialSecondaryFocusTimer) {
+            clearTimeout(tutorialSecondaryFocusTimer);
+            tutorialSecondaryFocusTimer = null;
+        }
+        if (tutorialSecondaryFocusRetryTimer) {
+            clearTimeout(tutorialSecondaryFocusRetryTimer);
+            tutorialSecondaryFocusRetryTimer = null;
+        }
+    }
+
+    function scheduleTutorialSecondaryFocus(step) {
+        if (!step || step.secondaryFocusCellId === null || step.secondaryFocusCellId === undefined) return;
+        const expectedLevel = game.currentLevel?.id;
+        const expectedStep = game.currentTutorialStepIndex;
+        const secondaryStep = {
+            ...step,
+            highlightTarget: step.secondaryHighlightTarget || step.highlightTarget
+        };
+        const focusSecondary = () => {
+            if (!game.tutorialActive || game.currentLevel?.id !== expectedLevel || game.currentTutorialStepIndex !== expectedStep) return;
+            render.showTutorialPointer?.(step.secondaryFocusCellId, secondaryStep);
+            render.flyToTutorialFocus?.(step.secondaryFocusCellId, 850, Number(step.lockInputMs || 0));
+        };
+        tutorialSecondaryFocusTimer = setTimeout(() => {
+            tutorialSecondaryFocusTimer = null;
+            focusSecondary();
+            tutorialSecondaryFocusRetryTimer = setTimeout(() => {
+                tutorialSecondaryFocusRetryTimer = null;
+                focusSecondary();
+            }, 700);
+        }, 1000);
+    }
     const ledMascotState = {
         tone: 'steady',
         speaking: false,
@@ -2563,17 +3121,43 @@ document.addEventListener('DOMContentLoaded', () => {
         ctx.shadowBlur = 0;
     }
 
-    function startLedMascotLoop() {
-        renderLedMascotFrame(performance.now());
-        requestAnimationFrame(startLedMascotLoop);
+    function scheduleLedMascotLoop() {
+        if (ledMascotFrameId !== null || document.hidden) return;
+        if (!isUiElementVisible(tutorialLedMascot)) return;
+        ledMascotFrameId = requestAnimationFrame(startLedMascotLoop);
+    }
+
+    function startLedMascotLoop(now = performance.now()) {
+        ledMascotFrameId = null;
+        if (document.hidden || !isUiElementVisible(tutorialLedMascot)) return;
+        const frameInterval = settingsState.lowPowerMode ? 1000 / 6 : 1000 / 18;
+        if (!lastLedMascotFrameAt || now - lastLedMascotFrameAt >= frameInterval) {
+            renderLedMascotFrame(now);
+            lastLedMascotFrameAt = now;
+        }
+        scheduleLedMascotLoop();
+    }
+
+    function hideSystemTutorialDialogue() {
+        window.clearInterval(tutorialTypingTimer);
+        drawLedMascot('steady', false);
+        tutorialDialogueConsole?.classList.add('is-hidden');
+        if (ledMascotFrameId !== null) {
+            cancelAnimationFrame(ledMascotFrameId);
+            ledMascotFrameId = null;
+        }
     }
 
     function setTutorialDialogue(step) {
         if (!tutorialDialogueConsole || !tutorialDialogueText) return;
-        const text = step?.text?.[window.currentLang || 'zh'] || step?.text?.zh || '';
+        const text = getTutorialStepText(step);
         const tone = step?.tone || 'steady';
-        const speaker = step?.speaker || (tone === 'system' ? '引导系统' : 'E-7');
+        const isSystem = isSystemTutorialStep(step);
+        const speaker = textOf(step?.speaker) || (isSystem ? (window.t?.('console.systemSpeaker') || '系统广播') : 'Dawn');
         tutorialDialogueConsole.classList.remove('is-hidden');
+        tutorialDialogueConsole.classList.toggle('is-system', isSystem);
+        tutorialDialogueConsole.classList.toggle('is-dawn', !isSystem);
+        scheduleLedMascotLoop();
         tutorialSpeakerLabel && (tutorialSpeakerLabel.textContent = speaker);
         tutorialDialogueNext?.classList.toggle('is-hidden', step?.type !== 'dialog');
         tutorialDialogueText.textContent = '';
@@ -2591,62 +3175,120 @@ document.addEventListener('DOMContentLoaded', () => {
         }, 18);
     }
 
-    function hideTutorialDialogue() {
+    function setDawnTutorialMessage(step, noticeKey) {
+        const text = getTutorialStepText(step);
+        if (!text) return;
+        hideSystemTutorialDialogue();
+        setCommsTutorialNotice(true);
+        if (dawnChatStatusTag) {
+            const tone = step?.tone || 'steady';
+            dawnChatStatusTag.className = `dawn-status-tag ${tone}`;
+            dawnChatStatusTag.textContent = tone === 'panic'
+                ? (window.t?.('dawn.chatStatusPanic') || '[状态: 紧张]')
+                : tone === 'worry'
+                    ? (window.t?.('dawn.chatStatusWorry') || '[状态: 不安]')
+                    : (window.t?.('dawn.chatStatusFocused') || '[状态: 专注]');
+        }
+        if (!dawnChatLog || lastDawnTutorialMessageKey === noticeKey) return;
+        lastDawnTutorialMessageKey = noticeKey;
+        const bubble = document.createElement('p');
+        bubble.className = 'dawn-message-bubble dawn tutorial-message';
+        bubble.textContent = text;
+        dawnChatLog.appendChild(bubble);
+        const bubbles = dawnChatLog.querySelectorAll('.dawn-message-bubble');
+        if (bubbles.length > 30) bubbles[0].remove();
+        if (!dawnChatWindow?.classList.contains('is-hidden')) {
+            dawnChatLog.scrollTop = dawnChatLog.scrollHeight;
+        }
+    }
+
+    function hideTutorialDialogue({ clearCommsNotice = true } = {}) {
         window.clearInterval(tutorialTypingTimer);
         drawLedMascot('steady', false);
         tutorialDialogueConsole?.classList.add('is-hidden');
+        dawnChatNextBtn?.classList.add('is-hidden');
+        dawnChatWindow?.classList.remove('is-tutorial-active');
+        if (clearCommsNotice) setCommsTutorialNotice(false);
+        hideTutorialUiArrow();
         tutorialBlackout?.classList.remove('active');
         tutorialLookGesture?.classList.add('is-hidden');
         tutorialLookProgress?.style.setProperty('--look-progress', '0%');
         gameContainer.classList.remove('tutorial-vignette');
     }
 
-    function setTutorialVignette(active, focus = { x: 50, y: 48 }) {
+    function completeTutorial({ clearCommsNotice = false } = {}) {
+        const levelId = game.currentLevel?.id;
+        if (levelId) localStorage.setItem(`dawnCubeTutorialDismissed:${levelId}`, 'true');
+        game.tutorialActive = false;
+        lastTutorialNoticeKey = '';
+        lastDawnTutorialMessageKey = '';
+        clearTutorialSecondaryFocusTimers();
+        game.setRealtimePaused?.(false);
+        clearTutorialControlTargets();
+        if (typeof render !== 'undefined') render.hideTutorialPointer?.();
+        hideTutorialDialogue({ clearCommsNotice });
+        const card = document.getElementById('tutorial-helper-card');
+        card?.classList.add('is-hidden');
+        if (game.currentLevelIndex !== undefined) {
+            renderLevelComms(game.currentLevelIndex);
+        }
+    }
+
+    function setTutorialVignette(active, focus = { x: 50, y: 48 }, { flat = false } = {}) {
         gameContainer.classList.toggle('tutorial-vignette', Boolean(active));
         tutorialBlackout?.classList.toggle('active', Boolean(active));
+        tutorialBlackout?.classList.toggle('is-flat', Boolean(active && flat));
         tutorialBlackout?.style.setProperty('--focus-x', `${focus.x}%`);
         tutorialBlackout?.style.setProperty('--focus-y', `${focus.y}%`);
     }
 
     function updateTutorialUI() {
         lastStepAdvancedTime = Date.now();
+        clearTutorialSecondaryFocusTimers();
         const card = document.getElementById('tutorial-helper-card');
         if (!card) return;
 
         if (!game.tutorialActive) {
             card.classList.add('is-hidden');
             hideTutorialDialogue();
-            btnTwistMode?.classList.remove('tutorial-target');
-            const consoleTrustDisplay = document.getElementById('console-trust-display');
-            if (consoleTrustDisplay) {
-                consoleTrustDisplay.classList.remove('tutorial-target');
-            }
+            clearTutorialControlTargets();
             if (typeof render !== 'undefined') render.hideTutorialPointer?.();
             return;
         }
 
         const step = game.activeTutorialSteps[game.currentTutorialStepIndex];
         if (!step) {
-            skipTutorial();
+            completeTutorial({ clearCommsNotice: false });
             return;
         }
-        btnTwistMode?.classList.toggle('tutorial-target', step.type === 'twist');
-        commsFloatBubble?.classList.toggle('tutorial-target', step.openComms || step.type === 'dialog');
-        toolsFloatBubble?.classList.toggle('tutorial-target', step.openTools || step.type === 'tool' || step.type === 'twist');
-        
-        const consoleTrustDisplay = document.getElementById('console-trust-display');
-        if (consoleTrustDisplay) {
-            consoleTrustDisplay.classList.toggle('tutorial-target', step.type === 'closeEsc');
+        const noticeKey = `${game.currentLevel?.id || 'level'}:${game.currentTutorialStepIndex}:${step.type}`;
+        const isNewTutorialNotice = noticeKey !== lastTutorialNoticeKey;
+        if (isNewTutorialNotice) {
+            lastTutorialNoticeKey = noticeKey;
+        }
+        const isSystemStep = isSystemTutorialStep(step);
+        if (!isSystemStep) {
+            if (isNewTutorialNotice) audio.play('commsTick');
+            setDawnTutorialMessage(step, noticeKey);
+            game.currentTutorialStepIndex++;
+            window.setTimeout(updateTutorialUI, 0);
+            return;
         }
 
-        if (step.openComms) openPhonePanel('comms');
+        updateTutorialControlTargets(step, isSystemStep);
+        if (isNewTutorialNotice) {
+            audio.play('routeTick');
+        }
+
         if (step.openTools || step.type === 'tool' || step.type === 'twist') openPhonePanel('tasks');
 
         card.classList.add('is-hidden');
         card.dataset.levelId = game.currentLevel?.id;
         render.setPlayerSpeechBubble?.('');
+        closeDawnChatWindow({ clearNotice: false });
         setTutorialDialogue(step);
-        setTutorialVignette(true, step.focus || { x: 50, y: step.type === 'dialog' ? 52 : 45 });
+        const pointerCellId = step.targetCellId ?? step.focusCellId;
+        setTutorialVignette(false);
         const showGesture = step.type === 'look' || step.type === 'zoom';
         tutorialLookGesture?.classList.toggle('is-hidden', !showGesture);
         if (showGesture) {
@@ -2657,13 +3299,16 @@ document.addEventListener('DOMContentLoaded', () => {
             const lookSvg = document.getElementById('tutorial-gesture-look-svg');
             const zoomSvg = document.getElementById('tutorial-gesture-zoom-svg');
             const textEl = document.getElementById('tutorial-gesture-text');
-            
+
             if (lookSvg) lookSvg.classList.toggle('is-hidden', step.type !== 'look');
             if (zoomSvg) zoomSvg.classList.toggle('is-hidden', step.type !== 'zoom');
             if (textEl) {
-                textEl.textContent = step.type === 'zoom'
-                    ? 'SCROLL TO ZOOM / 滚动鼠标滚轮缩放'
-                    : 'DRAG TO ROTATE / 拖拽旋转视角';
+                const lang = window.currentLang === 'en' ? 'en' : 'zh';
+                const labels = {
+                    look: { zh: '按住鼠标拖动旋转视角', en: 'Hold and drag to rotate' },
+                    zoom: { zh: '滚动或捏合缩放视野', en: 'Scroll or pinch to zoom' }
+                };
+                textEl.textContent = labels[step.type]?.[lang] || labels.look[lang];
             }
         }
 
@@ -2679,15 +3324,15 @@ document.addEventListener('DOMContentLoaded', () => {
         if (titleEl) {
             const stepNum = game.currentTutorialStepIndex + 1;
             const totalSteps = game.activeTutorialSteps.length;
-            titleEl.textContent = window.currentLang === 'en' 
-                ? `Tutorial Step ${stepNum}/${totalSteps}` 
+            titleEl.textContent = window.currentLang === 'en'
+                ? `Tutorial Step ${stepNum}/${totalSteps}`
                 : `教程步骤 ${stepNum}/${totalSteps}`;
         }
 
         if (bodyEl) {
             const txt = step.text[window.currentLang || 'zh'] || step.text['zh'];
             bodyEl.textContent = txt;
-            
+
             // Re-render Skip Tutorial button if needed
             let skipBtn = document.getElementById('btn-skip-tutorial');
             if (!skipBtn) {
@@ -2703,23 +3348,11 @@ document.addEventListener('DOMContentLoaded', () => {
 
         game.setRealtimePaused?.(true);
 
-        const stepText = step.text[window.currentLang || 'zh'] || step.text['zh'];
-        setCompanionBubble(stepText, step.tone || 'info', { suppressHeadBubble: true });
-
-        if (commsStoryLines) {
-            const lastLine = commsStoryLines.lastElementChild;
-            if (!lastLine || lastLine.textContent !== stepText) {
-                const p = document.createElement('p');
-                p.className = 'comms-line protagonist';
-                p.textContent = stepText;
-                commsStoryLines.appendChild(p);
-                commsStoryLines.scrollTo?.({ top: commsStoryLines.scrollHeight, behavior: 'smooth' });
-            }
-        }
+        render.setPlayerSpeechBubble?.('');
 
         if (commsChoicesEl) {
-            const lockText = window.currentLang === 'en' 
-                ? '【System Protocol: Gated Onboarding】' 
+            const lockText = window.currentLang === 'en'
+                ? '【System Protocol: Gated Onboarding】'
                 : '【系统协议：强引导中】';
             const subText = window.currentLang === 'en'
                 ? '[ Gated Onboarding ]'
@@ -2733,12 +3366,16 @@ document.addEventListener('DOMContentLoaded', () => {
         }
 
         if (typeof render !== 'undefined') {
-            if (step.targetCellId !== undefined) {
-                render.showTutorialPointer?.(step.targetCellId);
+            if (pointerCellId !== undefined) {
+                render.showTutorialPointer?.(pointerCellId, step);
             } else {
                 render.hideTutorialPointer?.();
             }
             render.focusTutorialStep?.(step);
+            if (step.type === 'twist' && step.axis && Number.isInteger(step.layer)) {
+                render.highlightLayer?.(step.axis, step.layer);
+            }
+            scheduleTutorialSecondaryFocus(step);
         }
     }
 
@@ -2750,6 +3387,7 @@ document.addEventListener('DOMContentLoaded', () => {
         if (step.type === 'dialog' || step.type === 'look' || step.type === 'zoom' || step.type === 'esc' || step.type === 'closeEsc') {
             game.currentTutorialStepIndex++;
             audio.play('uiConfirm');
+            feel.note(window.currentLang === 'en' ? 'Step confirmed' : '步骤完成', 'good');
             updateTutorialUI();
         }
     }
@@ -2758,15 +3396,17 @@ document.addEventListener('DOMContentLoaded', () => {
         if (!game.tutorialActive) return;
         const levelId = game.currentLevel?.id;
         if (levelId) localStorage.setItem(`dawnCubeTutorialDismissed:${levelId}`, 'true');
-        
+
         game.tutorialActive = false;
+        lastTutorialNoticeKey = '';
+        lastDawnTutorialMessageKey = '';
+        clearTutorialSecondaryFocusTimers();
         game.setRealtimePaused?.(false);
-        btnTwistMode?.classList.remove('tutorial-target');
-        commsFloatBubble?.classList.remove('tutorial-target');
-        toolsFloatBubble?.classList.remove('tutorial-target');
+        clearTutorialControlTargets();
+        closeDawnChatWindow({ clearNotice: true });
         if (typeof render !== 'undefined') render.hideTutorialPointer?.();
         hideTutorialDialogue();
-        
+
         const card = document.getElementById('tutorial-helper-card');
         card?.classList.add('is-hidden');
 
@@ -2774,7 +3414,7 @@ document.addEventListener('DOMContentLoaded', () => {
             renderLevelComms(game.currentLevelIndex);
         }
         audio.play('routeUndo');
-        feel.note('已跳过本关教程', 'warn');
+        feel.note(window.t?.('note.skipTutorial') || '已跳过本关教程', 'warn');
     }
 
     window.updateTutorialUI = updateTutorialUI;
@@ -2794,7 +3434,7 @@ document.addEventListener('DOMContentLoaded', () => {
     document.addEventListener('pointerup', event => {
         if (game.tutorialActive) {
             const step = game.activeTutorialSteps[game.currentTutorialStepIndex];
-            if (step && step.type === 'dialog') {
+            if (step && step.type === 'dialog' && isSystemTutorialStep(step)) {
                 if (Date.now() - lastStepAdvancedTime < 180) {
                     return;
                 }
@@ -2804,11 +3444,12 @@ document.addEventListener('DOMContentLoaded', () => {
                 }
                 const skipBtn = event.target.closest('#btn-skip-tutorial, #tutorial-helper-close');
                 const systemBtn = event.target.closest('#btn-esc-menu, #audio-toggle, #landing-settings-btn, #btn-console-resume, #btn-console-reset, #btn-console-settings');
+                const interactiveTarget = event.target.closest('#tools-float-bubble, #floating-toolbox-menu, [data-tool-mode], #dawn-chat-window, #dawn-chat-close-btn, #dawn-chat-next-btn');
                 if (skipBtn) {
                     skipTutorial();
                     return;
                 }
-                if (systemBtn) {
+                if (systemBtn || interactiveTarget) {
                     return;
                 }
                 event.preventDefault();
@@ -2837,7 +3478,280 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 
     persistSettings();
-    startPhoneWaveLoop();
-    startLedMascotLoop();
+    schedulePhoneWaveLoop();
+    scheduleLedMascotLoop();
     window.setInterval(updatePhoneClock, 30000);
+
+    // A+B Comms free chat input initialization
+    function appendDawnMessage(text, isDawn, tone = 'steady') {
+        if (!dawnChatLog) return;
+
+        const bubble = document.createElement('p');
+        bubble.className = `dawn-message-bubble ${isDawn ? 'dawn' : 'protagonist'}`;
+
+        if (tone === 'system') {
+            bubble.style.color = '#ff3b30';
+            bubble.style.fontFamily = 'monospace';
+        }
+
+        dawnChatLog.appendChild(bubble);
+
+        const bubbles = dawnChatLog.querySelectorAll('.dawn-message-bubble');
+        if (bubbles.length > 30) {
+            bubbles[0].remove();
+        }
+
+        if (!isDawn) {
+            bubble.textContent = text;
+            dawnChatLog.scrollTop = dawnChatLog.scrollHeight;
+        } else {
+            let cursor = 0;
+            window.clearInterval(tutorialTypingTimer);
+            audio.play('commsTick');
+            tutorialTypingTimer = window.setInterval(() => {
+                cursor += 1;
+                bubble.textContent = text.slice(0, cursor);
+                dawnChatLog.scrollTop = dawnChatLog.scrollHeight;
+                if (cursor >= text.length) {
+                    window.clearInterval(tutorialTypingTimer);
+                }
+            }, 32);
+        }
+    }
+
+    // A+B Comms free chat input initialization
+    const initGeminiChat = () => {
+        const apiKey = localStorage.getItem('GEMINI_API_KEY') || window.GEMINI_API_KEY;
+        const chatContainer = document.getElementById('comms-chat-input-container');
+        const chatInput = document.getElementById('comms-chat-input');
+        const sendBtn = document.getElementById('btn-send-chat');
+
+        const dawnChatInput = document.getElementById('dawn-chat-free-input');
+        const dawnSendBtn = document.getElementById('btn-dawn-send-chat');
+
+        // Settings UI binding
+        const settingsKeyInput = document.getElementById('settings-gemini-key');
+        const settingsSaveBtn = document.getElementById('settings-save-gemini-btn');
+        if (settingsKeyInput) {
+            settingsKeyInput.value = localStorage.getItem('GEMINI_API_KEY') || '';
+        }
+        if (settingsSaveBtn && !settingsSaveBtn.dataset.bound) {
+            settingsSaveBtn.dataset.bound = 'true';
+            settingsSaveBtn.addEventListener('click', () => {
+                const keyVal = settingsKeyInput?.value.trim();
+                if (keyVal) {
+                    localStorage.setItem('GEMINI_API_KEY', keyVal);
+                    feel.note(window.t?.('settings.geminiSaved') || 'Gemini API 密钥已保存', 'good');
+                } else {
+                    localStorage.removeItem('GEMINI_API_KEY');
+                    feel.note(window.t?.('settings.geminiCleared') || 'Gemini API 密钥已清除', 'warn');
+                }
+                initGeminiChat();
+            });
+        }
+
+        const settingsGeminiCard = document.getElementById('settings-gemini-card');
+        settingsGeminiCard?.classList.toggle('is-hidden', !FREE_CHAT_ENABLED);
+
+        // Trust/free chat are parked for the current prototype pass. Keep code paths intact.
+        if (dawnChatFreeInputContainer) {
+            dawnChatFreeInputContainer.classList.toggle('is-hidden', !FREE_CHAT_ENABLED);
+        }
+        if (chatContainer) {
+            chatContainer.classList.toggle('is-hidden', !FREE_CHAT_ENABLED || !apiKey);
+        }
+        const commsLog = document.querySelector('#phone-panel .terminal-panel[data-terminal-panel="comms"] .comms-log');
+        if (commsLog) {
+            commsLog.style.setProperty('display', FREE_CHAT_ENABLED && apiKey ? 'flex' : 'none', 'important');
+        }
+
+        const handleSend = async (fromInput) => {
+            if (!FREE_CHAT_ENABLED) {
+                feel.note(window.currentLang === 'en' ? 'Free chat is parked for this build.' : '自由聊天本版暂时关闭', 'info');
+                return;
+            }
+            const inputEl = fromInput === 'dawn' ? dawnChatInput : chatInput;
+            const text = inputEl?.value.trim();
+            if (!text) return;
+            inputEl.value = '';
+
+            // Play send sound
+            audio.play('uiConfirm');
+
+            // Append player line
+            if (commsStoryLines) {
+                const playerLine = document.createElement('p');
+                playerLine.className = 'comms-line player';
+                playerLine.textContent = text;
+                commsStoryLines.appendChild(playerLine);
+                commsStoryLines.scrollTo?.({ top: commsStoryLines.scrollHeight, behavior: 'smooth' });
+            }
+
+            // Append to Scheme G chat window
+            appendDawnMessage(text, false);
+
+            // Intercept if no API key is configured
+            if (!apiKey) {
+                setTimeout(() => {
+                    const fallbackMsg = window.currentLang === 'en'
+                        ? 'Connection failed. Please configure your Gemini API Key in the Settings menu (☰ -> Settings) to unlock AI Chat.'
+                        : '连接失败。请在『游戏暂停菜单 ☰ -> 设置』中配置您的 Gemini API Key 以激活自由对话链路。';
+
+                    if (commsStoryLines) {
+                        const replyEl = document.createElement('p');
+                        replyEl.className = 'comms-line system';
+                        replyEl.textContent = fallbackMsg;
+                        commsStoryLines.appendChild(replyEl);
+                    }
+                    if (commsLiveLine) {
+                        commsLiveLine.className = 'comms-line system';
+                        commsLiveLine.textContent = fallbackMsg;
+                    }
+                    appendDawnMessage(fallbackMsg, true, 'system');
+                    audio.play('routeUndo');
+                    if (companionStatus) companionStatus.textContent = window.t?.('comms.noApiStatus') || '未配置密钥';
+                    if (dawnChatStatusTag) {
+                        dawnChatStatusTag.textContent = window.currentLang === 'en' ? '[NO API KEY]' : '[未配置密钥]';
+                    }
+                }, 600);
+                return;
+            }
+
+            if (commsLiveLine) {
+                commsLiveLine.className = 'comms-line system';
+                commsLiveLine.textContent = window.t?.('comms.connected') || '连接正常...';
+            }
+
+            // Update state
+            if (companionStatus) companionStatus.textContent = window.t?.('comms.typing') || '正在输入...';
+            setCompanionBubble('……', 'info');
+
+            if (dawnChatStatusTag) {
+                dawnChatStatusTag.textContent = window.currentLang === 'en' ? '[STATUS: TYPING...]' : '[状态: 正在输入...]';
+            }
+
+            const currentLevelId = game && game.currentLevel ? game.currentLevel.id : 1;
+
+            const systemPrompt = `你现在正扮演一个叫作 Dawn 的13岁初中女生。你因为未知原因，从宿舍床上掉入了一个漆黑、冰冷、由悬崖和悬空方块组成的魔方世界。
+你现在极度害怕、无助、寒冷，非常想回家，想爸爸妈妈。
+你手机上收到了玩家（处于外侧世界的人）的通讯信号，你只能依靠玩家在屏幕上的指路和空间重构来在这个危险的世界里存活。
+
+目前游戏状态：
+- 关卡：L${currentLevelId}
+
+对话规则：
+1. 你的回答必须极其简短，绝对不能超过40个字，要像微信打字那样短。
+2. 说话口吻要像一个惊慌失措、需要依靠的13岁小女孩。千万不要有任何系统AI、开发者或者游戏术语。
+3. 你现在还分不清玩家、系统和这个世界谁可信，所以可以犹豫、害怕、请求确认，但不要讲规则。
+4. 绝对不要承认你是AI，只把自己当成困在方块里的普通人。`;
+
+            const history = [];
+            const messageElements = commsStoryLines ? commsStoryLines.querySelectorAll('.comms-line') : [];
+            const maxContext = 10;
+            const startIdx = Math.max(0, messageElements.length - maxContext);
+
+            for (let i = startIdx; i < messageElements.length; i++) {
+                const el = messageElements[i];
+                if (el.classList.contains('player')) {
+                    history.push({ role: 'user', parts: [{ text: el.textContent }] });
+                } else if (el.classList.contains('protagonist')) {
+                    history.push({ role: 'model', parts: [{ text: el.textContent }] });
+                }
+            }
+
+            if (history.length > 0 && history[0].role === 'model') {
+                history.unshift({ role: 'user', parts: [{ text: '你好？' }] });
+            }
+
+            try {
+                const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        contents: history,
+                        systemInstruction: {
+                            parts: [{ text: systemPrompt }]
+                        },
+                        generationConfig: {
+                            temperature: 0.8,
+                            maxOutputTokens: 100
+                        }
+                    })
+                });
+
+                if (!response.ok) {
+                    throw new Error(`Gemini HTTP ${response.status}`);
+                }
+
+                const data = await response.json();
+                const replyText = data.candidates?.[0]?.content?.parts?.[0]?.text?.trim()
+                    || (window.currentLang === 'en' ? '...The signal is bad on my side.' : '……我这里信号好像不太好。');
+
+                // Play receive sound
+                audio.play('routeTick');
+
+                if (commsStoryLines) {
+                    const replyEl = document.createElement('p');
+                    replyEl.className = 'comms-line protagonist';
+                    replyEl.textContent = replyText;
+                    commsStoryLines.appendChild(replyEl);
+                    commsStoryLines.scrollTo?.({ top: commsStoryLines.scrollHeight, behavior: 'smooth' });
+                }
+
+                if (commsLiveLine) {
+                    commsLiveLine.className = 'comms-line protagonist';
+                    commsLiveLine.textContent = replyText;
+                }
+
+                // Append to Scheme G chat window
+                appendDawnMessage(replyText, true);
+
+                if (companionStatus) companionStatus.textContent = window.t?.('comms.signalStable') || '信号稳定';
+                setCompanionBubble(replyText, 'info');
+
+                if (dawnChatStatusTag) {
+                    dawnChatStatusTag.textContent = window.currentLang === 'en' ? '[STATUS: STEADY]' : '[状态: 稍微安心]';
+                }
+
+            } catch (err) {
+                console.error(err);
+                if (companionStatus) companionStatus.textContent = window.t?.('comms.badSignal') || '连接波动';
+                setCompanionBubble(window.t?.('comms.badSignalBubble') || '……信号好像被干扰了。', 'warn');
+
+                if (dawnChatStatusTag) {
+                    dawnChatStatusTag.textContent = window.currentLang === 'en' ? '[STATUS: NO SIGNAL]' : '[状态: 连接波动]';
+                }
+            }
+        };
+
+        if (sendBtn && !sendBtn.dataset.bound) {
+            sendBtn.dataset.bound = 'true';
+            sendBtn.addEventListener('click', () => handleSend('phone'));
+        }
+        if (chatInput && !chatInput.dataset.bound) {
+            chatInput.dataset.bound = 'true';
+            chatInput.addEventListener('keydown', event => {
+                if (event.key === 'Enter') {
+                    handleSend('phone');
+                }
+            });
+        }
+
+        if (dawnSendBtn && !dawnSendBtn.dataset.bound) {
+            dawnSendBtn.dataset.bound = 'true';
+            dawnSendBtn.addEventListener('click', () => handleSend('dawn'));
+        }
+        if (dawnChatInput && !dawnChatInput.dataset.bound) {
+            dawnChatInput.dataset.bound = 'true';
+            dawnChatInput.addEventListener('keydown', event => {
+                if (event.key === 'Enter') {
+                    handleSend('dawn');
+                }
+            });
+        }
+    };
+    initGeminiChat();
+    window.initGeminiChat = initGeminiChat; // Expose for runtime triggering
 });

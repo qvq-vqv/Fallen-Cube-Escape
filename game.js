@@ -1,6 +1,6 @@
 /**
  * 黎明魔方：立方体逃亡残局
- * 核心游戏逻辑、拓扑图计算、全局展开图与手动画路交互
+ * 核心游戏逻辑、拓扑图计算、全局地图与点格交互
  */
 
 class GameEngine {
@@ -34,18 +34,24 @@ class GameEngine {
         this.bridges = [];
         this.voidCells = new Set();
         this.activePatchCells = new Set();
+        this.vineSources = new Set();
+        this.vineCells = new Set();
+        this.immuneToVineCells = new Set();
+        this.vineStepCounter = 0;
         this.patchCharges = 0;
         this.beaconCharges = 0;
         this.breakCharges = 0;
         this.beaconCell = null;
         this.beaconTTL = 0;
         this.toolMode = 'route';
+        this.trustEnabled = false;
         this.trust = 80;
         this.realtimeMode = false;
         this.realtimePaused = false;
         this.realtimeLastTick = null;
         this.playerMoveCooldownMs = 600;
         this.playerCooldownRemaining = 0;
+        this.enemyTurnInProgress = false;
         this.bufferedMoveCell = null;
         this.realtimeAIClocks = {};
         this.realtimeEdges = { player: null, ai: {} };
@@ -99,6 +105,7 @@ class GameEngine {
         this.currentLevel = this.levels[this.currentLevelIndex];
         this.N = this.currentLevel.size || 3;
         this.resetRuntimeState();
+        this.l03RollbackTriggered = false;
         this.buildTopology();
         this.precomputeRotations();
         this.spawnEntities(this.currentLevel.ais);
@@ -121,6 +128,9 @@ class GameEngine {
                 if (step.focusCell) {
                     s.focusCellId = this.resolveCoord(step.focusCell);
                 }
+                if (step.secondaryFocusCell) {
+                    s.secondaryFocusCellId = this.resolveCoord(step.secondaryFocusCell);
+                }
                 return s;
             });
             this.currentTutorialStepIndex = 0;
@@ -133,6 +143,24 @@ class GameEngine {
         }
 
         this.gameState = isInspect ? 'setup' : 'playing';
+        this.updateUI();
+    }
+
+    storyResetToStart() {
+        const startPos = this.currentLevel.player;
+        if (startPos) {
+            this.playerPos = this.resolveCoord(startPos);
+            this.playerLastPos = this.playerPos;
+        }
+        this.ais = [];
+        this.spawnEntities(this.currentLevel.ais);
+        this.plannedPath = [];
+        this.lastInputCell = null;
+        if (typeof window !== 'undefined' && window.renderEngine) {
+            window.renderEngine.isAnimating = false;
+            window.renderEngine.buildCube3D();
+            window.renderEngine.drawPlannedPath([]);
+        }
         this.updateUI();
     }
 
@@ -157,6 +185,10 @@ class GameEngine {
         this.bridges = [];
         this.voidCells = new Set();
         this.activePatchCells = new Set();
+        this.vineSources = new Set();
+        this.vineCells = new Set();
+        this.immuneToVineCells = new Set();
+        this.vineStepCounter = 0;
         this.patchCharges = 0;
         this.beaconCharges = 0;
         this.breakCharges = 0;
@@ -164,6 +196,7 @@ class GameEngine {
         this.beaconTTL = 0;
         this.toolMode = 'route';
         this.trust = this.loadTrust();
+        this.levelUndoCount = 0;
         this.bulletTimeActive = false;
         this.resetRealtimeState();
         this.gameState = 'setup';
@@ -210,6 +243,10 @@ class GameEngine {
     }
 
     setTrust(value, reason = 'sync') {
+        if (!this.trustEnabled) {
+            this.trust = 80;
+            return this.trust;
+        }
         const next = Math.max(0, Math.min(100, Math.round(value)));
         const previous = this.trust;
         this.trust = next;
@@ -223,6 +260,7 @@ class GameEngine {
     }
 
     adjustTrust(delta, reason = 'event') {
+        if (!this.trustEnabled) return this.trust;
         return this.setTrust(this.trust + delta, reason);
     }
 
@@ -463,6 +501,13 @@ class GameEngine {
         this.trackerMode = false;
         this.voidCells = new Set(this.normalizeCellList(this.currentLevel?.voids || []));
         this.activePatchCells = new Set();
+        this.vineSources = new Set(this.normalizeCellList(this.currentLevel?.vineSources || []));
+        this.vineCells = new Set([
+            ...this.normalizeCellList(this.currentLevel?.vineCells || []),
+            ...this.vineSources
+        ]);
+        this.immuneToVineCells = new Set(this.normalizeCellList(this.currentLevel?.immuneToVine || []));
+        this.vineStepCounter = 0;
         this.patchCharges = Number(this.currentLevel?.patchCharges || 0);
         this.beaconCharges = Number(this.currentLevel?.beaconCharges || 0);
         this.breakCharges = Number(this.currentLevel?.breakCharges || 0);
@@ -568,6 +613,7 @@ class GameEngine {
 
     isWalkableForPlayer(cellId) {
         if (cellId === null || cellId === undefined || !this.cells[cellId]) return false;
+        if (this.vineCells.has(cellId)) return false;
         return !this.isVoidCell(cellId) || this.isActivePatchCell(cellId);
     }
 
@@ -639,6 +685,86 @@ class GameEngine {
             return baseNeighbors;
         }
         return [...new Set([...baseNeighbors, bridgeTarget])];
+    }
+
+    getVineNeighbors(cellId) {
+        if (cellId === null || cellId === undefined || !this.cells[cellId]) return [];
+        return Object.values(this.cells[cellId].neighbors)
+            .filter(id => id !== null && id !== undefined && this.cells[id]);
+    }
+
+    canVineOccupy(cellId) {
+        if (cellId === null || cellId === undefined || !this.cells[cellId]) return false;
+        if (this.immuneToVineCells.has(cellId)) return false;
+        if (this.isVoidCell(cellId) && !this.isActivePatchCell(cellId)) return false;
+        if (cellId === this.playerPos) return false;
+        return true;
+    }
+
+    spreadVines() {
+        if (!this.vineCells || this.vineCells.size === 0) return 0;
+        const additions = new Set();
+        this.vineCells.forEach(cellId => {
+            this.getVineNeighbors(cellId).forEach(nextId => {
+                if (!this.vineCells.has(nextId) && this.canVineOccupy(nextId)) {
+                    additions.add(nextId);
+                }
+            });
+        });
+        additions.forEach(cellId => this.vineCells.add(cellId));
+        if (additions.size > 0) {
+            this.recordEvent('vineSpread', { cells: [...additions] });
+            this.showFeel(this.formatText('note.vineSpread', '数据藤蔓扩散 {count} 格', { count: additions.size }), 'warn');
+        }
+        return additions.size;
+    }
+
+    pruneDisconnectedVines() {
+        if (!this.vineCells || this.vineCells.size === 0 || !this.vineSources || this.vineSources.size === 0) return 0;
+        const visited = new Set();
+        const queue = [];
+        this.vineSources.forEach(sourceId => {
+            if (this.vineCells.has(sourceId)) {
+                visited.add(sourceId);
+                queue.push(sourceId);
+            }
+        });
+        for (let head = 0; head < queue.length; head++) {
+            const current = queue[head];
+            this.getVineNeighbors(current).forEach(nextId => {
+                if (visited.has(nextId) || !this.vineCells.has(nextId)) return;
+                visited.add(nextId);
+                queue.push(nextId);
+            });
+        }
+        const removed = [];
+        this.vineCells.forEach(cellId => {
+            if (!visited.has(cellId)) removed.push(cellId);
+        });
+        removed.forEach(cellId => this.vineCells.delete(cellId));
+        if (removed.length > 0) {
+            this.recordEvent('vinePruned', { cells: removed });
+            this.showFeel(this.formatText('note.vineCut', '剪断数据藤蔓 {count} 格', { count: removed.length }), 'good');
+        }
+        return removed.length;
+    }
+
+    advanceVinesAfterPlayerAction(reason = 'action') {
+        if (!this.vineCells || this.vineCells.size === 0) return { spread: 0, pruned: 0 };
+        this.vineStepCounter += 1;
+        let spread = 0;
+        let pruned = 0;
+        if (this.vineStepCounter >= 2) {
+            this.vineStepCounter = 0;
+            spread = this.spreadVines();
+            pruned = this.pruneDisconnectedVines();
+        }
+        if ((spread > 0 || pruned > 0) && window.renderEngine) {
+            window.renderEngine.spawnEntities3D();
+            this.drawMinimap();
+        }
+        this.recordEvent('vineTick', { reason, counter: this.vineStepCounter, spread, pruned });
+        return { spread, pruned };
     }
 
     findPath(startId, endId, options = {}) {
@@ -738,6 +864,10 @@ class GameEngine {
             bridges: this.bridges.map(link => ({ ...link })),
             voidCells: [...this.voidCells],
             activePatchCells: [...this.activePatchCells],
+            vineSources: [...this.vineSources],
+            vineCells: [...this.vineCells],
+            immuneToVineCells: [...this.immuneToVineCells],
+            vineStepCounter: this.vineStepCounter,
             patchCharges: this.patchCharges,
             beaconCharges: this.beaconCharges,
             breakCharges: this.breakCharges,
@@ -774,9 +904,26 @@ class GameEngine {
 
     undoTurn() {
         if (!this.canUndo()) return false;
-        if (this.realtimeMode) return this.rollbackRealtime(3000);
+        const prevUndoCount = this.levelUndoCount || 0;
+        const newUndoCount = prevUndoCount + 1;
+
+        if (this.realtimeMode) {
+            const res = this.rollbackRealtime(3000);
+            this.levelUndoCount = newUndoCount;
+            if (this.trustEnabled && newUndoCount > 3) {
+                this.adjustTrust(-3, 'undoLoop');
+                this.showFeel(this.t('note.frequentUndo', '频繁回溯时间，Dawn 感到有些头晕和不安... 信任度-3'), 'warn', true);
+            }
+            return res;
+        }
         const snapshot = this.historyStack.pop();
         this.restoreSnapshot(snapshot);
+        this.levelUndoCount = newUndoCount;
+
+        if (this.trustEnabled && newUndoCount > 3) {
+            this.adjustTrust(-3, 'undoLoop');
+            this.showFeel(this.t('note.frequentUndo', '频繁回溯时间，Dawn 感到有些头晕和不安... 信任度-3'), 'warn', true);
+        }
         this.playFeel('undo');
         return true;
     }
@@ -798,6 +945,10 @@ class GameEngine {
         this.bridges = (snapshot.bridges || []).map(link => ({ ...link }));
         this.voidCells = new Set(snapshot.voidCells || []);
         this.activePatchCells = new Set(snapshot.activePatchCells || []);
+        this.vineSources = new Set(snapshot.vineSources || []);
+        this.vineCells = new Set(snapshot.vineCells || []);
+        this.immuneToVineCells = new Set(snapshot.immuneToVineCells || []);
+        this.vineStepCounter = snapshot.vineStepCounter ?? 0;
         this.patchCharges = snapshot.patchCharges ?? 0;
         this.beaconCharges = snapshot.beaconCharges ?? 0;
         this.breakCharges = snapshot.breakCharges ?? 0;
@@ -834,6 +985,45 @@ class GameEngine {
         this.updateUI();
     }
 
+    shouldInterceptFirstChaserContact(caughtBy = null) {
+        if (this.currentLevelIndex !== 2) return false;
+        if (!caughtBy || caughtBy.type !== 'chaser') return false;
+        return !this.l03RollbackTriggered;
+    }
+
+    interceptFirstChaserContact(caughtBy = null) {
+        this.l03RollbackTriggered = true;
+        const caughtCell = this.playerPos;
+
+        // Quietly reset positions to start
+        this.storyResetToStart();
+
+        this.gameState = 'playing';
+        this.enemyTurnInProgress = false;
+        this.adjustTrust(20, 'firstChaserRollback');
+        this.recordEvent('tutorialRollback', {
+            level: 'L03',
+            caughtBy: caughtBy ? this.getAIName(caughtBy.type) : '追击者',
+            caughtCell
+        });
+        this.playFeel('undo');
+        this.showFeel(this.t('note.signalReset', '信号时空重置成功'), 'info', true);
+        if (typeof window !== 'undefined' && window.renderEngine) {
+            window.renderEngine.spawnCellPulse(this.playerPos, '#8bdcff', 1.25);
+            window.renderEngine.spawnEntities3D();
+        }
+        const container = document.getElementById('game-container');
+        if (container) {
+            container.classList.remove('glitch-capture');
+            void container.offsetWidth;
+            container.classList.add('glitch-capture');
+            setTimeout(() => container.classList.remove('glitch-capture'), 820);
+        }
+        this.updateUI();
+        this.updateCompanionTerminal();
+        return true;
+    }
+
     skipTurn() {
         if (this.gameState !== 'playing') return;
         if (this.realtimeMode) {
@@ -841,7 +1031,7 @@ class GameEngine {
             this.playerCooldownRemaining = Math.max(this.playerCooldownRemaining, this.playerMoveCooldownMs * 0.45);
             this.bufferedMoveCell = null;
             this.playFeel('routeTick');
-            this.showFeel('原地稳住半拍', 'info');
+            this.showFeel(this.t('note.waitRealtime', '原地稳住半拍'), 'info');
             this.updateUI();
             return;
         }
@@ -855,16 +1045,16 @@ class GameEngine {
     toggleTrackerMode() {
         if (!this.trackingEnabled) {
             this.playFeel('invalid');
-            this.showFeel('该标记工具已从主线移除', 'warn');
+            this.showFeel(this.t('note.markerRemoved', '该标记工具已从主线移除'), 'warn');
             return;
         }
 
-        this.trackerMode = !this.trackerMode;
+            this.trackerMode = !this.trackerMode;
         if (this.trackerMode) {
             this.clearPlannedPath();
-            this.showFeel('标记工具已退居档案；现在直接操作 3D 魔方', 'info');
+            this.showFeel(this.t('note.markerArchived', '标记工具已退居档案；现在直接操作 3D 魔方'), 'info');
         } else {
-            this.showFeel('已取消标记', 'info');
+            this.showFeel(this.t('note.markerCancelled', '已取消标记'), 'info');
         }
         this.updateUI();
     }
@@ -876,7 +1066,7 @@ class GameEngine {
         this.trackerMode = false;
         this.recordEvent('trackerSet', { cell: cellId });
         this.playFeel('uiConfirm');
-        this.showFeel(`标记：${this.describeCell(cellId)}`, 'good');
+        this.showFeel(this.formatText('note.markerSet', '标记：{cell}', { cell: this.describeCell(cellId) }), 'good');
         this.updateUI();
     }
 
@@ -888,7 +1078,7 @@ class GameEngine {
         if (hadMarker) {
             this.recordEvent('trackerClear');
             this.playFeel('routeUndo');
-            this.showFeel('标记已清除', 'info');
+            this.showFeel(this.t('note.markerCleared', '标记已清除'), 'info');
         }
         this.updateUI();
     }
@@ -900,35 +1090,46 @@ class GameEngine {
             if (step && step.type === 'tool') {
                 if (nextMode !== step.tool && nextMode !== 'route') {
                     this.playFeel('invalid');
-                    const toolNames = { patch: '补片', beacon: '信标', break: '碎解' };
-                    this.showFeel(`当前步骤强引导中。请使用 [${toolNames[step.tool] || step.tool}] 工具。`, 'warn');
+                    const toolNames = {
+                        patch: this.t('tool.patchTitle', '补片'),
+                        beacon: this.t('tool.beaconTitle', '信标'),
+                        break: this.t('tool.breakTitle', '碎解')
+                    };
+                    this.showFeel(this.formatText('note.useTool', '当前步骤强引导中。请使用 [{tool}] 工具。', {
+                        tool: toolNames[step.tool] || step.tool
+                    }), 'warn');
                     return;
                 }
             } else {
                 if (nextMode !== 'route') {
                     this.playFeel('invalid');
-                    this.showFeel('当前步骤强引导中，暂时无法使用工具。', 'warn');
+                    this.showFeel(this.t('note.toolLocked', '当前步骤强引导中，暂时无法使用工具。'), 'warn');
                     return;
                 }
             }
         }
         if (nextMode === 'patch' && this.patchCharges <= 0) {
             this.playFeel('invalid');
-            this.showFeel('没有可用补片', 'warn');
+            this.showFeel(this.t('note.noPatch', '没有可用补片'), 'warn');
             return;
         }
         if (nextMode === 'beacon' && this.beaconCharges <= 0) {
             this.playFeel('invalid');
-            this.showFeel('没有可用诱饵', 'warn');
+            this.showFeel(this.t('note.noBeacon', '没有可用诱饵'), 'warn');
             return;
         }
         if (nextMode === 'break' && this.breakCharges <= 0) {
             this.playFeel('invalid');
-            this.showFeel('没有可用碎解点数', 'warn');
+            this.showFeel(this.t('note.noBreak', '没有可用碎解点数'), 'warn');
             return;
         }
         this.toolMode = nextMode;
-        const labels = { route: '点击下一格', patch: '选择缺口放补片', beacon: '选择格子放诱饵', break: '选择格子碎解' };
+        const labels = {
+            route: this.t('tool.routeTitle', '点击下一格'),
+            patch: this.t('tool.patchTitle', '选择缺口放补片'),
+            beacon: this.t('tool.beaconTitle', '选择格子放诱饵'),
+            break: this.t('tool.breakTitle', '选择格子碎解')
+        };
         this.showFeel(labels[nextMode], nextMode === 'route' ? 'info' : 'good');
         this.updateUI();
     }
@@ -941,13 +1142,13 @@ class GameEngine {
                 // Allowed
             } else {
                 this.playFeel('invalid');
-                this.showFeel('请按照指示使用补片！', 'warn');
+                this.showFeel(this.t('note.usePatch', '请按照指示使用补片！'), 'warn');
                 return false;
             }
         }
         if (!this.isLegalPatchTarget(cellId)) {
             this.playFeel('invalid');
-            this.showFeel('补片只能铺在黑色缺口上', 'warn');
+            this.showFeel(this.t('note.patchGapOnly', '补片只能铺在黑色缺口上'), 'warn');
             return false;
         }
 
@@ -957,7 +1158,7 @@ class GameEngine {
         this.toolMode = 'route';
         this.recordEvent('patchPlaced', { at: cellId });
         this.playFeel('patchPlace');
-        this.showFeel('临时补片已铺好。别停在上面。', 'good', true);
+        this.showFeel(this.t('note.patchPlaced', '临时补片已铺好。别停在上面。'), 'good', true);
         if (window.renderEngine) {
             window.renderEngine.spawnEntities3D();
             window.renderEngine.spawnCellPulse(cellId, '#8bdcff', 1.2);
@@ -980,13 +1181,13 @@ class GameEngine {
                 // Allowed
             } else {
                 this.playFeel('invalid');
-                this.showFeel('请按照指示使用信标！', 'warn');
+                this.showFeel(this.t('note.useBeacon', '请按照指示使用信标！'), 'warn');
                 return false;
             }
         }
         if (!this.isLegalBeaconTarget(cellId)) {
             this.playFeel('invalid');
-            this.showFeel('诱饵要放在空的安全格上', 'warn');
+            this.showFeel(this.t('note.beaconSafeOnly', '诱饵要放在空的安全格上'), 'warn');
             return false;
         }
 
@@ -997,7 +1198,7 @@ class GameEngine {
         this.toolMode = 'route';
         this.recordEvent('beaconPlaced', { at: cellId, ttl: this.beaconTTL });
         this.playFeel('beaconPlace');
-        this.showFeel('诱饵信标已投放', 'good', true);
+        this.showFeel(this.t('note.beaconPlaced', '诱饵信标已投放'), 'good', true);
         if (window.renderEngine) {
             window.renderEngine.spawnEntities3D();
             window.renderEngine.spawnCellPulse(cellId, '#ffb700', 1.2);
@@ -1020,13 +1221,13 @@ class GameEngine {
                 // Allowed
             } else {
                 this.playFeel('invalid');
-                this.showFeel('请按照指示碎解格子！', 'warn');
+                this.showFeel(this.t('note.useBreak', '请按照指示碎解格子！'), 'warn');
                 return false;
             }
         }
         if (!this.isLegalBreakTarget(cellId)) {
             this.playFeel('invalid');
-            this.showFeel('不能碎解关键物、敌人、传送门或已缺失格', 'warn');
+            this.showFeel(this.t('note.breakInvalid', '不能碎解关键物、敌人、传送门或已缺失格'), 'warn');
             return false;
         }
 
@@ -1042,7 +1243,7 @@ class GameEngine {
         this.toolMode = 'route';
         this.recordEvent('breakPlaced', { at: cellId });
         this.playFeel('patchBreak');
-        this.showFeel(`已碎解 ${this.describeCell(cellId)}`, 'warn', true);
+        this.showFeel(this.formatText('note.brokeCell', '已碎解 {cell}', { cell: this.describeCell(cellId) }), 'warn', true);
         if (window.renderEngine) {
             window.renderEngine.buildCube3D();
             window.renderEngine.spawnEntities3D();
@@ -1087,7 +1288,7 @@ class GameEngine {
                     return true;
                 } else {
                     this.playFeel?.('invalid');
-                    this.showFeel?.('当前步骤强引导中。请按照指示移动！', 'warn');
+                    this.showFeel?.(this.t('note.guidedMoveOnly', '当前步骤强引导中。请按照指示移动！'), 'warn');
                     return false;
                 }
             }
@@ -1167,6 +1368,11 @@ class GameEngine {
 
     requestRealtimeMove(targetId) {
         if (this.gameState !== 'playing') return false;
+        if (this.enemyTurnInProgress) {
+            this.playFeel('invalid');
+            this.showFeel(this.t('note.waitEnemies', '等它们走完这一步'), 'warn');
+            return false;
+        }
         if (this.tutorialActive) {
             const step = this.activeTutorialSteps[this.currentTutorialStepIndex];
             if (step && step.type === 'move') {
@@ -1181,7 +1387,7 @@ class GameEngine {
                     return res;
                 } else {
                     this.playFeel?.('invalid');
-                    this.showFeel?.('当前步骤强引导中。请按照指示移动！', 'warn');
+                    this.showFeel?.(this.t('note.guidedMoveOnly', '当前步骤强引导中。请按照指示移动！'), 'warn');
                     return false;
                 }
             } else {
@@ -1194,22 +1400,68 @@ class GameEngine {
         if (targetId === this.playerPos) return false;
         if (!this.isWalkableForPlayer(targetId)) {
             this.playFeel('invalid');
-            this.showFeel(this.isVoidCell(targetId) ? '这里是缺口，先铺补片' : '这格不能落脚', 'warn');
+            const reason = this.vineCells.has(targetId)
+                ? this.t('note.vineBlocked', '数据藤蔓挡住了 Dawn')
+                : (this.isVoidCell(targetId) ? this.t('note.voidNeedsPatch', '这里是缺口，先铺补片') : this.t('note.cannotLand', '这格不能落脚'));
+            this.showFeel(reason, 'warn');
             return false;
         }
         if (!this.isAdjacent(this.playerPos, targetId)) {
             this.playFeel('invalid');
-            this.showFeel('实时模式只接相邻格。别隔空指挥，我会怀疑你也在掉帧。', 'warn');
+            this.showFeel(this.t('note.realtimeNeighborOnly', '实时模式只接相邻格。别隔空指挥，我会怀疑你也在掉帧。'), 'warn');
             return false;
+        }
+        const threatCells = this.getThreatCells();
+        if (threatCells.has(targetId)) {
+            if (this.trustEnabled && this.trust < 90) {
+                this.pushHistory('realtimeRefusal');
+                const origin = this.playerPos;
+                const safeOptions = this.getNeighbors(origin)
+                    .filter(cellId => this.isWalkableForPlayer(cellId)
+                        && !this.ais.some(ai => ai.pos === cellId)
+                        && !threatCells.has(cellId));
+                const target = safeOptions.length > 0
+                    ? safeOptions[Math.floor(Math.random() * safeOptions.length)]
+                    : origin;
+
+                this.adjustTrust(-8, 'dangerRefusal');
+                this.playFeel('invalid');
+
+                if (target !== origin) {
+                    this.playerLastPos = origin;
+                    this.playerPos = target;
+                    if (window.renderEngine) {
+                        window.renderEngine.movePlayer(target);
+                        window.renderEngine.spawnCellPulse(target, '#ff5555', 1.1);
+                    }
+                    this.showFeel(this.t('note.dawnDodged', 'Dawn 害怕并躲向了旁边安全格！ 信任度-8'), 'warn', true);
+                } else {
+                    if (window.renderEngine) {
+                        window.renderEngine.spawnCellPulse(origin, '#ff5555', 0.85);
+                    }
+                    this.showFeel(this.t('note.dawnRefused', 'Dawn 害怕危险，拒绝前进！ 信任度-8'), 'warn', true);
+                }
+
+                if (this.currentLevelIndex < 12) {
+                    this.scheduleActOneEnemyStep();
+                } else {
+                    this.checkCollisions();
+                }
+                this.updateUI();
+                this.bufferedMoveCell = null;
+                return true;
+            } else {
+                this.showFeel(this.t('note.trustRisk', '我相信你... 但千万别让我送死啊！'), 'info', true);
+            }
         }
         if (this.maybeRefuseRoute({ realtime: true })) {
             this.bufferedMoveCell = null;
             return true;
         }
-        if (this.playerCooldownRemaining > 0) {
+        if (this.currentLevelIndex >= 12 && this.playerCooldownRemaining > 0) {
             this.bufferedMoveCell = targetId;
             this.playFeel('routeTick');
-            this.showFeel('已预输入下一步', 'info');
+            this.showFeel(this.t('note.bufferedMove', '已预输入下一步'), 'info');
             this.updateUI();
             return true;
         }
@@ -1233,23 +1485,26 @@ class GameEngine {
         this.tutorialInputDismissed = true;
         this.playerLastPos = fromCell;
         this.playerPos = targetId;
-        this.playerCooldownRemaining = this.playerMoveCooldownMs;
+        const isActOneBeat = this.currentLevelIndex < 12;
+        const moveDurationMs = isActOneBeat ? 360 : this.playerMoveCooldownMs;
+        this.playerCooldownRemaining = isActOneBeat ? 0 : this.playerMoveCooldownMs;
         this.realtimeEdges.player = {
             from: fromCell,
             to: targetId,
-            remainingMs: this.playerMoveCooldownMs,
-            durationMs: this.playerMoveCooldownMs
+            remainingMs: moveDurationMs,
+            durationMs: moveDurationMs
         };
         this.recordEvent('playerMove', {
             from: fromCell,
             to: targetId,
-            remainingAP: 'realtime',
+            remainingAP: 'direct',
             usedBridge: this.isBridgeStep(fromCell, targetId)
         });
         const usedBridge = this.isBridgeStep(fromCell, targetId);
         this.playFeel(usedBridge ? 'bridgeStep' : 'playerStep');
         this.consumePatchBehind(fromCell, targetId);
         this.checkKeyCollection();
+        this.advanceVinesAfterPlayerAction('realtimeMove');
         if (typeof window !== 'undefined' && window.renderEngine) {
             if (usedBridge && window.renderEngine.animateBridgeTransit) {
                 window.renderEngine.animateBridgeTransit('player', null, fromCell, targetId);
@@ -1259,14 +1514,33 @@ class GameEngine {
             window.renderEngine.drawPlannedPath([]);
             window.renderEngine.spawnCellPulse(targetId, '#8bdcff', 0.45);
         }
-        if (this.currentLevelIndex < 12) {
+        if (isActOneBeat) {
+            this.scheduleActOneEnemyStep();
+        } else {
+            this.checkCollisions();
+        }
+        this.updateUI();
+        return true;
+    }
+
+    scheduleActOneEnemyStep(delayMs = 900) {
+        if (this.enemyTurnInProgress || this.gameState !== 'playing') return;
+        const scheduledLevel = this.currentLevelIndex;
+        this.enemyTurnInProgress = true;
+        this.updateUI();
+        setTimeout(() => {
+            if (this.gameState !== 'playing' || this.currentLevelIndex !== scheduledLevel) {
+                this.enemyTurnInProgress = false;
+                this.updateUI();
+                return;
+            }
             this.ais.forEach(ai => {
                 this.moveAIRealtime(ai);
             });
-        }
-        this.checkCollisions();
-        this.updateUI();
-        return true;
+            this.enemyTurnInProgress = false;
+            this.checkCollisions();
+            this.updateUI();
+        }, delayMs);
     }
 
     consumePatchBehind(fromCell, toCell) {
@@ -1274,7 +1548,7 @@ class GameEngine {
         this.activePatchCells.delete(fromCell);
         this.recordEvent('patchBroken', { at: fromCell, afterStepTo: toCell });
         this.playFeel('patchBreak');
-        this.showFeel('补片碎了。好消息：它很听话；坏消息：一次性的。', 'warn');
+        this.showFeel(this.t('note.patchBroke', '补片碎了。好消息：它很听话；坏消息：一次性的。'), 'warn');
         if (typeof window !== 'undefined' && window.renderEngine) {
             window.renderEngine.spawnCellPulse(fromCell, '#8bdcff', 1.35);
             window.renderEngine.spawnEntities3D();
@@ -1359,7 +1633,7 @@ class GameEngine {
         this.realtimeEdges = { player: null, ai: {} };
         this.recordRealtimeSnapshot(now, true);
         this.playFeel('undo');
-        this.showFeel('倒回 3 秒。Dawn：又格式化？脑子会痛的。', 'info', true);
+        this.showFeel(this.t('note.realtimeUndoDawn', '倒回 3 秒。Dawn：又格式化？脑子会痛的。'), 'info', true);
         this.recordEvent('rollback', { seconds: 3, target: target.realtimeTimestamp });
         this.updateUI();
         return true;
@@ -1442,7 +1716,7 @@ class GameEngine {
             this.playFeel('beaconTrigger');
             this.beaconCell = null;
             this.beaconTTL = 0;
-            this.showFeel('诱饵被吃掉了', 'warn');
+            this.showFeel(this.t('note.beaconEaten', '诱饵被吃掉了'), 'warn');
             if (typeof window !== 'undefined' && window.renderEngine) window.renderEngine.spawnEntities3D();
         }
         this.checkCollisions();
@@ -1535,27 +1809,30 @@ class GameEngine {
             if (step && step.type === 'move') {
                 if (targetId !== step.targetCellId) {
                     this.playFeel?.('invalid');
-                    this.showFeel?.('当前步骤强引导中。请按照指示移动！', 'warn');
+                    this.showFeel?.(this.t('note.guidedMoveOnly', '当前步骤强引导中。请按照指示移动！'), 'warn');
                     return;
                 }
             }
         }
         if (this.playerAP <= 0) {
             this.playFeel('invalid');
-            this.showFeel('行动点不足，先确认或结束回合', 'warn');
+            this.showFeel(this.t('note.stepUsedConfirm', '这一步已经用完，先确认或待命'), 'warn');
             return;
         }
         if (targetId === null || targetId === undefined) return;
         if (!this.isWalkableForPlayer(targetId)) {
             this.playFeel('invalid');
-            this.showFeel(this.isVoidCell(targetId) ? '这里是缺口，先铺补片' : '这个格子不能走', 'warn');
+            const reason = this.vineCells.has(targetId)
+                ? this.t('note.vineBlocked', '数据藤蔓挡住了 Dawn')
+                : (this.isVoidCell(targetId) ? this.t('note.voidNeedsPatch', '这里是缺口，先铺补片') : this.t('note.cannotWalk', '这个格子不能走'));
+            this.showFeel(reason, 'warn');
             return;
         }
 
         if (targetId === this.playerPos) {
             const hadPath = this.plannedPath.length > 0;
             this.clearPlannedPath();
-            if (hadPath) this.showFeel('路线已清空', 'info');
+            if (hadPath) this.showFeel(this.t('note.commandCleared', '指令已清空'), 'info');
             return;
         }
 
@@ -1563,7 +1840,7 @@ class GameEngine {
         if (existingIndex !== -1) {
             this.plannedPath = this.plannedPath.slice(0, existingIndex + 1);
             this.playFeel('routeUndo');
-            this.showFeel('路线回退到已选格', 'info');
+            this.showFeel(this.t('note.commandRewound', '指令回退到已选格'), 'info');
             this.syncPlannedPath();
             return;
         }
@@ -1575,12 +1852,12 @@ class GameEngine {
         if (!this.isAdjacent(origin, targetId)) {
             if (this.tryAppendSkippedCell(origin, targetId)) return;
             this.playFeel('invalid');
-            this.showFeel('路线必须连接相邻格', 'warn');
+            this.showFeel(this.t('note.adjacentRequired', '必须连接相邻格'), 'warn');
             return;
         }
         if (this.plannedPath.length >= this.playerAP) {
             this.playFeel('invalid');
-            this.showFeel('本回合行动点已用完', 'warn');
+            this.showFeel(this.t('note.stepUsed', '这一步已经用完'), 'warn');
             return;
         }
 
@@ -1588,7 +1865,7 @@ class GameEngine {
         this.plannedPath.push(targetId);
         this.playFeel('routeTick');
         if (viaBridge) {
-            this.showFeel('传送门已接入路线', 'info');
+            this.showFeel(this.t('note.bridgeRoute', '传送门已接入路线'), 'info');
         }
         this.syncPlannedPath();
     }
@@ -1608,7 +1885,7 @@ class GameEngine {
         this.plannedPath.push(skippedCell, finalCell);
         this.playFeel('routeTick');
         const usedBridge = this.isBridgeStep(origin, skippedCell) || this.isBridgeStep(skippedCell, finalCell);
-        this.showFeel(usedBridge ? '已补上传送后落点' : '已补上中间格', 'info');
+        this.showFeel(usedBridge ? this.t('note.bridgeAutoPortal', '已补上传送后落点') : this.t('note.bridgeAutoMiddle', '已补上中间格'), 'info');
         this.syncPlannedPath();
         return true;
     }
@@ -1626,7 +1903,7 @@ class GameEngine {
         const finalCell = this.plannedPath[this.plannedPath.length - 1];
         if (this.isActivePatchCell(finalCell)) {
             this.playFeel('invalid');
-            this.showFeel('补片只能踩过去，不能停在上面', 'warn', true);
+            this.showFeel(this.t('note.patchNoStop', '补片只能踩过去，不能停在上面'), 'warn', true);
             return;
         }
 
@@ -1636,7 +1913,7 @@ class GameEngine {
 
         this.pushHistory('move');
         this.playFeel('execute');
-        this.showFeel(`发送路线：${this.plannedPath.length} 格`, 'good');
+        this.showFeel(this.formatText('note.executeCells', '执行 {count} 格', { count: this.plannedPath.length }), 'good');
         const pathToExecute = [...this.plannedPath];
         const steps = pathToExecute.length;
         this.recordEvent('route', {
@@ -1663,7 +1940,7 @@ class GameEngine {
                         window.renderEngine.spawnCellPulse(fromCell, '#8bdcff', 1.35);
                         window.renderEngine.spawnEntities3D();
                     }
-                    this.showFeel('补片碎了，后路断开', 'warn');
+                    this.showFeel(this.t('note.patchTrailBroke', '补片碎了，后路断开'), 'warn');
                 }
                 const usedBridge = this.isBridgeStep(fromCell, cellId);
                 this.recordEvent('playerMove', {
@@ -1686,6 +1963,9 @@ class GameEngine {
         });
 
         setTimeout(() => {
+            if (this.gameState === 'playing') {
+                this.advanceVinesAfterPlayerAction('move');
+            }
             if (this.playerAP === 0 && this.gameState === 'playing') {
                 this.triggerAITurn();
             }
@@ -1694,6 +1974,7 @@ class GameEngine {
 
     maybeRefuseRoute(options = {}) {
         const realtime = Boolean(options.realtime);
+        if (!this.trustEnabled) return false;
         const trust = Number.isFinite(this.trust) ? this.trust : 80;
         const refusalChance = Math.max(0, Math.min(0.3, (100 - trust) * 0.003));
         if (Math.random() >= refusalChance) return false;
@@ -1747,8 +2028,8 @@ class GameEngine {
         });
         this.playFeel('invalid');
         this.showFeel(target === origin
-            ? 'E-7 犹豫了，路线被取消'
-            : 'E-7 没照线走，局面偏移了',
+            ? this.t('note.dawnRefuseRoute', 'Dawn 犹豫了，路线被取消')
+            : this.t('note.dawnRouteShift', 'Dawn 没照线走，局面偏移了'),
             'warn',
             true);
         this.checkKeyCollection();
@@ -1762,6 +2043,11 @@ class GameEngine {
 
     rotateLayer(axis, layerIdx, direction) {
         if (this.gameState !== 'playing') return;
+        if (this.enemyTurnInProgress) {
+            this.playFeel('invalid');
+            this.showFeel(this.t('note.waitEnemies', '等它们走完这一步'), 'warn');
+            return;
+        }
         if (this.tutorialActive) {
             const step = this.activeTutorialSteps[this.currentTutorialStepIndex];
             if (step && step.type === 'twist') {
@@ -1769,7 +2055,7 @@ class GameEngine {
                     // Allowed
                 } else {
                     this.playFeel?.('invalid');
-                    this.showFeel?.('当前步骤强引导中。请按照指示进行空间旋转！', 'warn');
+                    this.showFeel?.(this.t('note.guidedTwistOnly', '当前步骤强引导中。请按照指示进行空间旋转！'), 'warn');
                     return;
                 }
             } else {
@@ -1778,17 +2064,17 @@ class GameEngine {
         }
         if (!this.rotationEnabled) {
             this.playFeel('invalid');
-            this.showFeel('本关暂未引入旋转', 'warn', true);
+            this.showFeel(this.t('note.rotationMissing', '本关暂未引入旋转'), 'warn', true);
             return;
         }
         if (!this.realtimeMode && this.playerAP < 1) {
             this.playFeel('invalid');
-            this.showFeel('Twist 需要 1 AP', 'warn', true);
+            this.showFeel(this.t('note.rotationLocked', '现在还不能拧层'), 'warn', true);
             return;
         }
         if (typeof window !== 'undefined' && window.renderEngine?.isAnimating) {
             this.playFeel('invalid');
-            this.showFeel('空间还没锁定，等这一拧结束', 'warn', true);
+            this.showFeel(this.t('note.rotationBusy', '空间还没锁定，等这一拧结束'), 'warn', true);
             return;
         }
 
@@ -1799,9 +2085,7 @@ class GameEngine {
         }
         this.pushHistory('rotate');
         this.playFeel('rotateStart');
-        this.showFeel(this.realtimeMode
-            ? `空间折叠 ${axis}${layerIdx + 1}`
-            : `旋转 ${axis} 轴第 ${layerIdx + 1} 层`, 'info');
+        this.showFeel(this.t('note.spatialFolding', '空间折叠'), 'info');
         this.recordEvent('rotate', {
             axis,
             layer: layerIdx,
@@ -1817,25 +2101,40 @@ class GameEngine {
         this.lastInputCell = null;
 
         const perm = this.rotationPermutations[axis][layerIdx][direction];
+        let rotationSettled = false;
+        let rotationFallbackTimer = null;
         const settle = () => {
+            if (rotationSettled) return;
+            rotationSettled = true;
+            if (rotationFallbackTimer) {
+                clearTimeout(rotationFallbackTimer);
+                rotationFallbackTimer = null;
+            }
             this.applyPermutation(perm);
+            const prunedByRotation = this.pruneDisconnectedVines();
             const rotateEvent = this.eventLog[this.eventLog.length - 1];
             if (rotateEvent && rotateEvent.type === 'rotate') {
                 rotateEvent.playerAfter = this.playerPos;
                 rotateEvent.keyAfter = this.keyPos;
                 rotateEvent.exitAfter = this.exitPos;
                 rotateEvent.trackerAfter = this.trackerCell;
+                rotateEvent.vinePruned = prunedByRotation;
             }
+            this.advanceVinesAfterPlayerAction('rotate');
             this.checkKeyCollection();
             this.checkCollisions();
             this.updateUI();
             this.playFeel('rotateLock');
-            this.showFeel('空间已锁定', 'info');
+            this.showFeel(this.t('note.spatialLocked', '空间已锁定'), 'info');
             if (window.renderEngine) {
                 window.renderEngine.spawnEntities3D();
             }
             if (resumeRealtime && this.gameState === 'playing') {
                 this.setRealtimePaused(false);
+            }
+
+            if (this.realtimeMode && this.currentLevelIndex < 12 && this.gameState === 'playing') {
+                this.scheduleActOneEnemyStep();
             }
 
             if (!this.realtimeMode && this.playerAP === 0 && this.gameState === 'playing') {
@@ -1855,6 +2154,12 @@ class GameEngine {
 
         if (window.renderEngine) {
             window.renderEngine.drawPlannedPath([]);
+            rotationFallbackTimer = setTimeout(() => {
+                if (rotationSettled) return;
+                window.renderEngine.isAnimating = false;
+                this.showFeel(this.t('note.spatialCalibrated', '空间校准完成'), 'info');
+                settle();
+            }, 1100);
             window.renderEngine.playRotateAnimation(axis, layerIdx, direction, settle);
         } else {
             settle();
@@ -1887,6 +2192,9 @@ class GameEngine {
         }));
         this.voidCells = new Set([...this.voidCells].map(cellId => perm[cellId]));
         this.activePatchCells = new Set([...this.activePatchCells].map(cellId => perm[cellId]));
+        this.vineSources = new Set([...this.vineSources].map(cellId => perm[cellId]));
+        this.vineCells = new Set([...this.vineCells].map(cellId => perm[cellId]));
+        this.immuneToVineCells = new Set([...this.immuneToVineCells].map(cellId => perm[cellId]));
         if (this.beaconCell !== null && this.beaconCell !== undefined) {
             this.beaconCell = perm[this.beaconCell];
         }
@@ -1947,7 +2255,7 @@ class GameEngine {
                             this.playFeel('beaconTrigger');
                             this.beaconCell = null;
                             this.beaconTTL = 0;
-                            this.showFeel('诱饵被吃掉了', 'warn');
+                            this.showFeel(this.t('note.beaconEaten', '诱饵被吃掉了'), 'warn');
                             if (window.renderEngine) window.renderEngine.spawnEntities3D();
                         }
                         this.checkCollisions();
@@ -2136,7 +2444,7 @@ class GameEngine {
                 guardianPressure
             });
             this.playFeel('key');
-            this.showFeel('钥匙已取得，逃生门解锁', 'good', true);
+            this.showFeel(this.t('note.keyUnlocked', '钥匙已取得，逃生门解锁'), 'good', true);
 
             if (window.renderEngine) {
                 window.renderEngine.collectKeyEffect(collectedKey);
@@ -2161,7 +2469,7 @@ class GameEngine {
         const recent = this.eventLog.slice(-14);
         const reversed = [...recent].reverse();
         const caughtCell = this.playerPos;
-        const caughtName = caughtBy ? this.getAIName(caughtBy.type) : '威胁源';
+        const caughtName = caughtBy ? this.getAIName(caughtBy.type) : this.t('failure.threatSource', '威胁源');
         const lastAIMove = caughtBy
             ? reversed.find(event => event.type === 'aiMove' && event.aiId === caughtBy.id && event.to === caughtCell)
             : null;
@@ -2171,52 +2479,84 @@ class GameEngine {
         const points = [];
 
         if (lastPlayerMove) {
-            points.push(`你最后把逃脱者从 ${this.describeCell(lastPlayerMove.from)} 带到 ${this.describeCell(lastPlayerMove.to)}。`);
+            points.push(this.formatText('failure.pointLastMove', '你最后把 Dawn 从 {from} 带到 {to}。', {
+                from: this.describeCell(lastPlayerMove.from),
+                to: this.describeCell(lastPlayerMove.to)
+            }));
         }
 
         if (lastKey && caughtBy?.type === 'guardian') {
             const guardianInfo = (lastKey.guardianPressure || []).find(item => item.aiId === caughtBy.id)
                 || (lastKey.guardianPressure || [])[0];
             if (guardianInfo) {
-                points.push(`钥匙拿到时，守钥者在 ${this.describeCell(guardianInfo.pos)}，离你 ${guardianInfo.distance} 格；拿钥匙后它每次能走 ${guardianInfo.afterBudget} 格。`);
+                points.push(this.formatText('failure.pointGuardianPressure', '钥匙拿到时，守钥者在 {cell}，离你 {distance} 格；拿钥匙后它每次能走 {budget} 格。', {
+                    cell: this.describeCell(guardianInfo.pos),
+                    distance: guardianInfo.distance,
+                    budget: guardianInfo.afterBudget
+                }));
             } else {
-                points.push('钥匙拿到后，守钥者进入狂暴追击，每次行动会变成 2 格。');
+                points.push(this.t('failure.pointGuardianRage', '钥匙拿到后，守钥者进入狂暴追击，每次行动会变成 2 格。'));
             }
         }
 
         if (lastAIMove) {
             const before = lastAIMove.distanceBefore ?? '?';
             const after = lastAIMove.distanceAfter ?? '?';
-            points.push(`${caughtName}这回合第 ${lastAIMove.stepIndex}/${lastAIMove.stepBudget} 步，从 ${this.describeCell(lastAIMove.from)} 走到 ${this.describeCell(lastAIMove.to)}，距离从 ${before} 格压到 ${after} 格。`);
+            points.push(this.formatText('failure.pointAIMove', '{name}这回合第 {step}/{budget} 步，从 {from} 走到 {to}，距离从 {before} 格压到 {after} 格。', {
+                name: caughtName,
+                step: lastAIMove.stepIndex,
+                budget: lastAIMove.stepBudget,
+                from: this.describeCell(lastAIMove.from),
+                to: this.describeCell(lastAIMove.to),
+                before,
+                after
+            }));
         } else if (caughtBy) {
-            points.push(`${caughtName}已经在 ${this.describeCell(caughtBy.pos)}；你移动或旋转后和它撞到同一格。`);
+            points.push(this.formatText('failure.pointSameCell', '{name}已经在 {cell}；你移动或旋转后和它撞到同一格。', {
+                name: caughtName,
+                cell: this.describeCell(caughtBy.pos)
+            }));
         }
 
         if (lastRotate) {
-            points.push(`最近一次旋转是 ${lastRotate.axis} 轴第 ${lastRotate.layer + 1} 层 ${lastRotate.direction}，旋转后门、钥匙和敌人的相对位置都重新结算。`);
+            const dirName = lastRotate.direction === 'CW'
+                ? this.t('failure.rotateCW', '向右拧')
+                : this.t('failure.rotateCCW', '向左拧');
+            points.push(this.formatText('failure.pointRotate', '最近一次旋转是 {axis} 轴第 {layer} 层{direction}，旋转后门、钥匙和敌人的相对位置都重新结算。', {
+                axis: lastRotate.axis,
+                layer: lastRotate.layer + 1,
+                direction: dirName
+            }));
         }
 
         if (points.length === 0) {
-            points.push('这次记录到的信息不多。先悔棋一步，观察敌人预告格怎么变化。');
+            points.push(this.t('failure.pointFallback', '这次记录到的信息不多。先悔棋一步，观察敌人预告格怎么变化。'));
         }
 
-        let coachHeadline = `第 ${this.turn} 回合被 ${caughtName} 抓到。`;
-        let coachNote = '下次先别急着走满 AP，留意敌人这一轮到底能走几格。';
-        let cuteHeadline = `啊哦，第 ${this.turn} 回合被抓包了。`;
-        let cuteNote = '悔一步吧，这局还能抢救一下。';
+        let coachHeadline = this.formatText('failure.coachDefaultHeadline', '第 {turn} 回合被 {name} 抓到。', {
+            turn: this.turn,
+            name: caughtName
+        });
+        let coachNote = this.t('failure.coachDefaultNote', '下次先别急着把路走满，留意敌人这一轮到底能走几格。');
+        let cuteHeadline = this.formatText('failure.cuteDefaultHeadline', '啊哦，第 {turn} 回合被抓包了。', { turn: this.turn });
+        let cuteNote = this.t('failure.cuteDefaultNote', '悔一步吧，这局还能抢救一下。');
 
         if (lastAIMove) {
-            coachHeadline = `${caughtName}不是突然出现的，它这一轮从 ${this.describeCell(lastAIMove.from)} 贴到了 ${this.describeCell(lastAIMove.to)}。`;
-            coachNote = '下次看红色预告时，重点看“它这一轮会走几格”，不要只看自己能不能拿到目标。';
-            cuteHeadline = `不是你手慢，是 ${caughtName} 这步贴得太近了。`;
-            cuteNote = '先把距离留出来，再去拿钥匙或冲门，会稳很多。';
+            coachHeadline = this.formatText('failure.coachMoveHeadline', '{name}不是突然出现的，它这一轮从 {from} 贴到了 {to}。', {
+                name: caughtName,
+                from: this.describeCell(lastAIMove.from),
+                to: this.describeCell(lastAIMove.to)
+            });
+            coachNote = this.t('failure.coachMoveNote', '下次看红色预告时，重点看“它这一轮会走几格”，不要只看自己能不能拿到目标。');
+            cuteHeadline = this.formatText('failure.cuteMoveHeadline', '不是你手慢，是 {name} 这步贴得太近了。', { name: caughtName });
+            cuteNote = this.t('failure.cuteMoveNote', '先把距离留出来，再去拿钥匙或冲门，会稳很多。');
         }
 
         if (lastKey && caughtBy?.type === 'guardian') {
-            coachHeadline = '钥匙拿到了，但守钥者离你太近了。';
-            coachNote = '这类局面要先把守钥者拉远，或者先旋转拆位，再吃钥匙撤。';
-            cuteHeadline = '钥匙是香的，但守钥者也醒了。';
-            cuteNote = '下次先遛它一下，再回头拿钥匙。';
+            coachHeadline = this.t('failure.coachGuardianHeadline', '钥匙拿到了，但守钥者离你太近了。');
+            coachNote = this.t('failure.coachGuardianNote', '这类局面要先把守钥者拉远，或者先旋转拆位，再吃钥匙撤。');
+            cuteHeadline = this.t('failure.cuteGuardianHeadline', '钥匙是香的，但守钥者也醒了。');
+            cuteNote = this.t('failure.cuteGuardianNote', '下次先遛它一下，再回头拿钥匙。');
         }
 
         return {
@@ -2243,6 +2583,19 @@ class GameEngine {
             : (value ?? '');
     }
 
+    t(key, fallback = key) {
+        return typeof window !== 'undefined' && window.t
+            ? window.t(key)
+            : fallback;
+    }
+
+    formatText(key, fallback, params = {}) {
+        return Object.entries(params).reduce(
+            (text, [name, value]) => text.replaceAll(`{${name}}`, String(value)),
+            this.t(key, fallback)
+        );
+    }
+
     renderFailureAnalysis(tone = 'coach') {
         const analysisEl = document.getElementById('failure-analysis');
         if (!analysisEl || !this.lastFailure?.review) return;
@@ -2251,7 +2604,7 @@ class GameEngine {
         const isCute = tone === 'cute';
         const headline = isCute ? review.cuteHeadline : review.coachHeadline;
         const note = isCute ? review.cuteNote : review.coachNote;
-        const title = isCute ? '可爱陪练复盘' : '残局复盘';
+        const title = isCute ? this.t('failure.reviewCuteTitle', '可爱陪练复盘') : this.t('failure.reviewCoachTitle', '残局复盘');
         const points = review.points
             .map(point => `<li>${this.escapeHtml(point)}</li>`)
             .join('');
@@ -2265,18 +2618,22 @@ class GameEngine {
     }
 
     triggerGameOver(caughtBy = null) {
+        if (this.shouldInterceptFirstChaserContact(caughtBy) &&
+            this.interceptFirstChaserContact(caughtBy)) {
+            return;
+        }
         this.gameState = 'gameover';
         this.playFeel('failure');
-        this.showFeel('被威胁源捕获', 'danger', true);
+        this.showFeel(this.t('note.captured', '被威胁源捕获'), 'danger', true);
         if (window.renderEngine) {
             window.renderEngine.spawnCellPulse(this.playerPos, '#ff0055', 1.4);
         }
         const caughtName = caughtBy
             ? `AI #${caughtBy.id + 1} [${this.getAIName(caughtBy.type)}]`
-            : '未知威胁源';
+            : this.t('failure.unknownThreat', '未知威胁源');
         const caughtState = caughtBy
             ? this.getAIStateLabel(caughtBy.state)
-            : '捕获';
+            : this.t('failure.capturedState', '捕获');
         const caughtCell = this.describeCell(this.playerPos);
         const review = this.buildFailureReview(caughtBy);
 
@@ -2288,7 +2645,7 @@ class GameEngine {
             cell: caughtCell,
             review
         };
-        this.adjustTrust(-10, 'gameOver');
+        this.adjustTrust(-12, 'gameOver');
         this.recordEvent('gameOver', {
             caughtBy: caughtName,
             caughtState,
@@ -2296,16 +2653,16 @@ class GameEngine {
         });
 
         document.getElementById('failure-summary').innerHTML = `
-            <div><span>生存回合:</span><span class="s-val">${this.turn}</span></div>
-            <div><span>钥匙状态:</span><span class="s-val">${this.hasKey ? '已取得' : '未取得'}</span></div>
-            <div><span>捕获者:</span><span class="s-val">${caughtName}</span></div>
-            <div><span>捕获位置:</span><span class="s-val">${caughtCell}</span></div>
-            <div><span>敌人状态:</span><span class="s-val">${caughtState}</span></div>
+            <div><span>${this.escapeHtml(this.t('failure.turns', '生存回合'))}:</span><span class="s-val">${this.turn}</span></div>
+            <div><span>${this.escapeHtml(this.t('failure.keyStatus', '钥匙状态'))}:</span><span class="s-val">${this.escapeHtml(this.hasKey ? this.t('failure.keyHeld', '已取得') : this.t('failure.keyMissing', '未取得'))}</span></div>
+            <div><span>${this.escapeHtml(this.t('failure.caughtBy', '捕获者'))}:</span><span class="s-val">${this.escapeHtml(caughtName)}</span></div>
+            <div><span>${this.escapeHtml(this.t('failure.caughtCell', '捕获位置'))}:</span><span class="s-val">${this.escapeHtml(caughtCell)}</span></div>
+            <div><span>${this.escapeHtml(this.t('failure.enemyStatus', '敌人状态'))}:</span><span class="s-val">${this.escapeHtml(caughtState)}</span></div>
         `;
         const analysisEl = document.getElementById('failure-analysis');
         const toggleBtn = document.getElementById('btn-toggle-analysis');
         if (analysisEl) analysisEl.classList.add('is-hidden');
-        if (toggleBtn) toggleBtn.innerText = '查看残局复盘';
+        if (toggleBtn) toggleBtn.innerText = this.t('gameover.review', '查看残局复盘');
         const tone = document.getElementById('analysis-tone')?.value || 'coach';
         this.renderFailureAnalysis(tone);
         const undoBtn = document.getElementById('btn-gameover-undo');
@@ -2313,7 +2670,7 @@ class GameEngine {
         const catchSticker = document.getElementById('catch-sticker');
         if (catchSticker) {
             catchSticker.innerText = caughtBy?.type === 'guardian'
-                ? '锁'
+                ? (window.currentLang === 'en' ? 'LOCK' : '锁')
                 : (caughtBy?.type === 'ambusher' ? '×' : '!');
         }
         const overlay = document.getElementById('gameover-overlay');
@@ -2336,7 +2693,7 @@ class GameEngine {
     triggerVictory() {
         this.gameState = 'win';
         this.playFeel('victory');
-        this.showFeel('逃生成功', 'good', true);
+        this.showFeel(this.t('victory.successNote', '逃生成功'), 'good', true);
         const isActFinale = Boolean(this.currentLevel?.actFinale);
         this.recordEvent('victory', {
             actFinale: isActFinale,
@@ -2352,25 +2709,31 @@ class GameEngine {
         }
         if (victoryMessage) {
             victoryMessage.innerText = isActFinale
-                ? '门开了。坏消息：外面还有一个更大的立方体。'
-                : '钥匙已取得，逃生门已开启，意识体安全撤离！';
+                ? this.t('victory.actFinaleMessage', '门开了。坏消息：外面还有一个更大的立方体。')
+                : this.t('victory.message', '钥匙已取得，逃生门已开启，Dawn 暂时安全。');
         }
         document.getElementById('act-ending-comic')?.classList.toggle('is-hidden', !isActFinale);
         const victoryButton = document.querySelector('#victory-overlay .btn-restart');
         if (victoryButton) {
-            victoryButton.innerText = isActFinale ? '进入第二幕' : '再接再厉';
+            victoryButton.innerText = isActFinale ? this.t('victory.actTwoButton', '进入第二幕') : this.t('victory.next', '再接再厉');
         }
-        const nextTrust = this.adjustTrust(3, 'victory');
+        const billingTitle = typeof window !== 'undefined' && window.t ? window.t('console.billing') : '📊 [神经连接评估账单]';
+        const labelSurvival = typeof window !== 'undefined' && window.t ? window.t('console.survival_status') : '· 观察对象 (Dawn) 体征';
+        const valSurvival = typeof window !== 'undefined' && window.t ? window.t('console.intact') : '安然无恙 (100%)';
+        const labelTurn = typeof window !== 'undefined' && window.t ? window.t('console.turn') : '· 通关消耗回合';
+        const labelTwist = typeof window !== 'undefined' && window.t ? window.t('console.twist_count') : '· 空间重构次数';
+
         document.getElementById('victory-summary').innerHTML = `
-            <div><span>通关回合:</span><span class="s-val">${this.turn}</span></div>
-            <div><span>使用旋转:</span><span class="s-val">${this.rotationsUsed}</span></div>
-            <div><span>信任值:</span><span class="s-val">${nextTrust}</span></div>
+            <div style="font-weight:bold;margin-bottom:6px;color:#a8ffb2;">${billingTitle}</div>
+            <div><span>${labelSurvival}:</span><span class="s-val" style="color:#00ff66;">${valSurvival}</span></div>
+            <div><span>${labelTurn}:</span><span class="s-val">${this.turn} ${this.escapeHtml(this.t('unit.turns', '回合'))}</span></div>
+            <div><span>${labelTwist}:</span><span class="s-val">${this.rotationsUsed} ${this.escapeHtml(this.t('unit.times', '次'))}</span></div>
         `;
         const showVictoryOverlay = () => document.getElementById('victory-overlay')?.classList.add('active');
         if (isActFinale) {
             setTimeout(showVictoryOverlay, 1500);
         } else {
-            showVictoryOverlay();
+            setTimeout(showVictoryOverlay, 500);
         }
         this.updateCompanionTerminal();
     }
@@ -2386,48 +2749,48 @@ class GameEngine {
         const commsContextEl = document.getElementById('comms-context-line');
         if (!statusEl && !bubbleEl && !commsContextEl) return;
 
-        let status = '信号稳定';
-        let bubble = '我在。手机别收太久。';
-        let liveLine = '我还在。你别突然消失。';
+        let status = this.t('dawn.statusSteady', '信号稳定');
+        let bubble = this.t('dawn.bubbleIdle', '我在。手机别收太久。');
+        let liveLine = this.t('comms.live', '我还在。你别突然消失。');
 
         if (this.gameState === 'gameover') {
-            status = '信号抖了一下';
-            bubble = '刚才那段可以假装没发生。';
-            liveLine = '刚才那段我们可以假装没发生。';
+            status = this.t('dawn.statusLost', '信号抖了一下');
+            bubble = this.t('dawn.bubbleLost', '刚才那段可以假装没发生。');
+            liveLine = this.t('dawn.liveLost', '刚才那段我们可以假装没发生。');
         } else if (this.gameState === 'win') {
-            status = '门已开启';
-            bubble = this.currentLevel?.actFinale ? '出口还带下一层，挺礼貌。' : '这次算你带路成功。';
+            status = this.t('dawn.statusWin', '门已开启');
+            bubble = this.currentLevel?.actFinale ? this.t('dawn.bubbleWinFinale', '出口还带下一层，挺礼貌。') : this.t('dawn.bubbleWin', '这次算你带路成功。');
             liveLine = this.currentLevel?.actFinale
-                ? '出口的意思原来是下一层入口。行，挺有礼貌。'
-                : '门开了。我承认，这一步还行。';
+                ? this.t('dawn.liveWinFinale', '出口的意思原来是下一层入口。行，挺有礼貌。')
+                : this.t('dawn.liveWin', '门开了。我承认，这一步还行。');
         } else if (this.toolMode === 'patch') {
-            status = '补片待铺';
-            bubble = '可以补洞，但别让我停在上面。';
-            liveLine = '可以补洞，但别让我停在上面。我对试用版地板没有信仰。';
+            status = this.t('dawn.statusPatch', '补片待铺');
+            bubble = this.t('dawn.bubblePatch', '可以补洞，但别让我停在上面。');
+            liveLine = this.t('dawn.livePatch', '可以补洞，但别让我停在上面。我对试用版地板没有信仰。');
         } else if (this.toolMode === 'beacon') {
-            status = '诱饵待投';
-            bubble = '骗谁？这题我喜欢。';
-            liveLine = '骗谁？这题我喜欢。先声明，我没有说自己很坏。';
+            status = this.t('dawn.statusBeacon', '诱饵待投');
+            bubble = this.t('dawn.bubbleBeacon', '骗谁？这题我喜欢。');
+            liveLine = this.t('dawn.liveBeacon', '骗谁？这题我喜欢。先声明，我没有说自己很坏。');
         } else if (this.plannedPath.length > 0) {
-            status = '路线草稿';
-            bubble = '线画好了？我先不发表意见。';
-            liveLine = '线画好了？我先不发表意见，免得显得我很急。';
+            status = this.t('dawn.statusPath', '指令待定');
+            bubble = this.t('dawn.bubblePath', '你选好了？我先不发表意见。');
+            liveLine = this.t('dawn.livePath', '你选好了？我先不发表意见，免得显得我很急。');
         } else if (this.hasKey) {
-            status = '钥匙在手';
-            bubble = '钥匙有了。现在可以稍微慌一下。';
-            liveLine = '钥匙有了。现在可以稍微慌一下，但只准稍微。';
+            status = this.t('dawn.statusKey', '钥匙在手');
+            bubble = this.t('dawn.bubbleKey', '钥匙有了。现在可以稍微慌一下。');
+            liveLine = this.t('dawn.liveKey', '钥匙有了。现在可以稍微慌一下，但只准稍微。');
         } else if (this.ais.some(ai => ai.state === 'rage')) {
-            status = '对面急了';
-            bubble = '它急了。不是我说的。';
-            liveLine = '它急了。不是我说的，是它自己跑两格的。';
+            status = this.t('dawn.statusRage', '对面急了');
+            bubble = this.t('dawn.bubbleRage', '它急了。不是我说的。');
+            liveLine = this.t('dawn.liveRage', '它急了。不是我说的，是它自己跑两格的。');
         } else if (this.ais.length > 0) {
-            status = '有人在追';
-            bubble = '先看红格，别看我。';
-            liveLine = '先看红格，别看我。我现在也不太想被看见。';
+            status = this.t('dawn.statusThreat', '有人在追');
+            bubble = this.t('dawn.bubbleThreat', '先看红格，别看我。');
+            liveLine = this.t('dawn.liveThreat', '先看红格，别看我。我现在也不太想被看见。');
         } else if (this.turn === 0) {
-            status = '等待指令';
-            bubble = '盯——';
-            liveLine = '盯——';
+            status = this.t('dawn.statusWaiting', '等待指令');
+            bubble = this.t('dawn.bubbleWaiting', '盯——');
+            liveLine = bubble;
         }
 
         if (statusEl) statusEl.innerText = status;
@@ -2439,33 +2802,63 @@ class GameEngine {
             commsLiveEl.innerText = liveLine;
         }
         if (commsContextEl && this.currentLevel) {
-            commsContextEl.innerText = `${this.currentLevel.title} · ${this.currentLevel.chapter}。需要聊天就点通讯；要活命就在 3D 魔方上画稳。`;
+            commsContextEl.innerText = `${this.textOf(this.currentLevel.title)} · ${this.textOf(this.currentLevel.chapter)}. ${this.t('dawn.contextSuffix', '需要聊天就点通讯；要活命就直接点相邻格。')}`;
         }
     }
 
     getTutorialHelperCopy() {
         const levelId = this.currentLevel?.id || `L${String(this.currentLevelIndex + 1).padStart(2, '0')}`;
         const copies = {
-            L01: ['直接点下一格', '点 Dawn 周围发亮的格子，她会立刻走过去。别连点太猛，她会卡壳。'],
-            L02: ['钥匙先于出口', '先踩钥匙，再进门。门亮绿才算能回家。'],
-            L03: ['红格不是装饰', '红色威胁格代表下一轮会被贴近，别把 Dawn 送进去。'],
-            L04: ['空间折叠', 'Shift 进入 Twist，拖一层魔方，让目标换到能走的位置。'],
-            L05: ['钥匙也会动', '钥匙会跟着层旋转。先拧局，再点格。'],
-            L07: ['主动碎解', '碎解敌人的必经格，切断追捕路线。不要拆自己的脚下。'],
-            L13: ['更大的外壳', '4x4 不是更远而已，它给道具和敌人更多绕法。'],
-            L21: ['临时补片', '补片只能踩一次。走过后碎掉，也能帮你甩掉追击。'],
-            L23: ['诱饵信标', '把敌人引向空格，换来一回合喘息。'],
-            L29: ['补片不是桥梁皮肤', '没有补片就进不了孤岛；用了以后要立刻撤。']
+            L01: [
+                { zh: '直接点下一格', en: 'Click the next tile' },
+                { zh: '点 Dawn 周围发亮的格子，她会立刻走过去。别连点太猛，她会卡壳。', en: 'Click a glowing tile next to Dawn. She moves immediately, so do not spam clicks.' }
+            ],
+            L02: [
+                { zh: '钥匙先于出口', en: 'Key before exit' },
+                { zh: '先踩钥匙，再进门。门亮绿才算能回家。', en: 'Step on the key first, then enter the exit. The door must glow green.' }
+            ],
+            L03: [
+                { zh: '红格不是装饰', en: 'Red tiles are not decoration' },
+                { zh: '红色威胁格代表下一轮会被贴近，别把 Dawn 送进去。', en: 'Red threat tiles show where danger can reach next. Do not send Dawn there.' }
+            ],
+            L04: [
+                { zh: '空间折叠', en: 'Spatial folding' },
+                { zh: '按 Shift 进入折叠模式，拖一层魔方，让目标换到能走的位置。', en: 'Hold Shift to enter folding mode. Drag a layer to bring the target into reach.' }
+            ],
+            L05: [
+                { zh: '钥匙也会动', en: 'The key moves too' },
+                { zh: '钥匙会跟着层旋转。先拧局，再点格。', en: 'The key rotates with its layer. Twist the board, then move.' }
+            ],
+            L07: [
+                { zh: '主动碎解', en: 'Manual break' },
+                { zh: '碎解敌人的必经格，切断追捕路线。不要拆自己的脚下。', en: 'Break the enemy route to cut pursuit. Do not break the tile under Dawn.' }
+            ],
+            L13: [
+                { zh: '更大的外壳', en: 'A larger shell' },
+                { zh: '4x4 不是更远而已，它给道具和敌人更多绕法。', en: '4x4 is not just farther. It gives tools and enemies more ways around.' }
+            ],
+            L21: [
+                { zh: '临时补片', en: 'Temporary patch' },
+                { zh: '补片只能踩一次。走过后碎掉，也能帮你甩掉追击。', en: 'A patch can be crossed once. It breaks behind Dawn and can shake off pursuit.' }
+            ],
+            L23: [
+                { zh: '诱饵信标', en: 'Decoy beacon' },
+                { zh: '把敌人引向空格，换来一回合喘息。', en: 'Lure enemies to an empty tile to buy breathing room.' }
+            ],
+            L29: [
+                { zh: '补片不是桥梁皮肤', en: 'A patch is not a bridge skin' },
+                { zh: '没有补片就进不了孤岛；用了以后要立刻撤。', en: 'Use the patch to enter isolated ground, then leave immediately.' }
+            ]
         };
         const fallback = [
             this.currentLevel?.tutorial?.goal || this.getCurrentGoalText(),
-            this.currentLevel?.tutorial?.tip || '看清敌人下一步，再决定路线。'
+            this.currentLevel?.tutorial?.tip || { zh: '看清敌人下一步，再决定路线。', en: 'Read the enemy next step before choosing a route.' }
         ];
         const [title, body] = copies[levelId] || fallback;
         return {
             levelId,
-            title,
-            body,
+            title: this.textOf(title),
+            body: this.textOf(body),
             icon: this.currentLevel?.tutorial?.icon || '➜'
         };
     }
@@ -2513,7 +2906,7 @@ class GameEngine {
             tutorialSticker.innerText = tutorial.icon || '➜';
         }
         if (tutorialCue) {
-            tutorialCue.innerText = this.textOf(tutorial.cue) || '看图行动';
+            tutorialCue.innerText = this.textOf(tutorial.cue) || this.t('game.lookAndAct', '看图行动');
         }
         if (routeTip) {
             routeTip.innerText = this.getCurrentRouteTip();
@@ -2526,7 +2919,9 @@ class GameEngine {
         if (turnCountEl) turnCountEl.innerText = this.realtimeMode ? 'RT' : this.turn;
         if (apDisplayEl) {
             apDisplayEl.innerText = this.realtimeMode
-                ? (this.playerCooldownRemaining > 0
+                ? (this.enemyTurnInProgress
+                    ? this.t('game.enemyTurn', '敌方')
+                    : this.playerCooldownRemaining > 0
                     ? `${(this.playerCooldownRemaining / 1000).toFixed(1)}s`
                     : 'READY')
                 : `${this.playerAP} / ${this.maxAP}`;
@@ -2537,25 +2932,27 @@ class GameEngine {
                 : (this.playerAP / this.maxAP);
             apBarEl.style.width = `${Math.max(0, Math.min(1, fill)) * 100}%`;
         }
-        document.getElementById('rotation-charge').innerText = '1 AP';
+        document.getElementById('rotation-charge').innerText = this.realtimeMode ? this.t('fold.enemyMoves', '敌人会动') : this.t('fold.oneStep', '一步');
         const trustEl = document.getElementById('trust-display');
         const consoleTrustEl = document.getElementById('console-trust-display');
         if (trustEl) {
             trustEl.innerText = this.trust;
             if (trustEl.parentElement) {
-                trustEl.parentElement.style.display = this.currentLevelIndex === 0 ? 'none' : '';
+                trustEl.parentElement.style.display = this.trustEnabled ? '' : 'none';
             }
         }
         if (consoleTrustEl) {
             consoleTrustEl.innerText = this.trust;
             if (consoleTrustEl.parentElement) {
-                consoleTrustEl.parentElement.style.display = this.currentLevelIndex === 0 ? 'none' : '';
+                consoleTrustEl.parentElement.style.display = this.trustEnabled ? '' : 'none';
             }
         }
         document.getElementById('console-rotation-display') && (document.getElementById('console-rotation-display').innerText = this.rotationsUsed);
-        document.getElementById('console-turn-display') && (document.getElementById('console-turn-display').innerText = this.realtimeMode ? '实时' : this.turn);
-        document.getElementById('console-ap-display') && (document.getElementById('console-ap-display').innerText = this.realtimeMode ? '移动 CD' : `${this.playerAP} / ${this.maxAP}`);
-        document.getElementById('esc-level-title') && (document.getElementById('esc-level-title').innerText = this.textOf(this.currentLevel?.title) || '当前残局');
+        document.getElementById('console-turn-display') && (document.getElementById('console-turn-display').innerText = this.realtimeMode ? this.t('game.realtime', '实时') : this.turn);
+        document.getElementById('console-ap-display') && (document.getElementById('console-ap-display').innerText = this.realtimeMode
+            ? (this.enemyTurnInProgress ? this.t('game.enemyActing', '敌方行动中') : this.t('game.ready', '可行动'))
+            : `${this.playerAP} / ${this.maxAP}`);
+        document.getElementById('esc-level-title') && (document.getElementById('esc-level-title').innerText = this.textOf(this.currentLevel?.title) || this.t('game.currentPuzzle', '当前残局'));
         document.getElementById('esc-level-desc') && (document.getElementById('esc-level-desc').innerText = this.textOf(this.currentLevel?.concept) || this.getCurrentGoalText());
 
         const hasRotation = this.rotationEnabled;
@@ -2583,21 +2980,23 @@ class GameEngine {
         const layerEl = document.getElementById('rotate-layer');
         const rotationPreviewChip = document.getElementById('rotation-preview-chip');
         if (rotationPreviewChip && axisEl && layerEl) {
-            const layerText = layerEl.selectedOptions?.[0]?.textContent?.replace(/\s+/g, ' ') || `第 ${Number(layerEl.value || 0) + 1} 层`;
-            rotationPreviewChip.innerText = `${axisEl.value || 'X'} 轴 · ${layerText} · ↻ / ↺`;
+            const layerNumber = Number(layerEl.value || 0) + 1;
+            const layerText = layerEl.selectedOptions?.[0]?.textContent?.replace(/\s+/g, ' ')
+                || this.formatText('fold.layerLabel', '第 {n} 层', { n: layerNumber });
+            rotationPreviewChip.innerText = `${axisEl.value || 'X'} · ${layerText} · ↻ / ↺`;
         }
         const trackerStatusChip = document.getElementById('tracker-status-chip');
         const trackerToggleBtn = document.getElementById('btn-toggle-tracker');
         const trackerClearBtn = document.getElementById('btn-clear-tracker');
         if (trackerStatusChip) {
             trackerStatusChip.innerText = this.trackerCell !== null && this.trackerCell !== undefined
-                ? `标记 ${this.describeCell(this.trackerCell)}`
-                : (this.trackerMode ? '点 3D 格标记' : '未标记');
+                ? this.formatText('tracker.marked', '标记 {cell}', { cell: this.describeCell(this.trackerCell) })
+                : (this.trackerMode ? this.t('tracker.pick', '点 3D 格标记') : this.t('tracker.empty', '未标记'));
             trackerStatusChip.classList.toggle('is-active', this.trackerCell !== null && this.trackerCell !== undefined);
             trackerStatusChip.classList.toggle('is-picking', this.trackerMode);
         }
         if (trackerToggleBtn) {
-            trackerToggleBtn.innerText = this.trackerMode ? '取消标记' : '放置标记';
+            trackerToggleBtn.innerText = this.trackerMode ? this.t('tracker.cancel', '取消标记') : this.t('tracker.place', '放置标记');
             trackerToggleBtn.classList.toggle('is-active', this.trackerMode);
         }
         if (trackerClearBtn) {
@@ -2607,7 +3006,7 @@ class GameEngine {
         const endTurnBtn = document.getElementById('btn-end-turn');
         endTurnBtn?.classList.toggle('is-hidden', !hasThreats && !this.realtimeMode);
         if (endTurnBtn) {
-            endTurnBtn.innerText = this.realtimeMode ? '待命' : (window.t?.('phone.skip') || '跳过');
+            endTurnBtn.innerText = this.realtimeMode ? this.t('action.wait', '待命') : (window.t?.('phone.skip') || '跳过');
         }
         document.getElementById('threat-panel')?.classList.toggle('is-hidden', !hasThreats);
 
@@ -2659,7 +3058,7 @@ class GameEngine {
             const stateLabel = this.getAIStateLabel(ai.state);
             intentSpan.innerText = preview !== undefined
                 ? `${stateLabel}: ${this.describeCell(preview)}`
-                : `${stateLabel}: 原地`;
+                : `${stateLabel}: ${this.t('cell.stay', '原地')}`;
 
             row.appendChild(nameSpan);
             row.appendChild(intentSpan);
@@ -2686,74 +3085,77 @@ class GameEngine {
     }
 
     getCurrentGoalText() {
-        if (this.gameState === 'win') return '已逃离。可以回到选关继续下一组残局。';
-        if (this.gameState === 'gameover') return '这一步被抓了。可以悔棋，或者展开残局复盘看距离怎么被压近。';
+        if (this.gameState === 'win') return this.t('goal.win', '已逃离。可以回到选关继续下一组残局。');
+        if (this.gameState === 'gameover') return this.t('game.caughtStepHint', '这一步被抓了。可以悔棋，或者查看残局复盘看距离怎么被压近。');
         const tutorialGoal = this.textOf(this.currentLevel?.tutorial?.goal);
         if (tutorialGoal) return tutorialGoal;
         if (!this.hasKey && this.keyPos !== null) {
-            return `先去 ${this.describeCell(this.keyPos)} 取钥匙，再撤到 ${this.describeCell(this.exitPos)}。`;
+            return this.formatText('goal.fetchKey', '先去 {key} 取钥匙，再撤到 {exit}。', {
+                key: this.describeCell(this.keyPos),
+                exit: this.describeCell(this.exitPos)
+            });
         }
-        return `钥匙已到手，撤到 ${this.describeCell(this.exitPos)}。`;
+        return this.formatText('goal.toExit', '钥匙已到手，撤到 {exit}。', { exit: this.describeCell(this.exitPos) });
     }
 
     getCurrentRouteTip() {
         const tutorialTip = this.textOf(this.currentLevel?.tutorial?.tip);
         if (this.toolMode === 'patch') {
-            return '点黑色缺口铺补片。E-7 可以踩过去一次，但不能停在上面。';
+            return this.t('routeTip.patch', '点黑色缺口铺补片。Dawn 可以踩过去一次，但不能停在上面。');
         }
         if (this.toolMode === 'beacon') {
-            return '点任意空地放诱饵。敌人会按正常路线被吸引过去。';
+            return this.t('routeTip.beacon', '点任意空地放诱饵。敌人会按正常路线被吸引过去。');
         }
         if (this.toolMode === 'break') {
-            return '点非关键格碎解。它会立刻变成缺口，阻断追击路线。';
+            return this.t('routeTip.break', '点非关键格碎解。它会立刻变成缺口，阻断追击路线。');
         }
         if (this.trackerMode) {
-            return '标记模式：点一格标记。蓝圈仍是下一步可走格。';
+            return this.t('routeTip.tracker', '标记模式：点一格标记。蓝圈仍是下一步可走格。');
         }
         if (this.plannedPath.length > 0) {
             const end = this.plannedPath[this.plannedPath.length - 1];
-            return `路线终点：${this.describeCell(end)}。确认前可以继续拖，也可以点已选格回退。`;
+            return this.formatText('routeTip.endpoint', '当前终点：{cell}。确认前可以继续点相邻格，也可以点已选格回退。', { cell: this.describeCell(end) });
         }
         if (this.trackerCell !== null && this.trackerCell !== undefined) {
-            return `标记在 ${this.describeCell(this.trackerCell)}。它只帮你记格，不会自动走路。`;
+            return this.formatText('routeTip.marked', '标记在 {cell}。它只帮你记格，不会自动走路。', { cell: this.describeCell(this.trackerCell) });
         }
         if (tutorialTip) return tutorialTip;
         if (this.rotationEnabled && this.playerAP >= 2) {
-            return '3D 表面负责走路；按 Shift 进入 Twist 模式，拖拽表面拧动当前层。';
+            return this.t('routeTip.rotation', '3D 表面负责走路；按 Shift 进入空间折叠，拖拽表面拧动当前层。');
         }
         if (this.ais.length > 0) {
-            return '蓝色是下一步可走格，红色是敌人本轮会压到的位置。先看红，再点格。';
+            return this.t('routeTip.threats', '蓝色是下一步可走格，红色是敌人本轮会压到的位置。先看红，再点格。');
         }
-        return '按住 3D 魔方表面拖过相邻格，手机里会生成路线指令。';
+        return this.t('routeTip.default', '点击 Dawn 周围发亮的相邻格，她会直接走过去。');
     }
 
     getAIName(type) {
-        if (type === 'guardian') return '守钥者';
-        if (type === 'ambusher') return '伏击者';
-        return '追击者';
+        if (type === 'guardian') return this.t('ai.name.guardian', '守钥者');
+        if (type === 'ambusher') return this.t('ai.name.ambusher', '伏击者');
+        return this.t('ai.name.chaser', '追击者');
     }
 
     getAIStateLabel(state) {
-        if (state === 'guard') return '守路';
-        if (state === 'lure') return '引诱追击';
-        if (state === 'rage') return '狂暴追击';
-        if (state === 'gate') return '守门';
-        if (state === 'seekKey') return '找钥匙';
-        if (state === 'bait') return '被诱导';
-        if (state === 'alert') return '追击';
-        return '待机';
+        if (state === 'guard') return this.t('ai.state.guard', '守路');
+        if (state === 'lure') return this.t('ai.state.lure', '引诱追击');
+        if (state === 'rage') return this.t('ai.state.rage', '狂暴追击');
+        if (state === 'gate') return this.t('ai.state.gate', '守门');
+        if (state === 'seekKey') return this.t('ai.state.seekKey', '找钥匙');
+        if (state === 'bait') return this.t('ai.state.bait', '被诱导');
+        if (state === 'alert') return this.t('ai.state.alert', '追击');
+        return this.t('ai.state.idle', '待机');
     }
 
     describeCell(cellId) {
         const cell = this.cells[cellId];
-        if (!cell) return '未知格';
+        if (!cell) return this.t('cell.unknown', '未知格');
         const faceColorNames = {
-            0: '蓝',
-            1: '紫',
-            2: '橙',
-            3: '红',
-            4: '绿',
-            5: '黄'
+            0: this.t('cell.face0', '蓝'),
+            1: this.t('cell.face1', '紫'),
+            2: this.t('cell.face2', '橙'),
+            3: this.t('cell.face3', '红'),
+            4: this.t('cell.face4', '绿'),
+            5: this.t('cell.face5', '黄')
         };
         const cols = 'abcdefghijklmnopqrstuvwxyz';
         return `${faceColorNames[cell.face] || this.faceLabels[cell.face]}${cols[cell.col] || cell.col + 1}${cell.row + 1}`;
@@ -2768,19 +3170,21 @@ class GameEngine {
         const endsOnPatch = this.plannedPath.length > 0 && this.isActivePatchCell(finalCell);
         confirmBtn.disabled = this.realtimeMode || this.plannedPath.length === 0 || this.playerAP <= 0 || endsOnPatch;
         confirmBtn.innerText = this.realtimeMode
-            ? '直控中'
+            ? this.t('action.direct', '直控中')
             : (this.plannedPath.length > 0
-            ? (endsOnPatch ? '别停补片' : `发送 ${this.plannedPath.length}AP`)
-            : '发送路线');
+            ? (endsOnPatch
+                ? this.t('action.dontStopPatch', '别停补片')
+                : this.formatText('note.executeCells', '执行 {count} 格', { count: this.plannedPath.length }))
+            : this.t('action.execute', '执行'));
         const previewEl = document.getElementById('route-command-preview');
         if (previewEl) {
             const commandCells = [this.playerPos, ...this.plannedPath]
                 .map(cellId => this.describeCell(cellId));
             previewEl.innerText = this.realtimeMode
-                ? `当前位置：${this.describeCell(this.playerPos)} · 蓝圈=下一步可走`
+                ? this.formatText('routePreview.current', '当前位置：{cell} · 蓝圈=下一步可走', { cell: this.describeCell(this.playerPos) })
                 : (this.plannedPath.length > 0
-                ? `走向：${commandCells.join(' -> ')}`
-                : '走向：未规划');
+                ? this.formatText('routePreview.next', '下一步：{route}', { route: commandCells.join(' -> ') })
+                : this.t('routePreview.none', '下一步：未选择'));
         }
 
         if (undoBtn) {
@@ -2862,6 +3266,9 @@ class GameEngine {
                 const cell = this.cells[id];
                 const isVoid = this.isVoidCell(id);
                 const isPatch = this.isActivePatchCell(id);
+                const isVine = this.vineCells.has(id);
+                const isVineSource = this.vineSources.has(id);
+                const isVineImmune = this.immuneToVineCells.has(id);
 
                 ctx.fillStyle = this.hexToRgba(this.faceColors[cell.face], 0.09);
                 ctx.strokeStyle = this.hexToRgba(this.faceColors[cell.face], 0.2);
@@ -2875,6 +3282,18 @@ class GameEngine {
                     ctx.fillStyle = 'rgba(139, 220, 255, 0.24)';
                     ctx.strokeStyle = '#8bdcff';
                     ctx.lineWidth = 1.8;
+                } else if (isVineSource) {
+                    ctx.fillStyle = 'rgba(255, 0, 85, 0.34)';
+                    ctx.strokeStyle = 'rgba(255, 85, 120, 0.78)';
+                    ctx.lineWidth = 1.8;
+                } else if (isVine) {
+                    ctx.fillStyle = 'rgba(0, 245, 212, 0.28)';
+                    ctx.strokeStyle = 'rgba(0, 245, 212, 0.78)';
+                    ctx.lineWidth = 1.6;
+                } else if (isVineImmune) {
+                    ctx.fillStyle = 'rgba(198, 122, 44, 0.22)';
+                    ctx.strokeStyle = 'rgba(255, 183, 84, 0.58)';
+                    ctx.lineWidth = 1.4;
                 }
 
                 if (nextStepCells.has(id)) {
@@ -2901,6 +3320,12 @@ class GameEngine {
                     this.drawVoidCellOnMap(ctx, drawX, drawY, cellSize);
                 } else if (isPatch) {
                     this.drawPatchCellOnMap(ctx, drawX, drawY, cellSize);
+                } else if (isVineSource) {
+                    this.drawVineCellOnMap(ctx, drawX, drawY, cellSize, 'source');
+                } else if (isVine) {
+                    this.drawVineCellOnMap(ctx, drawX, drawY, cellSize, 'vine');
+                } else if (isVineImmune) {
+                    this.drawVineCellOnMap(ctx, drawX, drawY, cellSize, 'immune');
                 }
                 if (!isVoid && cell.row === Math.floor(N / 2) && cell.col === Math.floor(N / 2)) {
                     this.drawMinimapCellPattern(ctx, cell.face, drawX, drawY, cellSize, true);
@@ -2965,6 +3390,46 @@ class GameEngine {
         ctx.restore();
     }
 
+    drawVineCellOnMap(ctx, x, y, size, kind = 'vine') {
+        ctx.save();
+        const color = kind === 'source'
+            ? '#ff335f'
+            : (kind === 'immune' ? '#ffb754' : '#00f5d4');
+        ctx.strokeStyle = color;
+        ctx.fillStyle = color;
+        ctx.lineWidth = kind === 'immune' ? 1.4 : 1.8;
+        ctx.shadowColor = color;
+        ctx.shadowBlur = kind === 'immune' ? 4 : 8;
+
+        if (kind === 'source') {
+            ctx.beginPath();
+            ctx.arc(x + size * 0.5, y + size * 0.5, size * 0.22, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.beginPath();
+            ctx.arc(x + size * 0.5, y + size * 0.5, size * 0.34, 0, Math.PI * 2);
+            ctx.stroke();
+        } else if (kind === 'immune') {
+            ctx.setLineDash([size * 0.16, size * 0.09]);
+            ctx.strokeRect(x + size * 0.18, y + size * 0.18, size * 0.64, size * 0.64);
+        } else {
+            ctx.beginPath();
+            ctx.moveTo(x + size * 0.22, y + size * 0.68);
+            ctx.bezierCurveTo(
+                x + size * 0.38,
+                y + size * 0.18,
+                x + size * 0.62,
+                y + size * 0.82,
+                x + size * 0.78,
+                y + size * 0.28
+            );
+            ctx.stroke();
+            ctx.beginPath();
+            ctx.arc(x + size * 0.5, y + size * 0.5, size * 0.18, 0, Math.PI * 2);
+            ctx.stroke();
+        }
+        ctx.restore();
+    }
+
     drawToolTargets(ctx, cellSize, offsetX, offsetY) {
         if (this.toolMode === 'patch' && this.patchCharges > 0) {
             this.voidCells.forEach(cellId => {
@@ -2993,14 +3458,14 @@ class GameEngine {
 
         if (this.beaconCell !== null) {
             this.drawTargetRing(ctx, this.beaconCell, '#ffb700', cellSize, offsetX, offsetY);
-            this.drawMapSticker(ctx, this.beaconCell, '诱', '#ffb700', cellSize, offsetX, offsetY);
+            this.drawMapSticker(ctx, this.beaconCell, 'B', '#ffb700', cellSize, offsetX, offsetY);
         }
 
         if (this.toolMode === 'break' && this.breakCharges > 0) {
             this.cells.forEach(cell => {
                 if (this.isLegalBreakTarget(cell.id)) {
                     this.drawTargetRing(ctx, cell.id, '#ff0055', cellSize, offsetX, offsetY);
-                    this.drawMapSticker(ctx, cell.id, '碎', '#ff0055', cellSize, offsetX, offsetY);
+                    this.drawMapSticker(ctx, cell.id, '×', '#ff0055', cellSize, offsetX, offsetY);
                 }
             });
         }
@@ -3136,7 +3601,7 @@ class GameEngine {
                 ctx.fillText(label, point.x, point.y + 1);
             });
 
-            this.drawFloatingSticker(ctx, (a.x + b.x) / 2, (a.y + b.y) / 2, '门', entryColor, cellSize);
+            this.drawFloatingSticker(ctx, (a.x + b.x) / 2, (a.y + b.y) / 2, '↔', entryColor, cellSize);
             ctx.restore();
         });
     }
@@ -3149,7 +3614,7 @@ class GameEngine {
         const guardian = this.ais.find(ai => ai.type === 'guardian');
 
         if (visual === 'dragExit') {
-            this.drawMapArrow(ctx, this.playerPos, this.exitPos, '#00ff88', '拖', cellSize, offsetX, offsetY);
+            this.drawMapArrow(ctx, this.playerPos, this.exitPos, '#00ff88', '→', cellSize, offsetX, offsetY);
             this.drawTargetRing(ctx, this.exitPos, '#00ff88', cellSize, offsetX, offsetY);
         } else if (visual === 'keyDoor') {
             this.drawTargetRing(ctx, this.keyPos, '#ffb700', cellSize, offsetX, offsetY);
@@ -3194,7 +3659,7 @@ class GameEngine {
             this.drawTargetRing(ctx, target, '#8bdcff', cellSize, offsetX, offsetY);
             this.drawMapSticker(ctx, target, '◎', '#8bdcff', cellSize, offsetX, offsetY);
             if ((this.trackerCell === null || this.trackerCell === undefined) && this.keyPos !== null) {
-                this.drawMapArrow(ctx, this.playerPos, this.keyPos, '#8bdcff', '标', cellSize, offsetX, offsetY);
+                this.drawMapArrow(ctx, this.playerPos, this.keyPos, '#8bdcff', '◎', cellSize, offsetX, offsetY);
             }
         } else if (visual === 'rotateThreat') {
             this.drawRotationLayerHint(ctx, cellSize, offsetX, offsetY);
@@ -3209,7 +3674,7 @@ class GameEngine {
             if (firstBridge) {
                 this.drawTargetRing(ctx, firstBridge.a, '#c6ff5c', cellSize, offsetX, offsetY);
                 this.drawTargetRing(ctx, firstBridge.b, '#c6ff5c', cellSize, offsetX, offsetY);
-                this.drawMapArrow(ctx, firstBridge.a, firstBridge.b, '#35e6ff', '门', cellSize, offsetX, offsetY);
+                this.drawMapArrow(ctx, firstBridge.a, firstBridge.b, '#35e6ff', '↔', cellSize, offsetX, offsetY);
             }
             this.drawTargetRing(ctx, this.keyPos, '#ffb700', cellSize, offsetX, offsetY);
             this.drawTargetRing(ctx, this.exitPos, this.hasKey ? '#00ff88' : '#ffb700', cellSize, offsetX, offsetY);
@@ -3217,7 +3682,7 @@ class GameEngine {
             if (visual === 'voidRotate' || visual === 'voidExam') this.drawRotationLayerHint(ctx, cellSize, offsetX, offsetY);
             this.voidCells.forEach(cellId => {
                 this.drawTargetRing(ctx, cellId, '#8bdcff', cellSize, offsetX, offsetY);
-                this.drawMapSticker(ctx, cellId, '裂', '#8bdcff', cellSize, offsetX, offsetY);
+                this.drawMapSticker(ctx, cellId, '∅', '#8bdcff', cellSize, offsetX, offsetY);
             });
             this.ais.forEach(ai => this.drawThreatPreviewPath(ctx, ai, cellSize, offsetX, offsetY, '!'));
             this.drawTargetRing(ctx, this.keyPos, '#ffb700', cellSize, offsetX, offsetY);

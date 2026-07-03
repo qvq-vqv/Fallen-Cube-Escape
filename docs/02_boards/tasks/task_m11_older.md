@@ -1,3 +1,12 @@
+# Historical Task Snapshot
+
+> Marked: 2026-06-30 23:27 CST
+> Current task source: `../../../task.md`
+
+This file is preserved as an older Milestone 11 task snapshot. It should not override the root `task.md`, which includes newer M11.4 friend-playtest repair records.
+
+---
+
 # 🎬 Milestone 11: Decoupled Tutorial System, Draggable Bubbles, and Inspect-Scanner (2026-06-28)
 
 > 状态：`[STATUS: AUDIT_PASSED]`

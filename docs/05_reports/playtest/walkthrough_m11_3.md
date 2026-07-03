@@ -1,3 +1,12 @@
+# Historical Walkthrough Snapshot
+
+> Marked: 2026-06-30 23:27 CST
+> Current generated L01-L40 walkthrough: `../../../walkthrough.md`
+
+This file is a Milestone 11.3 implementation walkthrough/report, not the current generated level solution table.
+
+---
+
 # Walkthrough - Milestone 11.3 (Immersive Dialogue & Notification HUD Rewrite)
 
 We have successfully implemented and verified **Milestone 11.3 (Immersive Dialogue & Notification HUD Rewrite)** in the 3D H5 Rubik's Cube game. Below is a detailed walkthrough of the changes, testing, and validation results.

@@ -1,11 +1,15 @@
 {
-  "createdAt": "2026-06-26T06:53:25.124Z",
+  "createdAt": "2026-06-30T19:46:39.494Z",
+  "resolvedAt": "2026-07-01T05:16:00.000Z",
   "tool": "tools/playtest_bot.js",
+  "status": "resolved",
+  "resolution": "2026-07-01 Codex reran npm run playtest and npm run audit:levels after syncing vine/skip rules; L15 is solvable and no longer blocked.",
   "failures": [
     {
-      "level": "L13 孤岛补片",
+      "level": "L15 钥匙封锁",
       "reason": "playtest_bot could not find a solution",
-      "expanded": 574
+      "expanded": 49201,
+      "status": "resolved"
     }
   ]
 }

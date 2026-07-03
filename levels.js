@@ -77,8 +77,8 @@
             {
                 type: 'look',
                 text: {
-                    zh: '……别急着救我。先看清楚，这地方会骗人。',
-                    en: '...Do not rush to save me. Look first. This place lies.'
+                    zh: '系统提示：先拖动视角，看清 Dawn 所在的魔方表面。',
+                    en: 'System: drag the view first and read the cube surface around Dawn.'
                 },
                 threshold: 3.0,
                 focusCell: { face: 1, row: 1, col: 1 },
@@ -88,29 +88,33 @@
             {
                 type: 'dialog',
                 text: {
-                    zh: '那扇亮门看起来像出口。拜托，它最好真的是。',
-                    en: 'That glowing door looks like an exit. Please let it actually be one.'
+                    zh: '系统提示：这是逃生出口。记住绿色门框，带 Dawn 走到这里才算脱离本层。',
+                    en: 'System: this is the exit. Remember the green frame; guide Dawn here to leave this layer.'
                 },
                 focusCell: { face: 0, row: 2, col: 1 },
+                highlightTarget: 'exit',
                 focus: { x: 52, y: 42 },
-                tone: 'steady'
+                tone: 'system',
+                speaker: '系统广播'
             },
             {
                 type: 'zoom',
                 text: {
-                    zh: '滚动鼠标滚轮（或触控板双指捏合），可以放大或缩小视图。试试看。',
-                    en: 'Scroll the mouse wheel or pinch to zoom in/out. Try it.'
+                    zh: '系统提示：滚轮或捏合拉远，看完整魔方。',
+                    en: 'System: scroll or pinch out to see the full cube.'
                 },
-                threshold: 0.8,
+                threshold: 2.0,
+                wheelThreshold: 2.0,
                 focusCell: { face: 1, row: 1, col: 1 },
                 focus: { x: 50, y: 46 },
-                tone: 'steady'
+                tone: 'system',
+                speaker: '系统广播'
             },
             {
                 type: 'move',
                 text: {
-                    zh: '前面亮了。行吧，我赌你一次。',
-                    en: 'The tile lit up. Fine. I will trust you once.'
+                    zh: '系统提示：点击 Dawn 相邻的高亮格，她会移动过去。',
+                    en: 'System: click the highlighted neighboring tile and Dawn will move there.'
                 },
                 targetCell: { face: 1, row: 0, col: 1 },
                 focusCell: { face: 1, row: 0, col: 1 },
@@ -122,342 +126,202 @@
             {
                 type: 'dialog',
                 text: {
-                    zh: '前面悬浮着一把发光的……钥匙？还有一扇看起来像安全出口的门。虽然很荒谬，但看来我得先去把那玩意儿捞到手。这难道是什么密室逃脱的测试吗？',
-                    en: 'There\'s a glowing... key floating ahead? And a door that looks like an emergency exit. Absurd, but I guess I have to grab that thing first. Is this some kind of escape room test?'
+                    zh: '系统提示：钥匙和出口同时出现。先看钥匙位置，再看出口路线。',
+                    en: 'System: key and exit are both visible. Check the key first, then the exit route.'
                 },
                 openComms: true,
                 focusCell: { face: 4, row: 1, col: 0 },
+                highlightTarget: 'key',
                 focus: { x: 48, y: 42 },
-                tone: 'steady'
+                tone: 'system',
+                speaker: '系统广播'
             },
             {
                 type: 'dialog',
                 text: {
-                    zh: '等等，你发现了吗？我头顶上好像亮起了一个情绪状态指示灯（Trust）……对，它在实时监控我的服从度。',
-                    en: 'Wait, did you notice? Some emotional indicator (Trust) lit up above my head... Yeah, it\'s monitoring my obedience in real-time.'
+                    zh: '系统提示：再看绿色出口。钥匙点亮出口，先钥匙，后门。',
+                    en: 'System: now check the green exit. The key powers it: key first, door second.'
                 },
-                tone: 'steady'
-            },
-            {
-                type: 'dialog',
-                text: {
-                    zh: '我要是心情太差、或者极其讨厌你，我就可能会拒绝执行你的指令，甚至在格子上随机乱走！',
-                    en: 'If my mood goes to trash or I absolutely detest you, I might refuse to follow your directions or even wander around randomly!'
-                },
-                tone: 'steady'
+                focusCell: { face: 1, row: 1, col: 1 },
+                highlightTarget: 'exit',
+                tone: 'system',
+                speaker: '系统广播'
             },
             {
                 type: 'esc',
                 text: {
-                    zh: '按下 ESC 键（或者点击左上角的 ☰ 按钮）打开面板，看看我的当前信任值是多少。',
-                    en: 'Press the ESC key (or click the top-left ☰ button) to open the console and check my current trust value.'
+                    zh: '系统提示：按 ESC 或左上角菜单，可暂停、重开、回选关。',
+                    en: 'System: press ESC or the top-left menu to pause, restart, or return.'
                 },
-                tone: 'steady'
+                tone: 'system',
+                speaker: '系统广播'
             },
             {
                 type: 'closeEsc',
                 text: {
-                    zh: '看，我的信任值目前是 80（已在面板中闪烁高亮）。千方百计地哄好我，别让它掉光。现在关闭面板开始行动吧！',
-                    en: 'Look, my trust value is currently at 80 (pulsing in the panel). Keep me happy, don\'t let it drain. Now close the panel and action!'
+                    zh: '系统提示：现在关闭暂停面板，继续拿钥匙。',
+                    en: 'System: close the pause panel and continue toward the key.'
                 },
-                tone: 'steady'
+                tone: 'system',
+                speaker: '系统广播'
             }
         ],
         L03: [
             {
                 type: 'dialog',
                 text: {
-                    zh: '红色那个在看我。好消息：我讨厌被看。',
-                    en: 'The red one is watching me. Great news: I hate being watched.'
+                    zh: '系统提示：红色追击者会预告下一步。先确认它和红格，再移动。',
+                    en: 'System: the red chaser previews its next step. Check it and the red tile before moving.'
                 },
                 focusCell: { face: 0, row: 0, col: 1 },
                 focus: { x: 52, y: 40 },
                 warning: true,
-                tone: 'panic'
+                tone: 'system',
+                speaker: '系统广播'
             },
             {
                 type: 'dialog',
                 text: {
-                    zh: '红光就是坏消息。这个世界至少在恶意上很诚实。',
-                    en: 'Red light means bad news. At least this world is honest about danger.'
+                    zh: '系统提示：红格是它下一步。先看红，再落脚。',
+                    en: 'System: red marks its next step. Read red, then move.'
                 },
-                tone: 'panic'
-            },
-            {
-                type: 'move',
-                text: {
-                    zh: '我不想和它贴脸。亮哪儿我走哪儿。',
-                    en: 'I do not want a close-up with it. Light the way.'
-                },
-                targetCell: { face: 0, row: 1, col: 0 },
-                tone: 'steady'
+                tone: 'system',
+                speaker: '系统广播'
             }
         ],
         L04: [
             {
                 type: 'dialog',
                 text: {
-                    zh: '卧槽！！！——刚才整层地面是不是突然转过去了？！',
-                    en: 'What the hell!!! Did the entire floor just rotate?!'
+                    zh: '“刚才地面动了？我差点栽下去。”',
+                    en: '"Did the floor just move? I nearly fell off."'
                 },
                 tone: 'worry'
             },
             {
                 type: 'dialog',
                 text: {
-                    zh: '我差点直接大头朝下栽下去！你……你居然能直接转动这个空间？！',
-                    en: 'I almost fell off head-first! You... you can actually rotate this space?!'
+                    zh: '“你能拧这个空间。很好，离谱但有用。”',
+                    en: '"You can twist this space. Great. Absurd, but useful."'
                 },
                 tone: 'steady'
             },
             {
                 type: 'dialog',
                 text: {
-                    zh: '不过钥匙在对面，路被断开悬空了。快，用折叠面板把这层拧过去！',
-                    en: 'But the key is opposite, and the path is broken. Quick, open the panel and twist the layer!'
+                    zh: '“钥匙在孤岛上。别让我跳，把路拧过来。”',
+                    en: '"The key is stranded. Do not make me jump. Twist the road here."'
                 },
-                openTools: true,
                 tone: 'steady'
+            },
+            {
+                type: 'dialog',
+                text: {
+                    zh: '系统提示：左下角是「旋转魔方」。点它进入拧层模式。',
+                    en: 'System: the bottom-left Layer Twist button enters layer-twist mode.'
+                },
+                uiTarget: 'twist',
+                tone: 'system',
+                speaker: '系统广播'
             },
             {
                 type: 'twist',
                 text: {
-                    zh: '试试把最顶部（我站的这层）水平向右拧90度，把路直接拼通！',
-                    en: 'Try horizontally rotating the very top layer (where I am standing) to the right by 90 degrees to align the path!'
+                    zh: '系统提示：现在拖动 Dawn 最近的最上层，把路拧到钥匙旁。',
+                    en: 'System: now drag the top layer closest to Dawn and bring the road beside the key.'
                 },
                 axis: 'Y',
-                layer: 0,
+                layer: 2,
                 direction: 'CW',
                 focusCell: { face: 4, row: 1, col: 1 },
                 focus: { x: 50, y: 40 },
-                tone: 'steady'
+                tone: 'system',
+                speaker: '系统广播'
             }
         ],
-        L05: [
-            {
-                type: 'dialog',
-                text: {
-                    zh: '等等，你转动那一层的时候，那把钥匙也跟着转走了？！',
-                    en: 'Wait, when you rotated that layer, the key rotated with it too?!'
-                },
-                tone: 'worry'
-            },
-            {
-                type: 'dialog',
-                text: {
-                    zh: '原来物体是跟着地板一起转的。你能旋转一下中间那一层，把对面的路接上吗？',
-                    en: 'So items ride with the floor. Can you rotate the middle layer to connect the path?'
-                },
-                openTools: true,
-                tone: 'steady'
-            },
-            {
-                type: 'twist',
-                text: {
-                    zh: '试试逆时针拧动中间层（Y1）来把路对齐！',
-                    en: 'Try counter-clockwise rotating the middle layer (Y1) to align the path!'
-                },
-                axis: 'Y',
-                layer: 1,
-                direction: 'CCW',
-                focusCell: { face: 4, row: 1, col: 0 },
-                focus: { x: 48, y: 42 },
-                tone: 'steady'
-            }
-        ],
+
+
         L06: [
             {
                 type: 'dialog',
                 text: {
-                    zh: '那个黄色的铁壳怪是什么？它一直绕着钥匙打转……它看起来像是这把钥匙的‘贴身保安’。',
-                    en: 'What is that yellow iron monster? It keeps circling the key... Looks like a personal bodyguard.'
+                    zh: '系统提示：黄色守卫会堵住关键路线。先看清它的位置，不要硬闯。',
+                    en: 'System: the yellow keeper blocks key routes. Locate it first; do not charge in.'
                 },
                 focusCell: { face: 4, row: 1, col: 2 },
-                focus: { x: 52, y: 40 },
-                tone: 'worry'
-            },
-            {
-                type: 'dialog',
-                text: {
-                    zh: '它发现我了！只要踩进同一面它就会追我一步。我去当诱饵，你负责让我别白死！',
-                    en: 'It spotted me! It chases me by 1 tile if I enter its face. I\'ll be the bait, don\'t let me die!'
-                },
-                tone: 'panic'
-            },
-            {
-                type: 'move',
-                text: {
-                    zh: '往左下角移一步，把黄色守卫引开！',
-                    en: 'Step to the bottom-left to lure the yellow keeper away!'
-                },
-                targetCell: { face: 4, row: 2, col: 1 },
-                tone: 'steady'
+                focus: { x: 50, y: 40 },
+                tone: 'system',
+                speaker: '系统广播'
             }
         ],
+
         L07: [
             {
                 type: 'dialog',
                 text: {
-                    zh: '那黄色的大家伙堵在那里守门。我们可没法强攻过去。',
-                    en: 'That yellow giant is guarding the gate. We cannot headbutt our way through.'
+                    zh: '“工具箱亮了个『碎解』。听起来很不安全，正好。”',
+                    en: '"A Break tool lit up. Sounds unsafe. Perfect."'
                 },
-                focusCell: { face: 4, row: 1, col: 2 },
-                focus: { x: 50, y: 40 },
-                tone: 'worry'
+                tone: 'steady'
             },
             {
                 type: 'dialog',
                 text: {
-                    zh: '但我终端的控制面板上亮起了一个叫『碎解』的东西。只要把它的必经之路砸成虚空，它就被困住了！',
-                    en: 'But a tool called "Break" just lit up on my terminal. Smash its path into a void to trap it!'
+                    zh: '系统提示：碎解会移除指定地块。先拆关键格，再走路线。',
+                    en: 'System: Break removes a target tile. Break the key cells first, then route around.'
                 },
-                tone: 'steady'
+                tone: 'system',
+                speaker: '系统广播'
             },
             {
                 type: 'tool',
                 tool: 'break',
                 targetCell: { face: 4, row: 0, col: 2 },
                 text: {
-                    zh: '打开工具箱，把大家伙上方的这一格拆掉！',
-                    en: 'Open the toolbox and shatter the cell directly above him!'
+                    zh: '系统提示：选『碎解』，拆掉守卫上方那格。',
+                    en: 'System: choose Break and remove the tile above the keeper.'
                 },
+                speaker: '系统广播',
                 openTools: true,
-                tone: 'steady'
+                tone: 'system'
             },
             {
                 type: 'tool',
                 tool: 'break',
                 targetCell: { face: 4, row: 2, col: 2 },
                 text: {
-                    zh: '干得漂亮！再把大家伙下方这一格也敲碎，彻底困住他！',
-                    en: 'Nice! Now shatter the cell directly below him to trap him completely!'
+                    zh: '系统提示：再拆下方那格，把它困住。',
+                    en: 'System: remove the lower tile too and trap it.'
                 },
+                speaker: '系统广播',
                 openTools: true,
-                tone: 'steady'
+                tone: 'system'
             },
             {
-                type: 'move',
-                targetCell: { face: 4, row: 1, col: 1 },
+                type: 'dialog',
                 text: {
-                    zh: '他现在沦为单格孤岛守卫了。绕后走，拿上钥匙！',
-                    en: 'He is now trapped on a single island cell. Loop around and grab the key!'
+                    zh: '“它困住了。绕过去，拿钥匙，跑路。”',
+                    en: '"It is trapped. Loop around, take the key, run."'
                 },
                 tone: 'steady'
             }
         ],
-        L08: [
-            {
-                type: 'dialog',
-                text: {
-                    zh: '黄色保安今天气色不太对。总之先拿到钥匙再说。',
-                    en: 'The yellow keeper looks angry today. Regardless, let\'s grab the key first.'
-                },
-                tone: 'worry'
-            },
-            {
-                type: 'move',
-                targetCell: { face: 4, row: 0, col: 1 },
-                text: {
-                    zh: '踩上钥匙格，拿取钥匙！',
-                    en: 'Step on the key tile to collect it!'
-                },
-                tone: 'steady'
-            },
-            {
-                type: 'dialog',
-                text: {
-                    zh: '它……它刚才是不是尖叫了一声？我拿到钥匙之后，它进入狂暴状态，移动速度变成 2 格了！快跑！',
-                    en: 'Did... did it just scream? Once I got the key, it enraged and its speed doubled to 2 tiles! Run!'
-                },
-                tone: 'panic'
-            }
-        ],
-        L09: [
-            {
-                type: 'dialog',
-                text: {
-                    zh: '好吧，看来‘新手训练’结束了。前面有红光怪，还有那个黄色保安，路也被切断了。',
-                    en: 'Okay, tutorial phase ends here. Red chasers, yellow keeper, and path cut.'
-                },
-                tone: 'steady'
-            },
-            {
-                type: 'dialog',
-                text: {
-                    zh: '这大概是第一阶段的综合实战。加油，别在最关键的时候把我送掉！',
-                    en: 'This is the stage final test. Guide me well, don\'t get me killed!'
-                },
-                tone: 'steady'
-            }
-        ],
-        L10: [
-            {
-                type: 'dialog',
-                text: {
-                    zh: '两只红色追击者把我夹在中间，而且黄色守卫一开始就往门口靠？',
-                    en: 'Two red chasers are pinching me, and the yellow guard moves to block the exit?'
-                },
-                tone: 'worry'
-            },
-            {
-                type: 'dialog',
-                text: {
-                    zh: '我们只有一次碎解地板的机会。你必须要找个最致命的关隘把它砸断，不然死定了！',
-                    en: 'We have only one break charge. Find the most critical path and break it, or we\'re dead!'
-                },
-                tone: 'steady'
-            }
-        ],
-        L11: [
-            {
-                type: 'dialog',
-                text: {
-                    zh: '那黄色怪物居然守在门上！它是怎么做到这么有灵性的？',
-                    en: 'That yellow keeper is actually guarding the door! How is it so intelligent?'
-                },
-                tone: 'worry'
-            },
-            {
-                type: 'dialog',
-                text: {
-                    zh: '这地表能转，能不能想办法在它彻底把门口堵死之前，把它拧到别的面去？',
-                    en: 'The floor is rotatable. Can we twist it to another face before it chokes the exit?'
-                },
-                tone: 'steady'
-            }
-        ],
-        L12: [
-            {
-                type: 'dialog',
-                text: {
-                    zh: '终于……门开了！我们要离开这一层了。',
-                    en: 'Finally... the door opened! We\'re leaving this layer.'
-                },
-                tone: 'steady'
-            },
-            {
-                type: 'dialog',
-                text: {
-                    zh: '但这扇门后面感觉安静得很可疑……如果这扇门后面不是出口，你绝对不许笑！',
-                    en: 'But it feels suspiciously quiet behind this door... If it\'s not the exit, don\'t you dare laugh!'
-                },
-                tone: 'steady'
-            }
-        ],
+
+
         L13: [
             {
                 type: 'dialog',
                 text: {
-                    zh: '果然门后面不是什么出口……外壳展开后，格子变成了 4x4。',
-                    en: 'Of course the door wasn\'t an exit... the shell expanded to 4x4.'
+                    zh: '“果然……门后面根本不是什么出口，而是一个更大的 4x4 魔方……我们只是从一个更小的笼子掉进了一个更大的笼子里……”',
+                    en: '"Of course... behind that door was no exit, but a larger 4x4 cube... we just fell from a smaller cage into a bigger one..."'
                 },
                 tone: 'worry'
             },
             {
                 type: 'dialog',
                 text: {
-                    zh: '不过我终端上亮起了一个叫『补片』的工具。这地板……它能用贴纸补上？',
-                    en: 'But a tool called "Patch" lit up on my terminal. Can we... patch this floor with stickers?'
+                    zh: '“不过我的手机终端上解锁了一个叫『补片』的工具。这地表破损的地方，能直接用能量块补上吗？”',
+                    en: '"But a tool called \'Patch\' unlocked on my phone terminal. Can we patch these broken floor gaps with energy cells?"'
                 },
                 tone: 'steady'
             },
@@ -466,8 +330,8 @@
                 tool: 'patch',
                 targetCell: { face: 4, row: 1, col: 2 },
                 text: {
-                    zh: '把路补在亮的缺口上。别补成纪念品。',
-                    en: 'Patch the lit gap. Do not make it decorative.'
+                    zh: '“系统提示：补片工具可填补地表缺口，但强度有限，生命体踩踏过后会立即碎裂。请开启工具箱并在高亮缺口处放置补片以建立临时通路。”',
+                    en: '"System Notification: The Patch tool fills void gaps, but has limited durability; it shatters instantly after stepping off. Please open the toolbox and place a patch in the highlighted gap to build a temporary bridge."'
                 },
                 openTools: true,
                 tone: 'steady'
@@ -477,25 +341,24 @@
             {
                 type: 'dialog',
                 text: {
-                    zh: '等下，我两边脚下亮起了两个泛着蓝光的传送圆环。',
-                    en: 'Wait, two glowing blue teleportation rings just lit up on both sides.'
+                    zh: '“等下，我两边脚下亮起了一个叫传送门的东西，看起来很科幻……”',
+                    en: '"Wait, two glowing blue teleportation rings just lit up on both sides, looks very sci-fi..."'
                 },
                 tone: 'steady'
             },
             {
                 type: 'dialog',
                 text: {
-                    zh: '它们好像把空间直接对折了，踩进去能瞬间飞到另一端。希望我被传送过去时零件还是全的。',
-                    en: 'They seem to fold space directly, warping me to the other side. Hopefully in one piece.'
+                    zh: '“这好像是空间传送阵……只要踩进去就能瞬间折跃到魔方的另一端。希望传送过去的时候我没有缺胳膊少腿……”',
+                    en: '"They seem to fold space directly, warping me to the other side. Hopefully in one piece."'
                 },
                 tone: 'steady'
             },
             {
-                type: 'move',
-                targetCell: { face: 4, row: 3, col: 0 },
+                type: 'dialog',
                 text: {
-                    zh: '踩进蓝圈，飞到对面去！',
-                    en: 'Step into the blue ring to warp to the other side!'
+                    zh: '“系统提示：传送门无冷却时间限制，可被用作突破敌人合围的瞬间折跃手段。请踩入蓝色高亮光环进行传送验证。”',
+                    en: '"System Notification: Portals have no cooldown and can serve as instantaneous warps to break encirclements. Please step into the blue highlighted portal to warp."'
                 },
                 tone: 'steady'
             }
@@ -504,16 +367,16 @@
             {
                 type: 'dialog',
                 text: {
-                    zh: '那个红光怪物把出路堵得死死的。直接过去就是给它送货上门。',
-                    en: 'That red light monster is choking the exit. Walking straight in is delivery service.'
+                    zh: '“那个红色怪物直接蹲在出口旁边……要是直接往出口跑，一定会和它撞个正着的，我们得想办法把它调开。”',
+                    en: '"That red chaser is sitting right next to the exit... charging there directly means a head-on collision, we must draw it away."'
                 },
                 tone: 'worry'
             },
             {
                 type: 'dialog',
                 text: {
-                    zh: '但我手上的终端亮起了『诱饵信标』。扔出去它就会傻傻挪过去。',
-                    en: 'But the "Decoy Beacon" lit up on my terminal. Throw it and it dumbly moves towards it.'
+                    zh: '“我的手机上多了一个『诱饵信标』工具……据说把它丢出去，那些怪物就会被吸引过去，像蠢货一样跟它贴贴。”',
+                    en: '"My phone has a new \'Decoy Beacon\' tool... apparently if we throw it out, the threats get attracted and cluster around it like fools."'
                 },
                 tone: 'steady'
             },
@@ -522,8 +385,8 @@
                 tool: 'beacon',
                 targetCell: { face: 1, row: 0, col: 0 },
                 text: {
-                    zh: '把诱饵丢到亮的位置。别站在原地看它被骗。',
-                    en: 'Drop the decoy on the lit spot. Don\'t stand and watch it get tricked.'
+                    zh: '“系统提示：诱饵信标可对范围内的威胁源造成极高引力干扰。请尝试打开工具箱，在指定格子放置诱饵将红光怪物吸引拉开。”',
+                    en: '"System Notification: The Decoy Beacon generates high gravitational interference for threats. Please open the toolbox and place a beacon on the designated cell to lure the chaser away."'
                 },
                 openTools: true,
                 tone: 'steady'
@@ -555,11 +418,11 @@
                 {
                     title: { zh: 'L01 逃生线', en: 'L01 Escape Line' },
                     chapter: { zh: '读图与点格', en: 'Reading the Board' },
-                    concept: { zh: '通信链路已建立。E-7 手里已经有钥匙了——点她旁边的格子，引导她走到逃生门。', en: 'Uplink established. E-7 has the key — click neighboring cells to walk her to the exit.' },
+                    concept: { zh: '通信链路已建立。Dawn 手里已经有钥匙了——点击她旁边的格子，引导她走到逃生门。', en: 'Uplink established. Dawn has the key — click neighboring cells to walk her to the exit.' },
                     tutorial: {
                         icon: '➜',
                         cue: { zh: '点到门', en: 'Click to exit' },
-                        goal: { zh: '从绿色棋子拖到出口。', en: 'Guide Dawn from the green piece to the exit.' },
+                        goal: { zh: '点击相邻格，把 Dawn 带到出口。', en: 'Click adjacent tiles and guide Dawn to the exit.' },
                         tip: { zh: '点击相邻格', en: 'Click adjacent tiles' },
                         visual: 'dragExit'
                     },
@@ -663,10 +526,12 @@
                     exit: at(1, 1, 1),
                     rotationEnabled: true,
                     voids: [
+                        at(4, 0, 0),
                         at(4, 0, 1),
                         at(4, 1, 1),
                         at(4, 2, 1),
-                        at(4, 2, 0)
+                        at(4, 2, 0),
+                        at(2, 1, 2)
                     ],
                     validation: { solvable: true, mustUseRotation: true, rotatesKey: true, hasThreats: true },
                     ais: [
@@ -727,7 +592,7 @@
                     exit: at(1, 1, 1),
                     rotationEnabled: false,
                     guardianAggro: 'guardDoor',
-                    breakCharges: 2,
+                    breakCharges: 3,
                     validation: {
                         solvable: true,
                         breakTool: true,
@@ -912,135 +777,166 @@
                     ]
                 },
                 {
-                    title: { zh: 'L13 孤岛补片', en: 'L13 Island Patch' },
-                    chapter: { zh: '第二幕 · 外壳', en: 'Act II · Outer Shell' },
-                    concept: { zh: '4x4 外壳打开。钥匙被缺口圈住了，给 Dawn 补一块临时地板，别让她和重力单挑。', en: 'The cube grows to 4x4. The key is sealed off by missing ground, so patch the gap before Dawn starts negotiating with gravity.' },
+                    title: { zh: 'L13 剪刀初试', en: 'L13 First Prune' },
+                    chapter: { zh: '第二幕 · 数据爬藤', en: 'Act II · Glitch Vines' },
+                    concept: { zh: '青色数据藤蔓只挡 Dawn。拧动空间，把断根的藤蔓剪掉，路才会重新露出来。', en: 'Cyan glitch vines block Dawn only. Twist space, cut the disconnected growth, and the route reappears.' },
                     tutorial: {
-                        icon: '4',
-                        cue: { zh: '孤岛与补片', en: 'Island patch' },
-                        goal: { zh: '用补片跨越缺口，拿取钥匙。', en: 'Patch the gap and reach the key.' },
-                        tip: { zh: '补片踩过后会碎', en: 'Patch breaks after use' },
-                        visual: 'patch'
+                        icon: '藤',
+                        cue: { zh: '断根即死', en: 'Cut the root' },
+                        goal: { zh: '旋转一次剪掉挡路藤蔓，再拿钥匙进门。', en: 'Twist once to prune the blocking vines, then reach key and exit.' },
+                        tip: { zh: '藤蔓挡 Dawn，不挡怪物', en: 'Vines block Dawn, not enemies' },
+                        visual: 'vine'
                     },
                     size: 4,
                     bestTurns: 4,
-                    bestRotations: 0,
-                    player: at(4, 0, 2),
-                    key: at(4, 2, 2),
-                    exit: at(4, 2, 0),
-                    rotationEnabled: false,
-                    patchCharges: 2,
-                    voids: [
+                    bestRotations: 1,
+                    player: at(4, 0, 0),
+                    key: at(4, 0, 2),
+                    exit: at(4, 3, 3),
+                    rotationEnabled: true,
+                    vineSources: [
+                        at(5, 3, 3)
+                    ],
+                    vineCells: [
+                        at(4, 0, 1),
+                        at(4, 1, 0),
+                        at(4, 1, 1),
                         at(4, 1, 2),
-                        at(4, 3, 2),
-                        at(4, 2, 1),
-                        at(4, 2, 3)
+                        at(4, 1, 3),
+                        at(2, 0, 3),
+                        at(0, 3, 0),
+                        at(0, 3, 1),
+                        at(0, 3, 2),
+                        at(2, 0, 0)
                     ],
                     validation: {
                         solvable: true,
-                        patchTool: true,
-                        minPatchTurnGain: 1,
+                        mustUseRotation: true,
                         hasThreats: false
                     },
                     ais: []
                 },
                 {
-                    title: { zh: 'L14 宽场夹击', en: 'L14 Wide Pincer' },
-                    chapter: { zh: '第二幕 · 宽场', en: 'Act II · Wide Field' },
-                    concept: { zh: '四阶空间更大，包抄角度也更多。别复读三阶走法，换线才是活路。', en: 'The 4x4 board gives more room and more ways to get cornered. Use the width; do not replay Act I with extra squares.' },
+                    title: { zh: 'L14 蔓延之影', en: 'L14 Spreading Shadow' },
+                    chapter: { zh: '第二幕 · 数据爬藤', en: 'Act II · Glitch Vines' },
+                    concept: { zh: '你每执行两次有效行动，藤蔓就扩散一层。追击者能穿过藤蔓，Dawn 不能。', en: 'Every two valid actions, vines spread by one step. Chasers cross vines; Dawn cannot.' },
                     tutorial: {
-                        icon: '!',
-                        cue: { zh: '宽场换线', en: 'Use the width' },
-                        goal: { zh: '利用 4x4 的空间避开双追击。', en: 'Use 4x4 space to dodge double chase.' },
-                        tip: { zh: '空间变大，追击也变宽', en: 'Bigger board, wider hunt' },
-                        visual: 'rotateThreat'
+                        icon: '蔓',
+                        cue: { zh: '两拍一长', en: 'Spreads every two' },
+                        goal: { zh: '剪掉前路藤蔓，在追击者贴近前撤离。', en: 'Prune the route before the chaser closes in.' },
+                        tip: { zh: '怪物不怕藤蔓', en: 'Enemies ignore vines' },
+                        visual: 'vineThreat'
                     },
                     size: 4,
                     bestTurns: 5,
-                    bestRotations: 0,
+                    bestRotations: 1,
                     rotationEnabled: true,
-                    player: at(0, 1, 1),
-                    key: at(4, 1, 2),
-                    exit: at(1, 2, 2),
+                    player: at(4, 0, 0),
+                    key: at(4, 0, 2),
+                    exit: at(4, 3, 3),
+                    vineSources: [
+                        at(5, 3, 3)
+                    ],
+                    vineCells: [
+                        at(4, 0, 1),
+                        at(4, 1, 0),
+                        at(4, 1, 1),
+                        at(4, 2, 1),
+                        at(2, 0, 3),
+                        at(0, 3, 0),
+                        at(0, 3, 1),
+                        at(0, 3, 2),
+                        at(2, 0, 0)
+                    ],
                     validation: {
                         solvable: true,
+                        mustUseRotation: true,
                         noOpeningWait: true,
                         hasThreats: true
                     },
                     ais: [
-                        { type: 'chaser', pos: at(5, 0, 3) },
-                        { type: 'chaser', pos: at(3, 0, 0) }
+                        { type: 'chaser', pos: at(1, 3, 3) }
                     ]
                 },
                 {
-                    title: { zh: 'L15 宽场遛锁', en: 'L15 Wide Keeper Kite' },
-                    chapter: { zh: '第二幕 · 宽场', en: 'Act II · Wide Field' },
-                    concept: { zh: '四阶里的守钥者不只是站岗。你能遛它，追击者也有时间绕你。', en: 'The keeper has room now. Kite it, but do not admire your own route while the chaser wraps around.' },
+                    title: { zh: 'L15 钥匙封锁', en: 'L15 Key Lockdown' },
+                    chapter: { zh: '第二幕 · 数据爬藤', en: 'Act II · Glitch Vines' },
+                    concept: { zh: '钥匙前方被藤蔓封死。别硬走，先拧层，把钥匙线从母体网络里剪出来。', en: 'The key route is sealed by vines. Do not force it; twist first and cut the key line loose.' },
                     tutorial: {
-                        icon: '!',
-                        cue: { zh: '大空间遛锁', en: 'Kite in 4x4' },
-                        goal: { zh: '利用 4x4 空间调动守钥者，再拿钥匙撤离。', en: 'Use the wider board to pull the keeper aside.' },
-                        tip: { zh: '能绕，不代表能拖', en: 'Room is not time' },
-                        visual: 'guardianLure'
+                        icon: '钥',
+                        cue: { zh: '钥匙线剪枝', en: 'Prune key line' },
+                        goal: { zh: '旋转剪枝后拿钥匙。', en: 'Prune by twisting, then take the key.' },
+                        tip: { zh: '断根后藤蔓会消失', en: 'Disconnected vines vanish' },
+                        visual: 'vineKey'
                     },
                     size: 4,
-                    bestTurns: 5,
-                    bestRotations: 0,
+                    bestTurns: 4,
+                    bestRotations: 1,
                     rotationEnabled: true,
-                    player: at(0, 1, 1),
-                    key: at(4, 1, 0),
-                    exit: at(1, 2, 2),
-                    guardianAggro: 'lure',
-                    validation: {
-                        solvable: true,
-                        mustUseRotation: false,
-                        guardianOnKey: false,
-                        guardianLure: true,
-                        guardianPreKeyStepBudget: 1,
-                        guardianRage: true,
-                        guardianPostKeyStepBudget: 2,
-                        hasThreats: true
-                    },
-                    ais: [
-                        { type: 'guardian', pos: at(4, 1, 2) },
-                        { type: 'chaser', pos: at(5, 0, 3) }
-                    ]
-                },
-                {
-                    title: { zh: 'L16 偷门不遛锁', en: 'L16 Portal Theft' },
-                    chapter: { zh: '第二幕工具', en: 'Act II Tool' },
-                    concept: { zh: '传送门第一次登场就得真有用。别先遛守钥者，借门端直接切进钥匙线。', en: 'First portal lesson: stop politely kiting the keeper. Cut through the portal and steal tempo.' },
-                    tutorial: {
-                        icon: '◉',
-                        cue: { zh: '穿门偷钥', en: 'Portal steal' },
-                        goal: { zh: '借传送门绕过守钥者的正面压力。', en: 'Use the portal to bypass keeper pressure.' },
-                        tip: { zh: '不用先遛，也别久留', en: 'Cut in, do not camp' },
-                        visual: 'bridgeThreat'
-                    },
-                    size: 4,
-                    bestTurns: 3,
-                    bestRotations: 0,
-                    rotationEnabled: true,
-                    player: at(0, 0, 3),
-                    key: at(4, 1, 0),
-                    exit: at(4, 0, 3),
-                    bridges: [
-                        { a: at(0, 0, 3), b: at(4, 3, 0) }
+                    player: at(4, 0, 0),
+                    key: at(4, 0, 2),
+                    exit: at(4, 3, 3),
+                    vineSources: [
+                        at(5, 3, 3)
+                    ],
+                    vineCells: [
+                        at(4, 0, 1),
+                        at(4, 1, 0),
+                        at(4, 1, 1),
+                        at(4, 1, 2),
+                        at(4, 1, 3),
+                        at(2, 0, 3),
+                        at(0, 3, 0),
+                        at(0, 3, 1),
+                        at(0, 3, 2),
+                        at(2, 0, 0)
                     ],
                     validation: {
                         solvable: true,
-                        bridgeTool: true,
-                        guardianOnKey: false,
-                        guardianLure: true,
-                        guardianPreKeyStepBudget: 1,
-                        guardianRage: true,
-                        guardianPostKeyStepBudget: 2,
-                        minBridgeTurnGain: 1,
+                        mustUseRotation: true,
+                        hasThreats: false
+                    },
+                    ais: []
+                },
+                {
+                    title: { zh: 'L16 跨草袭来', en: 'L16 Through the Vines' },
+                    chapter: { zh: '第二幕 · 数据爬藤', en: 'Act II · Glitch Vines' },
+                    concept: { zh: '追击者能从藤蔓里直线压过来，Dawn 只能等你剪开自己的路。', en: 'The chaser cuts straight through vines while Dawn waits for you to open her route.' },
+                    tutorial: {
+                        icon: '追',
+                        cue: { zh: '怪物无视藤蔓', en: 'Enemy ignores vines' },
+                        goal: { zh: '剪开 Dawn 的路，在追击者靠近前撤离。', en: 'Prune Dawn route before the chaser reaches her.' },
+                        tip: { zh: '藤蔓只挡你', en: 'Vines only block you' },
+                        visual: 'vineThreat'
+                    },
+                    size: 4,
+                    bestTurns: 6,
+                    bestRotations: 1,
+                    rotationEnabled: true,
+                    player: at(4, 3, 0),
+                    key: at(4, 1, 2),
+                    exit: at(4, 0, 3),
+                    vineSources: [
+                        at(5, 3, 3)
+                    ],
+                    vineCells: [
+                        at(4, 2, 0),
+                        at(4, 2, 1),
+                        at(4, 3, 1),
+                        at(4, 1, 1),
+                        at(4, 1, 2),
+                        at(4, 0, 2),
+                        at(1, 0, 0),
+                        at(2, 3, 3)
+                    ],
+                    validation: {
+                        solvable: true,
+                        mustUseRotation: true,
+                        noOpeningWait: true,
                         hasThreats: true
                     },
-                    guardianAggro: 'lure',
                     ais: [
-                        { type: 'guardian', pos: at(4, 0, 1) }
+                        { type: 'chaser', pos: at(1, 3, 3) }
                     ]
                 },
                 {
@@ -1946,7 +1842,7 @@
                     tutorial: {
                         icon: '★',
                         cue: { zh: '第二幕终局', en: 'Act II finale' },
-                        goal: { zh: '在破面、传送和多敌压力下带 E-7 离开第二层。', en: 'Get Dawn through broken faces, portals, and multi-enemy pressure.' },
+                        goal: { zh: '在破面、传送和多敌压力下带 Dawn 离开第二层。', en: 'Get Dawn through broken faces, portals, and multi-enemy pressure.' },
                         tip: { zh: '看门端，也看红格', en: 'Watch endpoints and red cells' },
                         visual: 'actTwoFinale'
                     },

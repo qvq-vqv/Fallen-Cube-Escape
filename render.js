@@ -20,6 +20,7 @@ class RenderEngine {
         this.patchMeshes = [];
         this.beaconMesh = null;
         this.voidMarkerMeshes = [];
+        this.vineMarkerMeshes = [];
         this.raycaster = null;
         this.pointer = null;
         this.pointerDown = null;
@@ -29,6 +30,9 @@ class RenderEngine {
         this.boundPointerDown = this.handleBoardPointerDown.bind(this);
         this.boundPointerMove = this.handleBoardPointerMove.bind(this);
         this.boundPointerUp = this.handleBoardPointerUp.bind(this);
+        this.boundWheelHandler = this.handleRendererWheel.bind(this);
+        this.boundLookPointerDown = () => { this.lookPointerDown = true; };
+        this.boundLookPointerUp = () => { this.lookPointerDown = false; };
         this.boardPointerAttached = false;
         
         // 游戏引擎实例引用
@@ -49,7 +53,15 @@ class RenderEngine {
         this.animationFrameId = null;
         this.boundAnimate = this.animate.bind(this);
         this.boundResizeHandler = this.onWindowResize.bind(this);
+        this.boundVisibilityHandler = this.handleVisibilityChange.bind(this);
         this.resizeListenerAttached = false;
+        this.visibilityListenerAttached = false;
+        this.lastRenderFrameAt = 0;
+        this.visibleFrameIntervalMs = 1000 / 45;
+        this.lowPowerFrameIntervalMs = 1000 / 24;
+        this.standardMaxPixelRatio = 1.25;
+        this.lowPowerMaxPixelRatio = 0.85;
+        this.lowPowerMode = false;
         this.targetIndicator = null;
         this.renderMode = 'webgl';
         this.fallbackCanvas = null;
@@ -70,6 +82,8 @@ class RenderEngine {
         this.threatPreviewMeshes = {};
         this.twistRingMeshes = [];
         this.hoveredTwistRing = null;
+        this.hoveredTwistCandidates = [];
+        this.twistControlRingsEnabled = false;
         this.playerSpeechBubble = null;
         this.lastSpeechBubbleText = '';
         this.lastSpeechBubbleTone = 'info';
@@ -82,7 +96,18 @@ class RenderEngine {
         this.tutorialWarningSprite = null;
         this.tutorialArrowMesh = null;
         this.tutorialGreenTileMesh = null;
+        this.tutorialObjectHalo = null;
+        this.tutorialFocusTimer = null;
+        this.tutorialFocusRetryTimer = null;
         this.isOrbitActive = false;
+        this.tutorialZoomBaseline = null;
+        this.tutorialZoomLastDistance = null;
+        this.tutorialZoomAccumulated = 0;
+        this.tutorialZoomDistanceAccumulated = 0;
+        this.tutorialZoomCompleted = false;
+        this.tutorialZoomWheelOut = false;
+        this.tutorialZoomLastTickTime = null;
+        this.tutorialControlLockUntil = 0;
     }
 
     // 初始化 3D 场景
@@ -120,8 +145,12 @@ class RenderEngine {
             window.addEventListener('resize', this.boundResizeHandler);
             this.resizeListenerAttached = true;
         }
+        if (!this.visibilityListenerAttached) {
+            document.addEventListener('visibilitychange', this.boundVisibilityHandler);
+            this.visibilityListenerAttached = true;
+        }
 
-        if (this.animationFrameId === null) {
+        if (!document.hidden && this.animationFrameId === null) {
             this.animate();
         }
     }
@@ -145,10 +174,12 @@ class RenderEngine {
         this.camera = new THREE.PerspectiveCamera(45, width / height, 0.1, 100);
         this.camera.position.set(10.8, 10.0, 15.9);
         
-        const rendererOptions = [
-            { antialias: true, alpha: true, powerPreference: 'high-performance', failIfMajorPerformanceCaveat: false },
-            { antialias: false, alpha: false, powerPreference: 'low-power', failIfMajorPerformanceCaveat: false }
-        ];
+        const standardRenderer = { antialias: true, alpha: true, powerPreference: 'high-performance', failIfMajorPerformanceCaveat: false };
+        const lowPowerRenderer = { antialias: false, alpha: false, powerPreference: 'low-power', failIfMajorPerformanceCaveat: false };
+        const preferLowPower = this.lowPowerMode || window.dawnCubeSettings?.lowPowerMode;
+        const rendererOptions = preferLowPower
+            ? [lowPowerRenderer, standardRenderer]
+            : [standardRenderer, lowPowerRenderer];
         let rendererError = null;
         for (const options of rendererOptions) {
             try {
@@ -166,9 +197,9 @@ class RenderEngine {
             return;
         }
 
-        this.renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 1.25));
+        this.renderer.setPixelRatio(this.getTargetPixelRatio());
         this.renderer.setSize(width, height);
-        this.renderer.shadowMap.enabled = true;
+        this.renderer.shadowMap.enabled = false;
         if (THREE.sRGBEncoding) {
             this.renderer.outputEncoding = THREE.sRGBEncoding;
         }
@@ -184,7 +215,7 @@ class RenderEngine {
         this.controls = new THREE.OrbitControls(this.camera, this.renderer.domElement);
         this.controls.enableDamping = true;
         this.controls.dampingFactor = 0.05;
-        this.controls.maxDistance = 20;
+        this.controls.maxDistance = 28;
         this.controls.minDistance = 6.8;
         this.isOrbitActive = false;
         this.controls.addEventListener('start', () => {
@@ -193,14 +224,7 @@ class RenderEngine {
         this.controls.addEventListener('end', () => {
             this.isOrbitActive = false;
         });
-        this.renderer.domElement.addEventListener('wheel', (e) => {
-            if (this.game?.tutorialActive) {
-                const step = this.game.activeTutorialSteps?.[this.game.currentTutorialStepIndex];
-                if (step && step.type === 'zoom') {
-                    this.tutorialZoomAccumulated = (this.tutorialZoomAccumulated || 0) + Math.abs(e.deltaY) * 0.005;
-                }
-            }
-        }, { passive: true });
+        this.renderer.domElement.addEventListener('wheel', this.boundWheelHandler, { passive: true });
         this.attachBoardPointerHandlers();
         
         // 3. 添加光源：读图层不依赖光照，光源只负责空间质感
@@ -227,6 +251,37 @@ class RenderEngine {
         this.scene.add(rimLight);
     }
 
+    getTargetPixelRatio() {
+        const maxPixelRatio = this.lowPowerMode ? this.lowPowerMaxPixelRatio : this.standardMaxPixelRatio;
+        return Math.min(window.devicePixelRatio || 1, maxPixelRatio);
+    }
+
+    applyPerformanceSettings(settings = {}) {
+        this.lowPowerMode = Boolean(settings.lowPowerMode);
+        if (this.renderer) {
+            this.renderer.setPixelRatio(this.getTargetPixelRatio());
+            this.onWindowResize();
+        }
+        if (!document.hidden && this.animationFrameId === null && this.renderMode === 'webgl') {
+            this.animate();
+        }
+    }
+
+    handleVisibilityChange() {
+        if (document.hidden) {
+            if (this.animationFrameId !== null) {
+                cancelAnimationFrame(this.animationFrameId);
+                this.animationFrameId = null;
+            }
+            this.lastRenderFrameAt = 0;
+            return;
+        }
+        this.lastRenderFrameAt = 0;
+        if (this.animationFrameId === null && this.renderMode === 'webgl') {
+            this.animate();
+        }
+    }
+
     attachBoardPointerHandlers() {
         if (!this.renderer?.domElement || this.boardPointerAttached) return;
         this.raycaster = this.raycaster || new THREE.Raycaster();
@@ -236,10 +291,17 @@ class RenderEngine {
         this.renderer.domElement.addEventListener('pointermove', this.boundPointerMove);
         this.renderer.domElement.addEventListener('pointerup', this.boundPointerUp);
         this.renderer.domElement.addEventListener('pointerleave', this.boundPointerUp);
-        this.renderer.domElement.addEventListener('pointerdown', () => { this.lookPointerDown = true; });
-        window.addEventListener('pointerup', () => { this.lookPointerDown = false; });
-        window.addEventListener('pointercancel', () => { this.lookPointerDown = false; });
+        this.renderer.domElement.addEventListener('pointerdown', this.boundLookPointerDown);
+        window.addEventListener('pointerup', this.boundLookPointerUp);
+        window.addEventListener('pointercancel', this.boundLookPointerUp);
         this.boardPointerAttached = true;
+    }
+
+    handleRendererWheel(e) {
+        if (!this.game?.tutorialActive) return;
+        const step = this.game.activeTutorialSteps?.[this.game.currentTutorialStepIndex];
+        if (!step || step.type !== 'zoom' || this.tutorialZoomCompleted) return;
+        this.tutorialZoomWheelOut = true;
     }
 
     setInteractionMode(mode = 'route') {
@@ -257,8 +319,8 @@ class RenderEngine {
 
     handleBoardPointerDown(event) {
         if (!this.game || this.isAnimating) return;
-        const ringHit = this.interactionMode === 'twist' ? this.pickTwistRing(event) : null;
         const cellId = this.pickBoardCell(event);
+        const ringHit = this.interactionMode === 'twist' && cellId === null ? this.pickTwistRing(event) : null;
         this.pointerDown = {
             x: event.clientX,
             y: event.clientY,
@@ -273,7 +335,9 @@ class RenderEngine {
         if (this.interactionMode === 'twist') {
             event.preventDefault();
             if (this.controls) this.controls.enabled = false;
-            const layer = ringHit || this.getTwistLayerFromCell(cellId);
+            const twistCandidates = ringHit ? [] : this.getViewTwistCandidatesFromCell(cellId);
+            this.pointerDown.twistCandidates = twistCandidates;
+            const layer = ringHit || this.getActiveTutorialTwistLayer() || this.getPrimaryTwistCandidate(twistCandidates);
             if (layer) this.highlightLayer(layer.axis, layer.layer);
         }
     }
@@ -281,17 +345,51 @@ class RenderEngine {
     handleBoardPointerMove(event) {
         if (!this.game || this.isAnimating) return;
         if (this.interactionMode === 'twist') {
-            const ringHit = this.pickTwistRing(event);
+            if (this.pointerDown?.mode === 'twist') {
+                const down = this.pointerDown;
+                if (down.twistRing) {
+                    this.highlightLayer(down.twistRing.axis, down.twistRing.layer);
+                    return;
+                }
+                const tutorialLayer = this.getActiveTutorialTwistLayer();
+                if (tutorialLayer) {
+                    this.highlightLayer(tutorialLayer.axis, tutorialLayer.layer);
+                    return;
+                }
+                const dx = event.clientX - down.x;
+                const dy = event.clientY - down.y;
+                if (Math.hypot(dx, dy) > 6) {
+                    const dragCandidate = this.getBestTwistCandidateForDrag(down.twistCandidates || [], dx, dy);
+                    down.dragCandidate = dragCandidate;
+                    if (dragCandidate) {
+                        this.highlightLayer(dragCandidate.axis, dragCandidate.layer);
+                    } else {
+                        this.clearLayerHighlight();
+                    }
+                    return;
+                }
+                const layer = this.getPrimaryTwistCandidate(down.twistCandidates || []);
+                if (layer) this.highlightLayer(layer.axis, layer.layer);
+                return;
+            }
+
+            const cellId = this.pickBoardCell(event);
+            const ringHit = cellId === null ? this.pickTwistRing(event) : null;
             this.setHoveredTwistRing(ringHit);
             if (ringHit) {
                 this.highlightLayer(ringHit.axis, ringHit.layer);
                 return;
             }
-            const cellId = this.pickBoardCell(event);
             if (cellId !== this.hoveredCellId) {
                 this.hoveredCellId = cellId;
-                const layer = this.getTwistLayerFromCell(cellId);
-                if (layer) this.highlightLayer(layer.axis, layer.layer);
+                const twistCandidates = this.getViewTwistCandidatesFromCell(cellId);
+                this.hoveredTwistCandidates = twistCandidates;
+                const layer = this.getActiveTutorialTwistLayer() || this.getPrimaryTwistCandidate(twistCandidates);
+                if (layer) {
+                    this.highlightLayer(layer.axis, layer.layer);
+                } else {
+                    this.clearLayerHighlight();
+                }
             }
             return;
         }
@@ -302,7 +400,7 @@ class RenderEngine {
     }
 
     handleBoardPointerUp(event) {
-        if (!this.pointerDown || !this.game || this.isAnimating) return;
+        if (!this.pointerDown || !this.game || this.isAnimating || this.game.l03CutsceneActive) return;
         const moved = Math.hypot(event.clientX - this.pointerDown.x, event.clientY - this.pointerDown.y);
         const down = this.pointerDown;
         this.pointerDown = null;
@@ -314,12 +412,27 @@ class RenderEngine {
             this.controls.enabled = true;
         }
 
-        if (down.mode === 'twist' && moved > 18) {
-            const layer = down.twistRing || this.getTwistLayerFromCell(down.cellId);
-            if (!layer) return;
+        const activeTutorialTwist = this.getActiveTutorialTwistStep();
+        const twistDragThreshold = activeTutorialTwist ? 8 : 18;
+        if (down.mode === 'twist' && moved > twistDragThreshold) {
             const dx = event.clientX - down.x;
             const dy = event.clientY - down.y;
-            const direction = this.getScreenProjectedTwistDirection(layer, down.x, down.y, dx, dy, down.cellId);
+            const twistCandidates = down.twistCandidates?.length
+                ? down.twistCandidates
+                : this.getViewTwistCandidatesFromCell(down.cellId);
+            const tutorialLayer = this.getActiveTutorialTwistLayer();
+            const dragCandidate = tutorialLayer || this.getBestTwistCandidateForDrag(twistCandidates, dx, dy);
+            if (!down.twistRing && twistCandidates.length && !dragCandidate) {
+                this.showTwistViewWarning();
+                return;
+            }
+            const layer = down.twistRing || dragCandidate;
+            if (!layer) {
+                this.showTwistViewWarning();
+                return;
+            }
+            this.highlightLayer(layer.axis, layer.layer);
+            const direction = activeTutorialTwist?.direction || this.getScreenProjectedTwistDirection(layer, down.x, down.y, dx, dy, down.cellId);
             this.game.rotateLayer(layer.axis, layer.layer, direction);
             return;
         }
@@ -331,26 +444,120 @@ class RenderEngine {
         }
     }
 
-    getTwistLayerFromCell(cellId) {
-        const cell = this.game?.cells?.[cellId];
-        if (!cell) return null;
-        const normal = cell.normal || {};
-        const axes = ['X', 'Y', 'Z'];
-        let axis = 'Z';
-        let max = -Infinity;
-        axes.forEach(candidate => {
-            const value = Math.abs(normal[candidate.toLowerCase()] || 0);
-            if (value > max) {
-                max = value;
-                axis = candidate;
-            }
-        });
-        const coord = cell.pos[axis.toLowerCase()];
+    getActiveTutorialTwistLayer() {
+        const step = this.getActiveTutorialTwistStep();
+        if (!step || !step.axis || !Number.isInteger(step.layer)) return null;
+        return { axis: step.axis, layer: step.layer };
+    }
+
+    getActiveTutorialTwistStep() {
+        const step = this.game?.tutorialActive
+            ? this.game.activeTutorialSteps?.[this.game.currentTutorialStepIndex]
+            : null;
+        if (!step || step.type !== 'twist') return null;
+        return step;
+    }
+
+    getLayerIndexForCellAxis(cell, axis) {
+        const coord = cell?.pos?.[axis.toLowerCase()];
+        if (!Number.isFinite(coord) || !this.game?.N) return null;
         const idx = Math.floor((Math.max(-1, Math.min(1, coord)) + 1) / 2 * this.game.N);
-        return {
-            axis,
-            layer: Math.min(this.game.N - 1, Math.max(0, idx))
-        };
+        return Math.min(this.game.N - 1, Math.max(0, idx));
+    }
+
+    getDominantNormalAxis(cell) {
+        if (!cell?.normal) return null;
+        return ['X', 'Y', 'Z']
+            .map(axis => ({
+                axis,
+                value: Math.abs(cell.normal[axis.toLowerCase()] || 0)
+            }))
+            .sort((a, b) => b.value - a.value)[0]?.axis || null;
+    }
+
+    getViewTwistCandidatesFromCell(cellId) {
+        const cell = this.game?.cells?.[cellId];
+        if (!cell || !this.camera || !this.renderer) return [];
+        const cellPointWorld = this.getCellWorldPosition(cellId, 'route');
+        const cellPoint = this.getClientPointFromWorld(cellPointWorld);
+        if (!cellPoint) return [];
+        const normalAxis = this.getDominantNormalAxis(cell);
+        const axes = ['X', 'Y', 'Z'].filter(axis => axis !== normalAxis);
+        return axes.map(axis => {
+            const layer = this.getLayerIndexForCellAxis(cell, axis);
+            if (layer === null) return null;
+            const axisVector = new THREE.Vector3(
+                axis === 'X' ? 1 : 0,
+                axis === 'Y' ? 1 : 0,
+                axis === 'Z' ? 1 : 0
+            );
+            const H = ((this.game?.N || 3) - 1) / 2;
+            const coord = (layer - H) * 2;
+            const centerWorld = axisVector.clone().multiplyScalar(coord);
+            const radiusWorld = cellPointWorld.clone().sub(centerWorld);
+            radiusWorld.addScaledVector(axisVector, -radiusWorld.dot(axisVector));
+            if (radiusWorld.lengthSq() < 0.0001) return null;
+            const tangentEnd = this.getClientPointFromWorld(
+                radiusWorld.clone().applyAxisAngle(axisVector, Math.PI / 18).add(centerWorld)
+            );
+            if (!tangentEnd) return null;
+            const sx = tangentEnd.x - cellPoint.x;
+            const sy = tangentEnd.y - cellPoint.y;
+            const length = Math.hypot(sx, sy);
+            if (length < 2.5) return null;
+            const cameraFacing = Math.abs(axisVector.dot(this.camera.position.clone().sub(centerWorld).normalize()));
+            return {
+                axis,
+                layer,
+                screenX: sx / length,
+                screenY: sy / length,
+                normalAxis,
+                visibility: length * (0.35 + cameraFacing)
+            };
+        }).filter(Boolean).sort((a, b) => b.visibility - a.visibility);
+    }
+
+    getPrimaryTwistCandidate(candidates = []) {
+        return candidates[0] || null;
+    }
+
+    getBestTwistCandidateForDrag(candidates = [], dx = 0, dy = 0) {
+        const dragLength = Math.hypot(dx, dy);
+        if (!candidates.length || dragLength < 1) return null;
+        const absDx = Math.abs(dx);
+        const absDy = Math.abs(dy);
+        const intentSeparation = Math.abs(absDx - absDy) / dragLength;
+        if (intentSeparation < 0.18) return null;
+        const horizontalIntent = absDx >= absDy;
+        const nx = dx / dragLength;
+        const ny = dy / dragLength;
+        const scored = candidates
+            .map(candidate => ({
+                ...candidate,
+                dragIntent: horizontalIntent ? 'horizontal' : 'vertical',
+                dragScore: Math.abs(candidate.screenX * nx + candidate.screenY * ny),
+                intentScore: horizontalIntent
+                    ? Math.abs(candidate.screenX)
+                    : Math.abs(candidate.screenY)
+            }))
+            .map(candidate => ({
+                ...candidate,
+                score: candidate.dragScore * 0.72 + candidate.intentScore * 0.28
+            }))
+            .sort((a, b) => b.score - a.score);
+        const best = scored[0];
+        const second = scored[1];
+        if (!best || best.dragScore < 0.5 || best.intentScore < 0.48) return null;
+        if (second && best.score - second.score < 0.08) return null;
+        return best;
+    }
+
+    showTwistViewWarning() {
+        const lang = typeof window !== 'undefined' && window.currentLang === 'en' ? 'en' : 'zh';
+        const text = lang === 'en'
+            ? 'View angle is too steep. Rotate the camera, then drag the row or column again.'
+            : '当前视角太斜，无法判断合理旋转方向。先转一下镜头，再横拖或竖拖。';
+        this.game?.showFeel?.(text, 'warn');
     }
 
     getClientPointFromWorld(worldPoint) {
@@ -420,6 +627,7 @@ class RenderEngine {
 
     ensureTwistControlRings() {
         if (this.renderMode === 'fallback' || !this.scene || !this.game || !this.game.rotationEnabled) return;
+        if (!this.twistControlRingsEnabled) return;
         if (this.twistRingMeshes.length) return;
         const axisConfigs = [
             { axis: 'X', color: 0xff2d73, normal: new THREE.Vector3(1, 0, 0) },
@@ -434,17 +642,17 @@ class RenderEngine {
                 const coord = (layer - H) * 2;
                 const group = new THREE.Group();
                 const visible = new THREE.Mesh(
-                    new THREE.TorusGeometry(radius, 0.028, 10, 112),
+                    new THREE.TorusGeometry(radius, 0.14, 10, 112),
                     new THREE.MeshBasicMaterial({
                         color: config.color,
                         transparent: true,
-                        opacity: 0.2,
+                        opacity: 0.13,
                         depthWrite: false,
                         blending: THREE.AdditiveBlending
                     })
                 );
                 const hitbox = new THREE.Mesh(
-                    new THREE.TorusGeometry(radius, 0.34, 10, 96),
+                    new THREE.TorusGeometry(radius, 1.08, 10, 96),
                     new THREE.MeshBasicMaterial({
                         color: config.color,
                         transparent: true,
@@ -462,7 +670,8 @@ class RenderEngine {
                     layer,
                     visible,
                     hitbox,
-                    baseOpacity: 0.2,
+                    normal: config.normal.clone(),
+                    baseOpacity: 0.13,
                     hoverOpacity: 0.95,
                     color: config.color
                 };
@@ -485,6 +694,7 @@ class RenderEngine {
     }
 
     pickTwistRing(event) {
+        if (!this.twistControlRingsEnabled) return null;
         if (!this.raycaster || !this.pointer || !this.camera || !this.renderer || !this.twistRingMeshes.length) return null;
         const rect = this.renderer.domElement.getBoundingClientRect();
         this.pointer.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
@@ -493,7 +703,29 @@ class RenderEngine {
         const hitboxes = this.twistRingMeshes
             .map(group => group.userData.twistRing?.hitbox)
             .filter(Boolean);
-        const hit = this.raycaster.intersectObjects(hitboxes, false)[0];
+        const hits = this.raycaster.intersectObjects(hitboxes, false);
+        const hit = hits
+            .map(item => {
+                const host = item.object?.userData?.twistRingHost;
+                const data = host?.userData?.twistRing;
+                if (!host || !data) return null;
+                const projected = item.point.clone().project(this.camera);
+                const dx = projected.x - this.pointer.x;
+                const dy = projected.y - this.pointer.y;
+                const screenDistance = Math.hypot(dx, dy);
+                const worldPos = new THREE.Vector3();
+                host.getWorldPosition(worldPos);
+                const cameraFacing = data.normal
+                    ? data.normal.clone().dot(this.camera.position.clone().sub(worldPos).normalize())
+                    : 1;
+                const rearPenalty = cameraFacing < -0.15 ? 0.18 : 0;
+                return {
+                    item,
+                    score: screenDistance + item.distance * 0.002 + rearPenalty
+                };
+            })
+            .filter(Boolean)
+            .sort((a, b) => a.score - b.score)[0]?.item;
         const host = hit?.object?.userData?.twistRingHost;
         if (!host?.userData?.twistRing) return null;
         return {
@@ -510,7 +742,7 @@ class RenderEngine {
             const data = group.userData.twistRing;
             if (!data?.visible) return;
             data.visible.material.opacity = group === host ? data.hoverOpacity : data.baseOpacity;
-            data.visible.scale.setScalar(group === host ? 1.025 : 1);
+            data.visible.scale.setScalar(group === host ? 1.045 : 1);
         });
         this.hoveredTwistRing = host;
     }
@@ -524,6 +756,7 @@ class RenderEngine {
         const targets = [
             ...this.voidMarkerMeshes,
             ...this.patchMeshes,
+            ...this.vineMarkerMeshes,
             ...this.cublets
         ];
         const intersections = this.raycaster
@@ -612,12 +845,12 @@ class RenderEngine {
         this.plannedLine = null;
         this.artGroup = null;
         this.targetIndicator = null;
-        this.fallbackMessage = 'Chrome WebGL 暂时不可用，已启用安全视图';
+        this.fallbackMessage = window.t?.('webgl.fallbackMessage') || 'Chrome WebGL 暂时不可用，已启用安全视图';
 
         if (!this.fallbackCanvas) {
             this.fallbackCanvas = document.createElement('canvas');
             this.fallbackCanvas.className = 'fallback-render-canvas';
-            this.fallbackCanvas.setAttribute('aria-label', '安全视图');
+            this.fallbackCanvas.setAttribute('aria-label', window.t?.('webgl.safeView') || '安全视图');
             this.fallbackCanvas.style.width = '100%';
             this.fallbackCanvas.style.height = '100%';
             this.fallbackCanvas.style.display = 'block';
@@ -798,10 +1031,10 @@ class RenderEngine {
             ctx.restore();
         };
 
-        drawToken(this.game.exitPos, this.game.hasKey ? '出' : '门', this.game.hasKey ? '#00ff88' : '#ffb700', 0.48);
-        if (!this.game.hasKey && this.game.keyPos !== null) drawToken(this.game.keyPos, '钥', '#ffb700', 0.48);
-        (this.game.ais || []).forEach(ai => drawToken(ai.pos, ai.type === 'guardian' ? '守' : '追', ai.color || '#ff0055', 0.52));
-        drawToken(this.game.playerPos, '逃', '#00ff88', 0.56);
+        drawToken(this.game.exitPos, this.game.hasKey ? 'GO' : 'EX', this.game.hasKey ? '#00ff88' : '#ffb700', 0.48);
+        if (!this.game.hasKey && this.game.keyPos !== null) drawToken(this.game.keyPos, 'K', '#ffb700', 0.48);
+        (this.game.ais || []).forEach(ai => drawToken(ai.pos, ai.type === 'guardian' ? 'G' : '!', ai.color || '#ff0055', 0.52));
+        drawToken(this.game.playerPos, 'D', '#00ff88', 0.56);
 
         ctx.save();
         ctx.textAlign = 'center';
@@ -813,7 +1046,7 @@ class RenderEngine {
         ctx.shadowBlur = 0;
         ctx.fillStyle = 'rgba(223, 247, 255, 0.68)';
         ctx.font = '12px Inter, sans-serif';
-        ctx.fillText('请恢复 WebGL 后使用 3D 直控；安全视图只保留局面状态。', width / 2, Math.max(68, height - 32));
+        ctx.fillText(window.t?.('webgl.restoreHint') || '请恢复 WebGL 后使用 3D 直控；安全视图只保留局面状态。', width / 2, Math.max(68, height - 32));
         ctx.restore();
     }
 
@@ -881,6 +1114,8 @@ class RenderEngine {
 
         window.removeEventListener('resize', this.boundResizeHandler);
         this.resizeListenerAttached = false;
+        document.removeEventListener('visibilitychange', this.boundVisibilityHandler);
+        this.visibilityListenerAttached = false;
 
         if (this.scene) {
             this.disposeObject(this.scene);
@@ -902,6 +1137,10 @@ class RenderEngine {
             this.renderer.domElement?.removeEventListener?.('pointermove', this.boundPointerMove);
             this.renderer.domElement?.removeEventListener?.('pointerup', this.boundPointerUp);
             this.renderer.domElement?.removeEventListener?.('pointerleave', this.boundPointerUp);
+            this.renderer.domElement?.removeEventListener?.('pointerdown', this.boundLookPointerDown);
+            this.renderer.domElement?.removeEventListener?.('wheel', this.boundWheelHandler);
+            window.removeEventListener('pointerup', this.boundLookPointerUp);
+            window.removeEventListener('pointercancel', this.boundLookPointerUp);
             this.renderer.dispose();
         }
 
@@ -920,6 +1159,18 @@ class RenderEngine {
         this.bridgePortalMeshes = [];
         this.renderMode = 'webgl';
         this.isAnimating = false;
+        this.boardPointerAttached = false;
+    }
+
+    getCameraDistance() {
+        const levelIndex = this.game?.currentLevelIndex || 0;
+        if (levelIndex === 0) {
+            return 21.5;
+        }
+        if (levelIndex >= 12) {
+            return 20.5;
+        }
+        return 18.5;
     }
 
     resetCamera() {
@@ -932,7 +1183,7 @@ class RenderEngine {
             const pPos = this.playerMesh.position.clone();
             const dir = pPos.clone().normalize();
             if (pPos.length() > 0.1) {
-                targetPosition.copy(dir).multiplyScalar(21.0);
+                targetPosition.copy(dir).multiplyScalar(this.getCameraDistance());
                 targetPosition.y += 9.5;
                 targetLookAt.copy(this.getGameplayOrbitPivot(pPos));
             }
@@ -1030,7 +1281,7 @@ class RenderEngine {
             const pPos = this.playerMesh.position.clone();
             const dir = pPos.clone().normalize();
             if (pPos.length() > 0.1) {
-                targetPosition.copy(dir).multiplyScalar(21.0);
+                targetPosition.copy(dir).multiplyScalar(this.getCameraDistance());
                 targetPosition.y += 9.5;
             }
         }
@@ -1078,20 +1329,26 @@ class RenderEngine {
         }
     }
 
+    isCachedTexture(value) {
+        if (!value || typeof value !== 'object') return false;
+        return Object.values(this.faceTextureCache || {}).includes(value)
+            || Object.values(this.badgeTextureCache || {}).includes(value);
+    }
+
     disposeMaterial(material) {
         const materials = Array.isArray(material) ? material : [material];
         materials.forEach(mat => {
             if (!mat) return;
             Object.keys(mat).forEach(key => {
                 const value = mat[key];
-                if (value && typeof value === 'object' && typeof value.dispose === 'function') {
+                if (value && typeof value === 'object' && typeof value.dispose === 'function' && !this.isCachedTexture(value)) {
                     value.dispose();
                 }
             });
             if (mat.uniforms) {
                 Object.values(mat.uniforms).forEach(uniform => {
                     const value = uniform?.value;
-                    if (value && typeof value.dispose === 'function') {
+                    if (value && typeof value.dispose === 'function' && !this.isCachedTexture(value)) {
                         value.dispose();
                     }
                 });
@@ -1180,27 +1437,25 @@ class RenderEngine {
                     if (x > 0 && x < N - 1 && y > 0 && y < N - 1 && z > 0 && z < N - 1) {
                         continue;
                     }
-                    if (this.cubletHasVoidFace(x, y, z)) {
-                        continue;
-                    }
-                    
                     // 计算子立方体 3D 相对中心位置
                     const posX = (x - H) * 2;
                     const posY = (y - H) * 2;
                     const posZ = -(z - H) * 2; // Three.js -Z 为后方
+                    const faceCellIds = this.getCubletFaceCellIds(x, y, z);
                     
                     // 确定每个子立方体 6 个面的材质
                     const materials = Array(6).fill(darkMaterial);
                     
                     // 检查子方块是否暴露在外面，如果是，赋予对应的霓虹材质
-                    if (x === N - 1) materials[0] = createFaceMaterial(faceColors[3], 3); // R (+X)
-                    if (x === 0)     materials[1] = createFaceMaterial(faceColors[2], 2); // L (-X)
-                    if (y === N - 1) materials[2] = createFaceMaterial(faceColors[0], 0); // U (+Y)
-                    if (y === 0)     materials[3] = createFaceMaterial(faceColors[1], 1); // D (-Y)
-                    if (z === 0)     materials[4] = createFaceMaterial(faceColors[4], 4); // F (+Z)
-                    if (z === N - 1) materials[5] = createFaceMaterial(faceColors[5], 5); // B (-Z)
+                    if (x === N - 1 && !this.isVoidCellId(faceCellIds[0])) materials[0] = createFaceMaterial(faceColors[3], 3); // R (+X)
+                    if (x === 0 && !this.isVoidCellId(faceCellIds[1]))     materials[1] = createFaceMaterial(faceColors[2], 2); // L (-X)
+                    if (y === N - 1 && !this.isVoidCellId(faceCellIds[2])) materials[2] = createFaceMaterial(faceColors[0], 0); // U (+Y)
+                    if (y === 0 && !this.isVoidCellId(faceCellIds[3]))     materials[3] = createFaceMaterial(faceColors[1], 1); // D (-Y)
+                    if (z === 0 && !this.isVoidCellId(faceCellIds[4]))     materials[4] = createFaceMaterial(faceColors[4], 4); // F (+Z)
+                    if (z === N - 1 && !this.isVoidCellId(faceCellIds[5])) materials[5] = createFaceMaterial(faceColors[5], 5); // B (-Z)
                     
                     const geometry = new THREE.BoxGeometry(cubletSize, cubletSize, cubletSize);
+                    this.removeVoidFaceGroups(geometry, faceCellIds);
                     const mesh = new THREE.Mesh(geometry, materials);
                     mesh.position.set(posX, posY, posZ);
                     
@@ -1235,17 +1490,26 @@ class RenderEngine {
         }
     }
 
-    cubletHasVoidFace(x, y, z) {
-        if (!this.game || !this.game.voidCells || this.game.voidCells.size === 0) return false;
+    getCubletFaceCellIds(x, y, z) {
+        const ids = Array(6).fill(null);
+        if (!this.game) return ids;
         const N = this.game.N;
-        const ids = [];
-        if (x === N - 1) ids.push(this.game.cellId(3, N - 1 - y, z));
-        if (x === 0) ids.push(this.game.cellId(2, N - 1 - y, N - 1 - z));
-        if (y === N - 1) ids.push(this.game.cellId(0, N - 1 - z, x));
-        if (y === 0) ids.push(this.game.cellId(1, z, x));
-        if (z === 0) ids.push(this.game.cellId(4, N - 1 - y, x));
-        if (z === N - 1) ids.push(this.game.cellId(5, N - 1 - y, N - 1 - x));
-        return ids.some(id => this.game.voidCells.has(id));
+        if (x === N - 1) ids[0] = this.game.cellId(3, N - 1 - y, z);
+        if (x === 0)     ids[1] = this.game.cellId(2, N - 1 - y, N - 1 - z);
+        if (y === N - 1) ids[2] = this.game.cellId(0, N - 1 - z, x);
+        if (y === 0)     ids[3] = this.game.cellId(1, z, x);
+        if (z === 0)     ids[4] = this.game.cellId(4, N - 1 - y, x);
+        if (z === N - 1) ids[5] = this.game.cellId(5, N - 1 - y, N - 1 - x);
+        return ids;
+    }
+
+    isVoidCellId(cellId) {
+        return cellId !== null && this.game?.voidCells?.has(cellId);
+    }
+
+    removeVoidFaceGroups(geometry, faceCellIds) {
+        if (!geometry?.groups?.length || !faceCellIds?.length) return;
+        geometry.groups = geometry.groups.filter(group => !this.isVoidCellId(faceCellIds[group.materialIndex]));
     }
 
     getFaceTexture(colorHex, faceId = 0) {
@@ -1414,7 +1678,7 @@ class RenderEngine {
             this.layerHighlightMaterial = new THREE.MeshBasicMaterial({
                 color: 0xffd447,
                 transparent: true,
-                opacity: 0.28,
+                opacity: 0.42,
                 side: THREE.DoubleSide,
                 depthWrite: false
             });
@@ -1956,6 +2220,10 @@ class RenderEngine {
             this.scene.remove(mesh);
             this.disposeObject(mesh);
         });
+        this.vineMarkerMeshes.forEach(mesh => {
+            this.scene.remove(mesh);
+            this.disposeObject(mesh);
+        });
         if (this.beaconMesh) {
             this.scene.remove(this.beaconMesh);
             this.disposeObject(this.beaconMesh);
@@ -1972,6 +2240,7 @@ class RenderEngine {
         this.bridgePortalMeshes = [];
         this.patchMeshes = [];
         this.voidMarkerMeshes = [];
+        this.vineMarkerMeshes = [];
         this.beaconMesh = null;
         this.threatPreviewMeshes = {};
         
@@ -1984,7 +2253,7 @@ class RenderEngine {
         // 玩家光晕
         const playerLight = new THREE.PointLight(0x00ff88, 1, 3);
         this.playerMesh.add(playerLight);
-        this.attachRealtimeTimerVisual(this.playerMesh, '#8bdcff', 'GO', 'player');
+        this.attachRealtimeTimerVisual(this.playerMesh, '#8bdcff', 'GO', 'player', { showLabel: false });
         if (this.lastSpeechBubbleText) {
             this.setPlayerSpeechBubble(this.lastSpeechBubbleText, this.lastSpeechBubbleTone);
         }
@@ -2024,7 +2293,7 @@ class RenderEngine {
             // AI 光晕
             const aiLight = new THREE.PointLight(ai.color, 0.8, 2.5);
             mesh.add(aiLight);
-            this.attachRealtimeTimerVisual(mesh, ai.color || '#ff0055', '...', 'ai');
+            this.attachRealtimeTimerVisual(mesh, ai.color || '#ff0055', '...', 'ai', { showLabel: false });
             
             this.scene.add(mesh);
             this.aiMeshes[ai.id] = mesh;
@@ -2059,13 +2328,6 @@ class RenderEngine {
     spawnToolAndVoidMarkers() {
         if (!this.game) return;
 
-        this.game.voidCells.forEach(cellId => {
-            if (this.game.activePatchCells.has(cellId)) return;
-            const marker = this.createVoidMarker(cellId);
-            this.scene.add(marker);
-            this.voidMarkerMeshes.push(marker);
-        });
-
         this.game.activePatchCells.forEach(cellId => {
             const patch = this.createPatchPlate(cellId);
             this.scene.add(patch);
@@ -2076,40 +2338,152 @@ class RenderEngine {
             this.beaconMesh = this.createBeaconProp(this.game.beaconCell);
             this.scene.add(this.beaconMesh);
         }
+
+        this.game.immuneToVineCells?.forEach(cellId => {
+            const marker = this.createVineMarker(cellId, 'immune');
+            this.scene.add(marker);
+            this.vineMarkerMeshes.push(marker);
+        });
+
+        this.game.vineCells?.forEach(cellId => {
+            const marker = this.createVineMarker(
+                cellId,
+                this.game.vineSources?.has(cellId) ? 'source' : 'vine'
+            );
+            this.scene.add(marker);
+            this.vineMarkerMeshes.push(marker);
+        });
     }
 
-    createVoidMarker(cellId) {
+    createVineMarker(cellId, kind = 'vine') {
         const group = new THREE.Group();
         group.userData.cellId = cellId;
+        group.userData.kind = kind;
         const normal = this.getCellNormalVector(cellId);
-        const pos = this.getCellWorldPosition(cellId, 'portal').clone().addScaledVector(normal, -0.05);
-        group.position.copy(pos);
+        group.position.copy(this.getCellWorldPosition(cellId, 'portal').clone().addScaledVector(normal, 0.02));
         group.quaternion.setFromUnitVectors(new THREE.Vector3(0, 0, 1), normal);
 
+        const color = kind === 'source' ? 0xff335f : (kind === 'immune' ? 0xc67a2c : 0x00f5d4);
+        const opacity = kind === 'immune' ? 0.32 : 0.46;
         const plate = new THREE.Mesh(
-            new THREE.PlaneGeometry(0.78, 0.78),
+            new THREE.PlaneGeometry(0.76, 0.76),
             new THREE.MeshBasicMaterial({
-                color: 0x020408,
+                color,
                 transparent: true,
-                opacity: 0.62,
+                opacity,
                 side: THREE.DoubleSide,
                 depthWrite: false
             })
         );
         group.add(plate);
 
-        const crack = new THREE.Mesh(
-            new THREE.RingGeometry(0.22, 0.37, 5),
+        const ring = new THREE.Mesh(
+            new THREE.RingGeometry(kind === 'source' ? 0.16 : 0.24, kind === 'source' ? 0.34 : 0.37, kind === 'immune' ? 6 : 8),
             new THREE.MeshBasicMaterial({
-                color: 0x8bdcff,
+                color,
                 transparent: true,
-                opacity: 0.34,
+                opacity: kind === 'immune' ? 0.42 : 0.72,
                 side: THREE.DoubleSide,
                 depthWrite: false
             })
         );
+        ring.position.z = 0.012;
+        ring.rotation.z = kind === 'immune' ? Math.PI / 6 : 0.32;
+        group.add(ring);
+
+        if (kind === 'source') {
+            const core = new THREE.Mesh(
+                new THREE.CircleGeometry(0.13, 18),
+                new THREE.MeshBasicMaterial({
+                    color,
+                    transparent: true,
+                    opacity: 0.88,
+                    side: THREE.DoubleSide,
+                    depthWrite: false
+                })
+            );
+            core.position.z = 0.02;
+            group.add(core);
+            const light = new THREE.PointLight(color, 0.5, 1.6);
+            light.position.z = 0.15;
+            group.add(light);
+        }
+
+        return group;
+    }
+
+    createVoidMarker(cellId) {
+        const group = new THREE.Group();
+        group.userData.cellId = cellId;
+        const normal = this.getCellNormalVector(cellId);
+        const pos = this.getCellWorldPosition(cellId, 'portal').clone().addScaledVector(normal, 0.018);
+        group.position.copy(pos);
+        group.quaternion.setFromUnitVectors(new THREE.Vector3(0, 0, 1), normal);
+
+        const glass = new THREE.Mesh(
+            new THREE.PlaneGeometry(0.72, 0.72),
+            new THREE.MeshBasicMaterial({
+                color: 0x9ff7ff,
+                transparent: true,
+                opacity: 0.16,
+                side: THREE.DoubleSide,
+                depthWrite: false,
+                depthTest: true
+            })
+        );
+        glass.userData.isVoidGlass = true;
+        group.add(glass);
+
+        const rim = new THREE.Mesh(
+            new THREE.RingGeometry(0.42, 0.49, 4),
+            new THREE.MeshBasicMaterial({
+                color: 0xffd45a,
+                transparent: true,
+                opacity: 0.62,
+                side: THREE.DoubleSide,
+                depthWrite: false,
+                depthTest: true
+            })
+        );
+        rim.rotation.z = Math.PI / 4;
+        rim.position.z = 0.006;
+        group.add(rim);
+
+        const crackPoints = [
+            0, 0, 0.014, 0.24, 0.12, 0.014,
+            0, 0, 0.014, -0.22, 0.16, 0.014,
+            0, 0, 0.014, 0.1, -0.26, 0.014,
+            0.08, -0.08, 0.014, 0.28, -0.24, 0.014,
+            -0.08, 0.06, 0.014, -0.3, -0.08, 0.014,
+            0.12, 0.04, 0.014, 0.28, 0.28, 0.014
+        ];
+        const crackGeo = new THREE.BufferGeometry();
+        crackGeo.setAttribute('position', new THREE.Float32BufferAttribute(crackPoints, 3));
+        const cracks = new THREE.LineSegments(
+            crackGeo,
+            new THREE.LineBasicMaterial({
+                color: 0xf8feff,
+                transparent: true,
+                opacity: 0.74,
+                depthWrite: false,
+                depthTest: true
+            })
+        );
+        group.add(cracks);
+
+        const crack = new THREE.Mesh(
+            new THREE.RingGeometry(0.12, 0.23, 5),
+            new THREE.MeshBasicMaterial({
+                color: 0xffb700,
+                transparent: true,
+                opacity: 0.28,
+                side: THREE.DoubleSide,
+                depthWrite: false,
+                depthTest: true
+            })
+        );
         crack.rotation.z = 0.4;
-        crack.position.z = 0.01;
+        crack.position.z = 0.012;
         group.add(crack);
         return group;
     }
@@ -2535,6 +2909,7 @@ class RenderEngine {
                 requestAnimationFrame(fade);
             } else {
                 this.scene.remove(mesh);
+                this.disposeObject(mesh);
                 this.keyMesh = null;
             }
         };
@@ -2684,31 +3059,35 @@ class RenderEngine {
         requestAnimationFrame(animateTransit);
     }
 
-    attachRealtimeTimerVisual(group, color, label, kind) {
+    attachRealtimeTimerVisual(group, color, label, kind, options = {}) {
         if (!group) return;
+        const showLabel = options.showLabel !== false;
         const ring = new THREE.Mesh(
-            new THREE.TorusGeometry(kind === 'player' ? 0.44 : 0.39, 0.018, 8, 44),
+            new THREE.TorusGeometry(kind === 'player' ? 0.52 : 0.39, kind === 'player' ? 0.024 : 0.018, 8, 48),
             new THREE.MeshBasicMaterial({
                 color: new THREE.Color(color),
                 transparent: true,
-                opacity: 0.28,
+                opacity: kind === 'player' ? 0.36 : 0.24,
                 depthWrite: false,
                 blending: THREE.AdditiveBlending
             })
         );
         ring.rotation.x = Math.PI / 2;
-        ring.position.y = 0.04;
-        const labelSprite = this.createTimerLabelSprite(label, color);
-        labelSprite.position.set(0, kind === 'player' ? 1.34 : 1.24, 0);
-        labelSprite.scale.set(kind === 'player' ? 0.96 : 0.9, kind === 'player' ? 0.34 : 0.32, 1);
+        ring.position.y = kind === 'player' ? 0.02 : 0.04;
         group.add(ring);
-        group.add(labelSprite);
+        const labelSprite = showLabel ? this.createTimerLabelSprite(label, color) : null;
+        if (labelSprite) {
+            labelSprite.position.set(0, kind === 'player' ? 1.34 : 1.24, 0);
+            labelSprite.scale.set(kind === 'player' ? 0.96 : 0.9, kind === 'player' ? 0.34 : 0.32, 1);
+            group.add(labelSprite);
+        }
         group.userData.realtimeTimer = {
             ring,
             labelSprite,
             color,
             label,
-            kind
+            kind,
+            showLabel
         };
     }
 
@@ -2795,6 +3174,7 @@ class RenderEngine {
         const scale = 0.78 + urgency * 0.34;
         visual.ring.scale.set(scale, scale, scale);
         visual.ring.rotation.z += 0.018 + urgency * 0.03;
+        if (!visual.labelSprite) return;
         this.updateTimerLabelSprite(visual.labelSprite, state.label, urgency);
         visual.labelSprite.material.opacity = state.remainingMs > 0 ? 1 : 0.78;
         visual.labelSprite.userData.timerColor = color;
@@ -2861,18 +3241,20 @@ class RenderEngine {
     }
 
     setPlayerSpeechBubble(text, tone = 'info') {
-        this.lastSpeechBubbleText = text || '';
+        const headBubblesEnabled = false;
+        this.lastSpeechBubbleText = headBubblesEnabled ? (text || '') : '';
         this.lastSpeechBubbleTone = tone || 'info';
         if (!this.lastSpeechBubbleText) {
             if (this.playerSpeechBubble?.parent) this.playerSpeechBubble.parent.remove(this.playerSpeechBubble);
+            this.disposeObject(this.playerSpeechBubble);
             this.playerSpeechBubble = null;
             return;
         }
         if (!this.playerMesh) return;
         if (!this.playerSpeechBubble) {
             this.playerSpeechBubble = this.createSpeechBubbleSprite();
-            this.playerSpeechBubble.position.set(0, 2.05, 0);
-            this.playerSpeechBubble.scale.set(2.55, 0.78, 1);
+            this.playerSpeechBubble.position.set(1.16, 1.78, 0.08);
+            this.playerSpeechBubble.scale.set(2.18, 0.66, 1);
             this.playerMesh.add(this.playerSpeechBubble);
         } else if (this.playerSpeechBubble.parent !== this.playerMesh) {
             this.playerMesh.add(this.playerSpeechBubble);
@@ -2922,18 +3304,98 @@ class RenderEngine {
         return texture;
     }
 
-    showTutorialPointer(cellId) {
+    getTutorialHighlightKind(cellId, step = {}) {
+        if (step.highlightTarget) return step.highlightTarget;
+        if (cellId === this.game?.exitPos) return 'exit';
+        if (cellId === this.game?.keyPos) return 'key';
+        const aiAtCell = this.game?.ais?.find(ai => ai.pos === cellId);
+        if (aiAtCell?.type === 'guardian') return 'guardian';
+        if (aiAtCell) return 'enemy';
+        return null;
+    }
+
+    getTutorialHighlightHost(kind, cellId) {
+        if (kind === 'exit') return this.exitMesh;
+        if (kind === 'key') return this.keyMesh;
+        if (kind === 'player') return this.playerMesh;
+        if (kind === 'guardian' || kind === 'enemy') {
+            const ai = this.game?.ais?.find(item => item.pos === cellId || (kind === 'guardian' && item.type === 'guardian'));
+            return ai ? this.aiMeshes?.[ai.id] : null;
+        }
+        return null;
+    }
+
+    hideTutorialObjectHighlight() {
+        if (!this.tutorialObjectHalo) return;
+        this.scene?.remove(this.tutorialObjectHalo);
+        this.disposeObject(this.tutorialObjectHalo);
+        this.tutorialObjectHalo = null;
+    }
+
+    showTutorialObjectHighlight(kind, cellId) {
+        this.hideTutorialObjectHighlight();
+        if (!kind || !this.scene || !this.game) return;
+        const host = this.getTutorialHighlightHost(kind, cellId);
+        const cell = this.game.cells[cellId];
+        if (!host || !cell) return;
+
+        const normal = new THREE.Vector3(cell.normal.x, cell.normal.y, cell.normal.z);
+        const color = kind === 'exit'
+            ? 0x00ff88
+            : (kind === 'key' ? 0xffdf6e : (kind === 'guardian' ? 0xffd54d : 0xff2d73));
+        const hostPos = new THREE.Vector3();
+        host.getWorldPosition(hostPos);
+
+        const group = new THREE.Group();
+        const halo = new THREE.Mesh(
+            new THREE.TorusGeometry(kind === 'exit' ? 0.74 : (kind === 'key' ? 0.58 : 0.5), 0.055, 8, 72),
+            new THREE.MeshBasicMaterial({
+                color,
+                transparent: true,
+                opacity: 0.95,
+                depthTest: false,
+                depthWrite: false,
+                blending: THREE.AdditiveBlending
+            })
+        );
+        halo.quaternion.setFromUnitVectors(new THREE.Vector3(0, 0, 1), normal);
+        halo.position.copy(hostPos.clone().addScaledVector(normal, kind === 'exit' ? 0.15 : 0.34));
+        group.add(halo);
+
+        const arrow = new THREE.Mesh(
+            new THREE.ConeGeometry(0.22, 0.58, 28),
+            new THREE.MeshBasicMaterial({
+                color,
+                transparent: true,
+                opacity: 0.96,
+                depthTest: false,
+                depthWrite: false,
+                blending: THREE.AdditiveBlending
+            })
+        );
+        arrow.geometry.rotateX(Math.PI);
+        arrow.quaternion.setFromUnitVectors(new THREE.Vector3(0, -1, 0), normal.clone().negate());
+        arrow.position.copy(hostPos.clone().addScaledVector(normal, 1.05));
+        group.add(arrow);
+
+        group.userData.tutorialObject = { halo, arrow, kind, cellId };
+        group.renderOrder = 30;
+        this.tutorialObjectHalo = group;
+        this.scene.add(group);
+    }
+
+    showTutorialPointer(cellId, step = {}) {
         if (cellId === null || cellId === undefined || !this.scene || !this.game) return;
         this.activeTutorialCellId = cellId;
 
         // Create Pointer Cone
         if (!this.tutorialPointerCone) {
-            const geometry = new THREE.ConeGeometry(0.18, 0.45, 16);
+            const geometry = new THREE.ConeGeometry(0.24, 0.62, 20);
             geometry.rotateX(Math.PI); // tip points down (-Y)
             const material = new THREE.MeshBasicMaterial({
-                color: 0x00f0ff,
+                color: 0xfff36b,
                 transparent: true,
-                opacity: 0.85,
+                opacity: 0.98,
                 blending: THREE.AdditiveBlending,
                 depthTest: false,
                 depthWrite: false
@@ -2945,11 +3407,11 @@ class RenderEngine {
 
         // Create Highlight Ring
         if (!this.tutorialCellHighlightRing) {
-            const ringGeo = new THREE.RingGeometry(0.38, 0.45, 32);
+            const ringGeo = new THREE.RingGeometry(0.3, 0.62, 48);
             const ringMat = new THREE.MeshBasicMaterial({
-                color: 0x00f0ff,
+                color: 0xfff36b,
                 transparent: true,
-                opacity: 0.8,
+                opacity: 0.95,
                 side: THREE.DoubleSide,
                 depthWrite: false,
                 depthTest: false
@@ -2959,10 +3421,17 @@ class RenderEngine {
         
         const cell = this.game.cells[cellId];
         if (cell) {
+            const highlightKind = this.getTutorialHighlightKind(cellId, step);
+            const isExitTarget = highlightKind === 'exit';
+            const targetRingColor = isExitTarget ? 0x00ff88 : 0xfff36b;
             const normal = new THREE.Vector3(cell.normal.x, cell.normal.y, cell.normal.z);
             const pos = this.getCellWorldPosition(cellId, 'pulse').clone().addScaledVector(normal, 0.02);
+            this.tutorialPointerCone.material.color.setHex(targetRingColor);
+            this.tutorialPointerCone.scale.setScalar(isExitTarget ? 1.22 : 1);
             this.tutorialCellHighlightRing.position.copy(pos);
             this.tutorialCellHighlightRing.quaternion.setFromUnitVectors(new THREE.Vector3(0, 0, 1), normal);
+            this.tutorialCellHighlightRing.material.color.setHex(targetRingColor);
+            this.tutorialCellHighlightRing.material.opacity = isExitTarget ? 1 : 0.95;
             if (this.tutorialCellHighlightRing.parent !== this.scene) {
                 this.scene.add(this.tutorialCellHighlightRing);
             }
@@ -2973,7 +3442,7 @@ class RenderEngine {
                 const material = new THREE.MeshBasicMaterial({
                     color: 0x00ff88,
                     transparent: true,
-                    opacity: 0.28,
+                    opacity: 0.4,
                     depthWrite: false
                 });
                 this.tutorialGreenTileMesh = new THREE.Mesh(geometry, material);
@@ -2981,6 +3450,8 @@ class RenderEngine {
             }
             this.tutorialGreenTileMesh.position.copy(pos.clone().addScaledVector(normal, 0.01));
             this.tutorialGreenTileMesh.quaternion.setFromUnitVectors(new THREE.Vector3(0, 0, 1), normal);
+            this.tutorialGreenTileMesh.material.opacity = isExitTarget ? 0.68 : 0.4;
+            this.showTutorialObjectHighlight(highlightKind, cellId);
 
             // Create dynamic green arrow if player is adjacent to the cell (valid direction of travel)
             const playerCell = this.game.cells[this.game.playerPos];
@@ -2991,11 +3462,11 @@ class RenderEngine {
                 if (moveDir.lengthSq() > 0.0001) {
                     if (!this.tutorialArrowMesh) {
                         const texture = this.createTutorialArrowTexture();
-                        const geometry = new THREE.PlaneGeometry(0.72, 0.72);
+                        const geometry = new THREE.PlaneGeometry(0.92, 0.92);
                         const material = new THREE.MeshBasicMaterial({
                             map: texture,
                             transparent: true,
-                            opacity: 0.95,
+                            opacity: 1,
                             blending: THREE.AdditiveBlending,
                             depthWrite: false
                         });
@@ -3014,7 +3485,7 @@ class RenderEngine {
         }
     }
 
-    flyToTutorialFocus(cellId, duration = 850) {
+    flyToTutorialFocus(cellId, duration = 850, lockInputMs = 0) {
         if (!this.camera || !this.controls) return;
         const target = this.getCellWorldPosition(cellId, 'pulse');
         const normal = this.getCellNormalVector(cellId);
@@ -3028,6 +3499,10 @@ class RenderEngine {
         const startTime = performance.now();
         
         this.presentationMode = 'game';
+        this.tutorialControlLockUntil = Math.max(
+            this.tutorialControlLockUntil || 0,
+            performance.now() + duration + Math.max(0, lockInputMs)
+        );
         
         if (this.controls) {
             this.controls.enabled = false;
@@ -3042,7 +3517,7 @@ class RenderEngine {
             resolve: () => {
                 if (this.controls) {
                     this.controls.target.copy(target);
-                    this.controls.enabled = true;
+                    this.controls.enabled = performance.now() >= this.tutorialControlLockUntil;
                     this.controls.update();
                 }
             }
@@ -3051,6 +3526,14 @@ class RenderEngine {
 
     focusTutorialStep(step) {
         if (!step || !this.camera || !this.controls || !this.game) return;
+        if (this.tutorialFocusTimer) {
+            clearTimeout(this.tutorialFocusTimer);
+            this.tutorialFocusTimer = null;
+        }
+        if (this.tutorialFocusRetryTimer) {
+            clearTimeout(this.tutorialFocusRetryTimer);
+            this.tutorialFocusRetryTimer = null;
+        }
         if (step.type === 'look') {
             this.tutorialLookBaseline = this.getCameraOrbitAngles();
             this.tutorialLookLastAngles = null;
@@ -3066,9 +3549,29 @@ class RenderEngine {
         const cellId = step.focusCellId ?? step.targetCellId;
         if (cellId === null || cellId === undefined) return;
         
-        this.flyToTutorialFocus(cellId, 850);
+        this.flyToTutorialFocus(cellId, 850, Number(step.lockInputMs || 0));
+        if (step.secondaryFocusCellId !== null && step.secondaryFocusCellId !== undefined) {
+            const expectedStep = this.game.currentTutorialStepIndex;
+            const secondaryStep = {
+                ...step,
+                highlightTarget: step.secondaryHighlightTarget || step.highlightTarget
+            };
+            const switchToSecondaryFocus = () => {
+                if (!this.game?.tutorialActive || this.game.currentTutorialStepIndex !== expectedStep) return;
+                this.showTutorialPointer(step.secondaryFocusCellId, secondaryStep);
+                this.flyToTutorialFocus(step.secondaryFocusCellId, 850, Number(step.lockInputMs || 0));
+            };
+            this.tutorialFocusTimer = setTimeout(() => {
+                this.tutorialFocusTimer = null;
+                switchToSecondaryFocus();
+                this.tutorialFocusRetryTimer = setTimeout(() => {
+                    this.tutorialFocusRetryTimer = null;
+                    switchToSecondaryFocus();
+                }, 700);
+            }, 1000);
+        }
 
-        if (step.warning) this.showTutorialWarning(step.warningText || '⚠ 追踪者：你动一步它动一步');
+        if (step.warning) this.showTutorialWarning(step.warningText || window.t?.('tutorial.warningChaser') || '⚠ 追踪者：你动一步它动一步');
         else this.hideTutorialWarning();
     }
 
@@ -3180,31 +3683,63 @@ class RenderEngine {
         const step = this.game.activeTutorialSteps?.[this.game.currentTutorialStepIndex];
         if (step?.type !== 'zoom') {
             this.tutorialZoomBaseline = null;
+            this.tutorialZoomLastDistance = null;
             this.tutorialZoomAccumulated = 0;
+            this.tutorialZoomDistanceAccumulated = 0;
+            this.tutorialZoomCompleted = false;
+            this.tutorialZoomWheelOut = false;
+            this.tutorialZoomLastTickTime = null;
             return;
         }
+        if (this.tutorialZoomCompleted) return;
         if (this.cameraFlight) {
             this.tutorialZoomBaseline = null;
+            this.tutorialZoomLastDistance = null;
             this.tutorialZoomAccumulated = 0;
+            this.tutorialZoomDistanceAccumulated = 0;
+            this.tutorialZoomLastTickTime = null;
             return;
         }
+        const now = performance.now();
         const currentDistance = this.camera.position.distanceTo(this.controls.target);
         if (this.tutorialZoomBaseline === null || this.tutorialZoomBaseline === undefined) {
             this.tutorialZoomBaseline = currentDistance;
+            this.tutorialZoomLastDistance = currentDistance;
             this.tutorialZoomAccumulated = 0;
+            this.tutorialZoomDistanceAccumulated = 0;
+            this.tutorialZoomWheelOut = false;
+            this.tutorialZoomLastTickTime = now;
             return;
         }
-        const distanceDiff = Math.abs(currentDistance - this.tutorialZoomBaseline);
-        
-        // Progress is the max of the camera distance change or the scroll wheel delta accumulation
-        const progress = Math.max(distanceDiff / 0.6, (this.tutorialZoomAccumulated || 0) / 1.0);
+        const distanceDelta = Math.abs(currentDistance - (this.tutorialZoomLastDistance ?? currentDistance));
+        const elapsed = Math.min(0.08, Math.max(0, (now - (this.tutorialZoomLastTickTime ?? now)) / 1000));
+        if (distanceDelta > 0.006 || this.tutorialZoomWheelOut) {
+            this.tutorialZoomAccumulated = (this.tutorialZoomAccumulated || 0) + elapsed;
+        }
+        if (distanceDelta > 0.006) {
+            this.tutorialZoomDistanceAccumulated = (this.tutorialZoomDistanceAccumulated || 0) + distanceDelta;
+        }
+        this.tutorialZoomWheelOut = false;
+        this.tutorialZoomLastTickTime = now;
+        this.tutorialZoomLastDistance = currentDistance;
+        const durationTarget = Number(step.wheelThreshold || step.threshold || 2.0);
+        const distanceTarget = Number(step.distanceThreshold || 1.5);
+        const progress = Math.min(
+            (this.tutorialZoomAccumulated || 0) / durationTarget,
+            (this.tutorialZoomDistanceAccumulated || 0) / distanceTarget
+        );
         
         if (typeof window !== 'undefined' && window.updateTutorialLookProgress) {
             window.updateTutorialLookProgress(Math.min(1, progress));
         }
         if (progress >= 1.0) {
+            this.tutorialZoomCompleted = true;
             this.tutorialZoomBaseline = null;
+            this.tutorialZoomLastDistance = null;
             this.tutorialZoomAccumulated = 0;
+            this.tutorialZoomDistanceAccumulated = 0;
+            this.tutorialZoomWheelOut = false;
+            this.tutorialZoomLastTickTime = null;
             if (typeof window !== 'undefined' && window.advanceTutorialStep) {
                 window.advanceTutorialStep();
             }
@@ -3217,20 +3752,35 @@ class RenderEngine {
         this.tutorialLookLastAngles = null;
         this.tutorialLookAccumulated = 0;
         this.tutorialZoomBaseline = null;
+        this.tutorialZoomLastDistance = null;
         this.hideTutorialWarning();
+        this.hideTutorialObjectHighlight();
+        if (this.tutorialFocusTimer) {
+            clearTimeout(this.tutorialFocusTimer);
+            this.tutorialFocusTimer = null;
+        }
+        if (this.tutorialFocusRetryTimer) {
+            clearTimeout(this.tutorialFocusRetryTimer);
+            this.tutorialFocusRetryTimer = null;
+        }
         if (this.tutorialPointerCone) {
             this.scene.remove(this.tutorialPointerCone);
+            this.disposeObject(this.tutorialPointerCone);
             this.tutorialPointerCone = null;
         }
         if (this.tutorialCellHighlightRing) {
             this.scene.remove(this.tutorialCellHighlightRing);
+            this.disposeObject(this.tutorialCellHighlightRing);
+            this.tutorialCellHighlightRing = null;
         }
         if (this.tutorialArrowMesh) {
             this.scene.remove(this.tutorialArrowMesh);
+            this.disposeObject(this.tutorialArrowMesh);
             this.tutorialArrowMesh = null;
         }
         if (this.tutorialGreenTileMesh) {
             this.scene.remove(this.tutorialGreenTileMesh);
+            this.disposeObject(this.tutorialGreenTileMesh);
             this.tutorialGreenTileMesh = null;
         }
     }
@@ -3253,9 +3803,9 @@ class RenderEngine {
         ctx.stroke();
         ctx.shadowBlur = 0;
         ctx.beginPath();
-        ctx.moveTo(250, 120);
-        ctx.lineTo(278, 120);
-        ctx.lineTo(258, 144);
+        ctx.moveTo(78, 118);
+        ctx.lineTo(112, 118);
+        ctx.lineTo(72, 146);
         ctx.closePath();
         ctx.fillStyle = 'rgba(4, 9, 16, 0.78)';
         ctx.fill();
@@ -3576,19 +4126,35 @@ class RenderEngine {
 
     // 渲染主循环
     animate() {
+        if (document.hidden) {
+            this.animationFrameId = null;
+            return;
+        }
         this.animationFrameId = requestAnimationFrame(this.boundAnimate);
+        const frameNow = performance.now();
+        const frameInterval = this.lowPowerMode ? this.lowPowerFrameIntervalMs : this.visibleFrameIntervalMs;
+        if (this.lastRenderFrameAt && frameNow - this.lastRenderFrameAt < frameInterval) {
+            return;
+        }
+        this.lastRenderFrameAt = frameNow;
 
         if (this.presentationMode !== 'game') {
             this.applyPresentationCamera();
         } else {
             this.updateCameraFlight();
             if (this.controls && !this.cameraFlight) {
+                if (!this.controls.enabled && this.tutorialControlLockUntil && performance.now() >= this.tutorialControlLockUntil) {
+                    this.controls.enabled = true;
+                    this.tutorialControlLockUntil = 0;
+                }
                 this.gameLookAt.lerp(this.gameLookAtTarget, 0.075);
                 this.controls.target.copy(this.gameLookAt);
             }
         }
 
-        if (this.artGroup) {
+        const pauseDecorativeMotion = this.lowPowerMode;
+
+        if (!pauseDecorativeMotion && this.artGroup) {
             this.artGroup.children.forEach(child => {
                 if (!child.userData?.isDataRain) return;
                 child.rotation.y += 0.0008;
@@ -3613,7 +4179,7 @@ class RenderEngine {
         
         // 自转动画，增加精致感
         // A. 悬浮钥匙自转
-        if (this.keyMesh) {
+        if (!pauseDecorativeMotion && this.keyMesh) {
             if (this.keyMesh.userData.spinTarget) {
                 this.keyMesh.userData.spinTarget.rotation.z += 0.018;
             }
@@ -3625,7 +4191,7 @@ class RenderEngine {
             // 逃生门是路标，图标保持稳定；发光状态由 updateDoorState 处理。
         }
 
-        this.bridgePortalMeshes.forEach((portal, index) => {
+        if (!pauseDecorativeMotion) this.bridgePortalMeshes.forEach((portal, index) => {
             const spin = portal.userData?.spinTarget;
             const inner = portal.userData?.innerSpinTarget;
             const shimmer = portal.userData?.shimmerTarget;
@@ -3652,21 +4218,23 @@ class RenderEngine {
             if (arc) arc.rotation.z -= index % 2 === 0 ? 0.01 : -0.01;
         });
 
-        if (this.beaconMesh?.userData?.spinTarget) {
+        if (!pauseDecorativeMotion && this.beaconMesh?.userData?.spinTarget) {
             this.beaconMesh.userData.spinTarget.rotation.z += 0.028;
             const bob = Math.sin(Date.now() * 0.005) * 0.01;
             this.beaconMesh.userData.spinTarget.position.y = 0.53 + bob;
         }
         
         // C. 棋子轻微呼吸，保留站位方向，不做整组乱转
-        const pulse = 1 + Math.sin(Date.now() * 0.004) * 0.018;
-        if (this.playerMesh) {
-            this.playerMesh.scale.setScalar(pulse);
+        if (!pauseDecorativeMotion) {
+            const pulse = 1 + Math.sin(Date.now() * 0.004) * 0.018;
+            if (this.playerMesh) {
+                this.playerMesh.scale.setScalar(pulse);
+            }
+            Object.values(this.aiMeshes).forEach((mesh, index) => {
+                const aiPulse = 1 + Math.sin(Date.now() * 0.0035 + index) * 0.012;
+                mesh.scale.setScalar(aiPulse);
+            });
         }
-        Object.values(this.aiMeshes).forEach((mesh, index) => {
-            const aiPulse = 1 + Math.sin(Date.now() * 0.0035 + index) * 0.012;
-            mesh.scale.setScalar(aiPulse);
-        });
 
         // D. 教程引导动画
         if (this.game && this.game.tutorialActive) {
@@ -3696,6 +4264,18 @@ class RenderEngine {
                 this.tutorialArrowMesh.scale.set(pulse, pulse, 1);
             }
 
+            if (this.tutorialObjectHalo?.userData?.tutorialObject) {
+                const pulse = 1.0 + Math.sin(Date.now() * 0.011) * 0.1;
+                const data = this.tutorialObjectHalo.userData.tutorialObject;
+                if (data.halo) {
+                    data.halo.scale.setScalar(pulse);
+                    data.halo.material.opacity = 0.72 + Math.sin(Date.now() * 0.01) * 0.22;
+                }
+                if (data.arrow) {
+                    data.arrow.scale.setScalar(0.95 + Math.sin(Date.now() * 0.013) * 0.08);
+                }
+            }
+
             // 3. Twist 旋转层高亮
             if (step && step.type === 'twist' && this.twistRingMeshes?.length) {
                 const twistPulse = 0.5 + 0.45 * Math.sin(Date.now() * 0.012);
@@ -3714,7 +4294,7 @@ class RenderEngine {
             }
         }
 
-        this.updateCubeLaserEdges();
+        if (!pauseDecorativeMotion) this.updateCubeLaserEdges();
         
         // 执行 WebGL 渲染
         if (this.renderer && this.scene && this.camera) {

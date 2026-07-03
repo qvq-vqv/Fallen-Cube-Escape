@@ -1,13 +1,40 @@
 <!DOCTYPE html>
 <html lang="zh-CN">
 <head>
+    <script>
+    window.DAWN_BOOT_ERRORS = [];
+    function closePrologueFallback() {
+        var prologue = document.getElementById('prologue-overlay');
+        var landing = document.getElementById('landing-overlay');
+        var setup = document.getElementById('setup-overlay');
+        var game = document.getElementById('game-container');
+        if (prologue) prologue.classList.remove('active');
+        if (landing) landing.classList.add('active');
+        if (setup) setup.classList.remove('active');
+        if (game) game.classList.add('preplay-stage');
+    }
+    window.onerror = function(msg, url, line, col, error) {
+        window.DAWN_BOOT_ERRORS.push({ type: 'error', msg: String(msg || ''), url: url || '', line: line || 0, col: col || 0 });
+        if (window.console && console.error) console.error('Dawn boot error:', msg, url, line, col, error || '');
+        return false;
+    };
+    window.addEventListener('unhandledrejection', function(event) {
+        var msg = event.reason && event.reason.message ? event.reason.message : event.reason;
+        window.DAWN_BOOT_ERRORS.push({ type: 'rejection', msg: String(msg || '') });
+        if (window.console && console.error) console.error('Dawn boot rejection:', msg);
+    });
+    window.addEventListener('DOMContentLoaded', function() {
+        document.getElementById('btn-prologue-skip')?.addEventListener('click', closePrologueFallback);
+        document.getElementById('btn-prologue-start')?.addEventListener('click', closePrologueFallback);
+    });
+    </script>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>黎明魔方 (E-7: Cube Pursuit)</title>
     <link rel="icon" href="data:,">
     <!-- 引入中文、数字与赛博标题字体 -->
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700;800&family=Noto+Sans+SC:wght@400;500;700;900&family=Orbitron:wght@400;700;900&family=Oxanium:wght@500;700;800&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="style.css?v=20260626-m68-v3">
+    <link rel="stylesheet" href="style.css?v=20260629-m11-5-release">
     <!-- 引入 Three.js -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
     <!-- 引入 Three.js OrbitControls -->
@@ -21,7 +48,7 @@
 
     <!-- 3D 初始界面 -->
     <div id="landing-overlay" class="overlay landing-overlay active">
-        <section class="landing-panel" aria-label="黎明魔方主菜单">
+        <section class="landing-panel" aria-label="黎明魔方主菜单" data-i18n-aria-label="landing.aria">
             <p class="landing-kicker">SIGNAL READY / DAWN LINK</p>
             <h1 class="landing-title" aria-label="DAWN CUBE / 黎明魔方">
                 <span class="landing-title-line">
@@ -35,13 +62,32 @@
                 <span class="title-creature title-creature-portal" aria-hidden="true"><i></i></span>
                 <small>黎明魔方</small>
             </h1>
-            <p class="landing-subtitle">A cube keeps folding. Dawn still wants to go home.</p>
+            <p class="landing-subtitle" data-i18n="landing.subtitle">你不是在控制棋子。你在隔着一台失真的手机，把 Dawn 从会折叠的魔方里带回家。</p>
             <div class="landing-actions">
-                <button id="landing-start-btn" class="landing-btn primary" type="button">开始逃亡</button>
-                <button id="landing-levels-btn" class="landing-btn" type="button">关卡选择</button>
-                <button id="landing-archive-btn" class="landing-btn" type="button">档案矩阵</button>
-                <button id="landing-settings-btn" class="landing-btn" type="button">游戏设置</button>
-                <button id="landing-credits-btn" class="landing-btn subtle" type="button">制作名单</button>
+                <div class="landing-main-actions" aria-label="主要入口" data-i18n-aria-label="landing.mainActions">
+                    <button id="landing-start-btn" class="landing-btn primary landing-start-command" type="button">
+                        <span class="landing-btn-icon" aria-hidden="true">▶</span>
+                        <span data-i18n="landing.start">开始逃亡</span>
+                    </button>
+                    <button id="landing-levels-btn" class="landing-btn" type="button">
+                        <span class="landing-btn-icon" aria-hidden="true">▦</span>
+                        <span data-i18n="landing.levels">关卡选择</span>
+                    </button>
+                    <button id="landing-archive-btn" class="landing-btn" type="button">
+                        <span class="landing-btn-icon" aria-hidden="true">◇</span>
+                        <span data-i18n="landing.archive">档案矩阵</span>
+                    </button>
+                </div>
+                <div class="landing-meta-actions" aria-label="辅助入口" data-i18n-aria-label="landing.metaActions">
+                    <button id="landing-settings-btn" class="landing-meta-btn" type="button" aria-label="游戏设置" data-i18n-aria-label="landing.settings">
+                        <span class="landing-meta-icon" aria-hidden="true">⚙</span>
+                        <span data-i18n="landing.settings">游戏设置</span>
+                    </button>
+                    <button id="landing-credits-btn" class="landing-meta-btn" type="button" aria-label="制作名单" data-i18n-aria-label="landing.credits">
+                        <span class="landing-meta-icon" aria-hidden="true">◎</span>
+                        <span data-i18n="landing.credits">制作名单</span>
+                    </button>
+                </div>
             </div>
         </section>
     </div>
@@ -83,12 +129,12 @@
             
             <div class="setup-section">
                 <h3 data-i18n="setup.levelBook">1. 残局册</h3>
-                <div class="act-page-tabs" id="act-page-tabs" role="tablist" aria-label="章节页">
-                    <button class="act-page-tab active" type="button" data-act-page="1" aria-selected="true">第一幕</button>
-                    <button class="act-page-tab is-hidden" type="button" data-act-page="2" aria-selected="false">第二幕</button>
-                    <button class="act-page-tab is-hidden" type="button" data-act-page="3" aria-selected="false">第三幕</button>
-                    <button class="act-page-tab is-hidden" type="button" data-act-page="4" aria-selected="false">第四幕</button>
-                    <button class="act-page-tab is-hidden" type="button" data-act-page="5" aria-selected="false">第五幕</button>
+                <div class="act-page-tabs" id="act-page-tabs" role="tablist" aria-label="章节页" data-i18n-aria-label="setup.actTabs">
+                    <button class="act-page-tab active" type="button" data-act-page="1" aria-selected="true" data-i18n="setup.act1">第一幕</button>
+                    <button class="act-page-tab is-hidden" type="button" data-act-page="2" aria-selected="false" data-i18n="setup.act2">第二幕</button>
+                    <button class="act-page-tab is-hidden" type="button" data-act-page="3" aria-selected="false" data-i18n="setup.act3">第三幕</button>
+                    <button class="act-page-tab is-hidden" type="button" data-act-page="4" aria-selected="false" data-i18n="setup.act4">第四幕</button>
+                    <button class="act-page-tab is-hidden" type="button" data-act-page="5" aria-selected="false" data-i18n="setup.act5">第五幕</button>
                 </div>
                 <div class="level-list" id="level-list">
                     <!-- 关卡卡片由 main.js 动态生成 -->
@@ -103,7 +149,7 @@
     <div id="loading-overlay" class="overlay loading-overlay" aria-hidden="true">
         <section class="loading-panel glass-panel">
             <span class="terminal-kicker">D-LINK BOOT</span>
-            <h2>神经连接同步中</h2>
+            <h2 data-i18n="loading.sync">神经连接同步中</h2>
             <div id="loading-log" class="loading-log" aria-live="polite"></div>
             <div class="loading-progress"><i id="loading-progress-fill"></i></div>
         </section>
@@ -112,9 +158,9 @@
     <!-- 游戏主界面 -->
     <div id="game-container" class="preplay-stage" style="display:grid;">
         <div class="meta-toolbar glass-panel">
-            <button id="btn-esc-menu" class="meta-btn" type="button" aria-label="打开控制台" title="打开暂停控制台">☰</button>
-            <button id="btn-undo" class="meta-btn" type="button" aria-label="悔棋一步" title="悔棋一步：回到上一安全状态" disabled>↶</button>
-            <button id="btn-reset" class="meta-btn" type="button" aria-label="重置本局" title="重置本局：从当前残局重新开始">⟲</button>
+            <button id="btn-esc-menu" class="meta-btn" type="button" aria-label="打开控制台" title="打开暂停控制台" data-i18n-aria-label="meta.menu" data-i18n-title="meta.menu">☰</button>
+            <button id="btn-undo" class="meta-btn" type="button" aria-label="悔棋一步" title="悔棋一步：回到上一安全状态" data-i18n-aria-label="meta.undo" data-i18n-title="meta.undo" disabled>↶</button>
+            <button id="btn-reset" class="meta-btn" type="button" aria-label="重置本局" title="重置本局：从当前残局重新开始" data-i18n-aria-label="meta.reset" data-i18n-title="meta.reset">⟲</button>
         </div>
 
         <!-- 顶部极简 HUD -->
@@ -122,15 +168,15 @@
             <div class="top-hud-main">
                 <span id="tutorial-sticker" class="hud-sticker">➜</span>
                 <div>
-                    <p id="tutorial-cue" class="hud-cue">拖到门</p>
+                    <p id="tutorial-cue" class="hud-cue" data-i18n="game.tutorialCue">点到门</p>
                     <h2 id="current-level-title">L01 逃生线</h2>
-                    <p id="current-level-goal">从绿色棋子拖到出口。</p>
+                    <p id="current-level-goal" data-i18n="game.initialGoal">点击相邻格，把 Dawn 带到出口。</p>
                 </div>
             </div>
             <div class="top-hud-stats">
                 <div><span data-i18n="hud.turn">回合</span><strong id="turn-count" class="text-neon-blue">1</strong></div>
-                <div><span>AP</span><strong id="ap-display" class="text-neon-green">2 / 2</strong></div>
-                <div><span data-i18n="hud.trust">Trust</span><strong id="trust-display" class="text-neon-yellow">80</strong></div>
+                <div><span data-i18n="hud.status">状态</span><strong id="ap-display" class="text-neon-green">READY</strong></div>
+                <div style="display:none"><span data-i18n="hud.trust">信任度</span><strong id="trust-display" class="text-neon-yellow">80</strong></div>
             </div>
             <div class="ap-bar-container">
                 <div id="ap-bar-fill" class="ap-bar-fill"></div>
@@ -141,24 +187,29 @@
         <div id="canvas-container">
             <!-- 3D Canvas 将插入此处 -->
             <div id="canvas-overlay-ui">
-                <div id="route-tip" class="help-tooltip">点击 Dawn 周围的格子移动；按 Shift 进入 Twist 拧层模式。</div>
+                <div id="route-tip" class="help-tooltip" data-i18n="game.routeTip">点击 Dawn 周围的格子移动；按 Shift 进入旋转魔方。</div>
+                <div id="tool-mode-indicator" class="tool-mode-indicator" aria-live="polite">
+                    <span id="tool-mode-icon" class="tool-mode-icon" aria-hidden="true">➜</span>
+                    <strong id="tool-mode-title" data-i18n="tool.mode.routeTitle">移动模式</strong>
+                    <small id="tool-mode-desc" data-i18n="tool.mode.routeDesc">点击 Dawn 周围的发亮格。</small>
+                </div>
                 <aside id="inspect-overlay" class="inspect-overlay" aria-live="polite" aria-hidden="true">
                     <span class="terminal-kicker">TACTICAL SCAN</span>
-                    <h2 id="inspect-title">残局检视</h2>
-                    <p id="inspect-goal">先观察棋面，再开始行动。</p>
+                    <h2 id="inspect-title" data-i18n="inspect.title">战术简报</h2>
+                    <p id="inspect-goal" data-i18n="inspect.defaultGoal">先观察棋面，再开始行动。</p>
                     <div id="inspect-meta" class="inspect-meta"></div>
                     <div class="inspect-actions">
-                        <button id="inspect-start-btn" class="btn btn-primary" type="button">开始行动</button>
-                        <button id="inspect-back-btn" class="btn btn-secondary" type="button">返回残局册</button>
+                        <button id="inspect-start-btn" class="btn btn-primary" type="button" data-i18n="inspect.start">开始行动</button>
+                        <button id="inspect-back-btn" class="btn btn-secondary" type="button" data-i18n="inspect.back">返回残局册</button>
                     </div>
                 </aside>
                 <aside id="tutorial-helper-card" class="tutorial-helper-card" aria-live="polite">
-                    <button id="tutorial-helper-close" class="tutorial-helper-close" type="button" aria-label="关闭提示">×</button>
+                    <button id="tutorial-helper-close" class="tutorial-helper-close" type="button" aria-label="关闭提示" data-i18n-aria-label="tutorial.helperClose" data-i18n-title="tutorial.helperClose">×</button>
                     <span id="tutorial-helper-icon" class="tutorial-helper-icon">➜</span>
                     <div>
-                        <strong id="tutorial-helper-title">直接点下一格</strong>
-                        <p id="tutorial-helper-body">点 Dawn 周围发亮的格子，她会立刻走过去。</p>
-                        <button id="btn-skip-tutorial" class="btn-skip-tutorial" type="button" title="跳过当前教学提示">跳过教程 / Skip Tutorial</button>
+                        <strong id="tutorial-helper-title" data-i18n="tutorial.helperTitle">直接点下一格</strong>
+                        <p id="tutorial-helper-body" data-i18n="tutorial.helperBody">点 Dawn 周围发亮的格子，她会立刻走过去。</p>
+                        <button id="btn-skip-tutorial" class="btn-skip-tutorial" type="button" title="跳过当前教学提示" data-i18n="tutorial.skip" data-i18n-title="tutorial.skip">跳过教程 / Skip Tutorial</button>
                     </div>
                 </aside>
                 <div id="tutorial-blackout" class="tutorial-blackout" aria-hidden="true"></div>
@@ -167,19 +218,15 @@
                         <circle class="progress-ring__circle-bg" stroke="rgba(255,255,255,0.15)" stroke-width="6" fill="transparent" r="52" cx="60" cy="60"/>
                         <circle id="tutorial-look-progress-svg" class="progress-ring__circle" stroke="#00ff88" stroke-width="6" fill="transparent" r="52" cx="60" cy="60" stroke-dasharray="326.7" stroke-dashoffset="326.7"/>
                     </svg>
-                    <svg id="tutorial-gesture-look-svg" viewBox="0 0 100 100" class="gesture-hand-svg" width="80" height="80">
-                        <!-- Double-headed arrow background curve -->
-                        <path d="M 15 52 Q 50 22 85 52" fill="none" stroke="#00f0ff" stroke-width="3" stroke-linecap="round" stroke-dasharray="6,4"/>
-                        <path d="M 15 52 L 27 45 M 15 52 L 23 62" fill="none" stroke="#00f0ff" stroke-width="3" stroke-linecap="round"/>
-                        <path d="M 85 52 L 73 45 M 85 52 L 77 62" fill="none" stroke="#00f0ff" stroke-width="3" stroke-linecap="round"/>
-                        <!-- Hand icon -->
-                        <g class="swiping-hand">
-                            <!-- Wrist / Arm -->
-                            <path d="M 45 80 L 45 68 L 55 68 L 55 80 Z" fill="#ffffff" opacity="0.2"/>
-                            <!-- Hand palm and fingers -->
-                            <path d="M 35 60 C 35 55 38 52 42 52 C 43 52 45 53 46 54 L 46 32 C 46 29 49 27 52 27 C 55 27 58 29 58 32 L 58 48 C 59 48 61 48 62 48 C 65 48 67 50 67 53 L 67 60 C 67 66 62 70 56 70 L 44 70 C 39 70 35 65 35 60 Z" fill="#ffffff" stroke="#00f0ff" stroke-width="2" stroke-linejoin="round"/>
-                            <!-- Thumb -->
-                            <path d="M 36 57 C 32 55 30 50 32 46 C 34 42 38 44 40 48 Z" fill="#ffffff" stroke="#00f0ff" stroke-width="2" stroke-linejoin="round"/>
+                    <svg id="tutorial-gesture-look-svg" viewBox="0 0 120 100" class="gesture-hand-svg gesture-mouse-svg" width="112" height="92">
+                        <path class="gesture-drag-track" d="M 16 54 C 34 22 86 22 104 54" fill="none" stroke="#ffdf6e" stroke-width="6" stroke-linecap="round"/>
+                        <path d="M 16 54 L 30 43 M 16 54 L 28 66" fill="none" stroke="#ffdf6e" stroke-width="6" stroke-linecap="round"/>
+                        <path d="M 104 54 L 90 43 M 104 54 L 92 66" fill="none" stroke="#ffdf6e" stroke-width="6" stroke-linecap="round"/>
+                        <g class="dragging-mouse">
+                            <rect x="44" y="32" width="32" height="48" rx="16" ry="16" fill="rgba(255,255,255,0.96)" stroke="#00f0ff" stroke-width="3.5"/>
+                            <line x1="60" y1="32" x2="60" y2="50" stroke="#00f0ff" stroke-width="2"/>
+                            <rect x="57" y="40" width="6" height="11" rx="3" fill="#00ff88"/>
+                            <circle cx="60" cy="86" r="4" fill="#ffdf6e"/>
                         </g>
                     </svg>
                     <!-- Zoom SVG -->
@@ -198,45 +245,104 @@
                             <rect class="mouse-wheel" x="48" y="36" width="4" height="8" rx="2" ry="2" fill="#00ff88"/>
                         </g>
                     </svg>
-                    <span id="tutorial-gesture-text" class="gesture-text">DRAG TO ROTATE / 拖拽旋转视角</span>
+                    <span id="tutorial-gesture-text" class="gesture-text" data-i18n="tutorial.gestureLook">DRAG TO ROTATE / 拖拽旋转视角</span>
                 </div>
                 <section id="tutorial-dialogue-console" class="tutorial-dialogue-console is-hidden" aria-live="polite">
-                    <button id="tutorial-dialogue-close" class="tutorial-dialogue-close" type="button" aria-label="关闭提示">×</button>
-                    <canvas id="tutorial-led-mascot" class="tutorial-led-mascot" width="144" height="144" aria-label="E-7 点阵表情"></canvas>
+                    <button id="tutorial-dialogue-close" class="tutorial-dialogue-close" type="button" aria-label="关闭提示" data-i18n-aria-label="tutorial.helperClose" data-i18n-title="tutorial.helperClose">×</button>
+                    <div class="tutorial-led-mascot">
+                        <canvas id="tutorial-led-mascot" width="64" height="64"></canvas>
+                    </div>
                     <div class="tutorial-dialogue-copy">
                         <div class="tutorial-dialogue-header">
-                            <span id="tutorial-speaker-label" class="tutorial-speaker-label">E-7</span>
+                            <span id="tutorial-speaker-label" class="tutorial-speaker-label" data-i18n="console.systemSpeaker">SYSTEM AI</span>
                             <span class="tutorial-time-label" data-i18n="tutorial.now">现在</span>
                         </div>
                         <p id="tutorial-dialogue-text">……</p>
-                        <button id="tutorial-dialogue-next" class="tutorial-dialogue-next" type="button">继续</button>
+                        <button id="tutorial-dialogue-next" class="tutorial-dialogue-next" type="button" data-i18n="tutorial.next">继续</button>
                     </div>
                 </section>
             </div>
-            <button id="audio-toggle" class="audio-toggle" type="button" aria-pressed="true" title="开启或关闭声音">声音 开</button>
-            <button id="btn-twist-mode" class="twist-toggle" type="button" aria-pressed="false" title="空间折叠：拖拽控制环旋转一层魔方">Twist</button>
+            <button id="audio-toggle" class="audio-toggle" type="button" aria-pressed="true" title="开启或关闭声音" data-i18n="audio.on" data-i18n-title="audio.toggleTitle">声音 开</button>
+            <button id="btn-twist-mode" class="twist-toggle" type="button" aria-pressed="false" title="旋转魔方：拖拽控制环拧动一层魔方" data-i18n="fold.title" data-i18n-title="meta.twist">旋转</button>
         </div>
 
-        <div id="float-bubble-layer" class="float-bubble-layer" aria-label="悬浮快捷球">
-            <button id="comms-float-bubble" class="float-bubble comms-bubble" type="button" aria-label="打开 Dawn 通讯">
-                <span>💬</span>
+        <div id="float-bubble-layer" class="float-bubble-layer" aria-label="悬浮快捷球" data-i18n-aria-label="toolbox.layer">
+            <button id="comms-float-bubble" class="float-bubble comms-bubble" type="button" aria-label="打开 Dawn 通讯" data-i18n-aria-label="toolbox.openComms" data-i18n-title="toolbox.openComms">
+                <svg class="bubble-avatar-svg" viewBox="0 0 32 32" width="100%" height="100%">
+                    <rect x="11" y="5" width="10" height="2" fill="currentColor"/>
+                    <rect x="8" y="7" width="16" height="2" fill="currentColor"/>
+                    <rect x="7" y="9" width="18" height="2" fill="currentColor"/>
+                    <rect x="6" y="11" width="20" height="2" fill="currentColor"/>
+                    <rect x="6" y="13" width="20" height="2" fill="currentColor"/>
+                    <rect x="8" y="15" width="20" height="4" fill="currentColor"/>
+                    <rect x="9" y="19" width="14" height="2" fill="currentColor"/>
+                    <rect x="11" y="21" width="10" height="2" fill="currentColor"/>
+                    <rect x="23" y="3" width="4" height="4" fill="currentColor"/>
+                    <rect x="14" y="23" width="4" height="2" fill="currentColor"/>
+                    <rect x="11" y="25" width="10" height="2" fill="currentColor"/>
+                </svg>
                 <b id="comms-float-badge" class="float-bubble-badge is-hidden">0</b>
             </button>
-            <button id="tools-float-bubble" class="float-bubble tools-bubble" type="button" aria-label="打开工具箱">
+            <button id="tools-float-bubble" class="float-bubble tools-bubble" type="button" aria-label="打开工具箱" data-i18n-aria-label="toolbox.openTools" data-i18n-title="toolbox.openTools">
                 <span>⚙️</span>
                 <b id="tools-float-badge" class="float-bubble-badge is-hidden">0</b>
             </button>
-            <div id="floating-toolbox-menu" class="floating-toolbox-menu is-hidden" aria-label="工具快捷菜单">
-                <button class="tool-bubble-btn" data-tool-mode="route" title="移动路径">🏃</button>
-                <button class="tool-bubble-btn" data-tool-mode="break" id="btn-floating-break" title="碎解工具">🔨<span id="floating-break-count">0</span></button>
-                <button class="tool-bubble-btn" data-tool-mode="patch" id="btn-floating-patch" title="补片工具">🟩<span id="floating-patch-count">0</span></button>
-                <button class="tool-bubble-btn" data-tool-mode="beacon" id="btn-floating-beacon" title="信标工具">📡<span id="floating-beacon-count">0</span></button>
+            <div id="floating-toolbox-menu" class="floating-toolbox-menu is-hidden" aria-label="工具快捷菜单" data-i18n-aria-label="toolbox.menu">
+                <button class="tool-bubble-btn" data-tool-mode="route" title="移动路径" data-i18n-title="toolbox.routeTitle">🏃</button>
+                <button class="tool-bubble-btn" data-tool-mode="break" id="btn-floating-break" title="碎解工具" data-i18n-title="toolbox.breakTitle">🔨<span id="floating-break-count">0</span></button>
+                <button class="tool-bubble-btn" data-tool-mode="patch" id="btn-floating-patch" title="补片工具" data-i18n-title="toolbox.patchTitle">🟩<span id="floating-patch-count">0</span></button>
+                <button class="tool-bubble-btn" data-tool-mode="beacon" id="btn-floating-beacon" title="信标工具" data-i18n-title="toolbox.beaconTitle">📡<span id="floating-beacon-count">0</span></button>
+            </div>
+
+            <!-- Scheme G: Cozy Sketchpad Chat Window -->
+            <div id="dawn-chat-window" class="dawn-chat-window is-hidden" aria-live="polite">
+                <div class="dawn-chat-header">
+                    <div class="dawn-chat-status-indicator">
+                        <span id="dawn-chat-name">DAWN</span>
+                        <span id="dawn-chat-status-tag" class="dawn-status-tag" data-i18n="dawn.chatStatusSteady">[状态: 稍微安心]</span>
+                    </div>
+                    <button id="dawn-chat-close-btn" class="dawn-chat-close-btn" type="button" aria-label="关闭对话" title="收起对话" data-i18n-aria-label="dawn.closeChat" data-i18n-title="dawn.collapseChat">×</button>
+                </div>
+                <div class="dawn-chat-body">
+                    <div class="dawn-chat-avatar-column">
+                        <svg class="dawn-pixel-avatar" viewBox="0 0 32 32" width="42" height="42">
+                            <rect x="11" y="5" width="10" height="2" fill="currentColor"/>
+                            <rect x="8" y="7" width="16" height="2" fill="currentColor"/>
+                            <rect x="7" y="9" width="18" height="2" fill="currentColor"/>
+                            <rect x="6" y="11" width="20" height="2" fill="currentColor"/>
+                            <rect x="6" y="13" width="20" height="2" fill="currentColor"/>
+                            <rect x="8" y="15" width="20" height="4" fill="currentColor"/>
+                            <rect x="9" y="19" width="14" height="2" fill="currentColor"/>
+                            <rect x="11" y="21" width="10" height="2" fill="currentColor"/>
+                            <rect x="23" y="3" width="4" height="4" fill="currentColor"/>
+                            <rect x="14" y="23" width="4" height="2" fill="currentColor"/>
+                            <rect x="11" y="25" width="10" height="2" fill="currentColor"/>
+                        </svg>
+                    </div>
+                    <div class="dawn-chat-content">
+                        <div id="dawn-chat-log" class="dawn-chat-log">
+                            <!-- Dialogue lines appended programmatically -->
+                        </div>
+                    </div>
+                </div>
+                <div id="dawn-chat-input-row" class="dawn-chat-input-row">
+                    <div class="dawn-kaomoji-dock" id="dawn-kaomoji-dock">
+                        <button class="kaomoji-btn" data-comms-choice="0" type="button">(｀・ω·´)</button>
+                        <button class="kaomoji-btn" data-comms-choice="1" type="button">(´･ω･`)</button>
+                        <button class="kaomoji-btn" data-comms-choice="2" type="button">(¬‿¬)</button>
+                    </div>
+                    <div id="dawn-chat-free-input-container" class="dawn-chat-free-input-container is-hidden">
+                        <input type="text" id="dawn-chat-free-input" placeholder="输入消息对 Dawn 说..." data-i18n-placeholder="dawn.inputPlaceholder" />
+                        <button id="btn-dawn-send-chat" type="button" data-i18n="dawn.send">发送</button>
+                    </div>
+                    <button id="dawn-chat-next-btn" class="kaomoji-btn is-hidden" type="button" style="width: 100%; padding: 6px; background: #ff9500; color: #ffffff; border-color: #3c352e;" data-i18n="tutorial.next">继续</button>
+                </div>
             </div>
         </div>
 
         <!-- 右侧 E-7 手机：抽屉式通讯 / 档案 -->
         <div id="phone-panel" class="hud-panel right-panel glass-panel escape-terminal phone-terminal">
-            <button id="phone-notch" class="phone-notch" type="button" aria-label="收起 E-7 手机" title="收起或展开通讯手机">▶</button>
+            <button id="phone-notch" class="phone-notch" type="button" aria-label="收起 E-7 手机" title="收起或展开通讯手机" data-i18n-aria-label="phone.collapse" data-i18n-title="phone.toggle">▶</button>
             <div class="terminal-header">
                 <div>
                     <span class="phone-statusbar"><b>D-LINK 9G</b><i id="phone-clock">09:46</i><em>87%</em></span>
@@ -245,44 +351,44 @@
                     <canvas id="voice-wave-canvas" class="voice-wave-canvas" width="360" height="76" aria-hidden="true"></canvas>
                 </div>
                 <div class="companion-dock" aria-live="polite">
-                    <div class="companion-slot" aria-label="主角通讯位，立绘暂缺"></div>
+                    <div class="companion-slot" aria-label="主角通讯位，立绘暂缺" data-i18n-aria-label="companion.slot"></div>
                     <div class="companion-copy">
-                        <span id="companion-status" class="companion-status">信号稳定</span>
-                        <p id="companion-bubble">我在。手机别收太久。</p>
+                        <span id="companion-status" class="companion-status" data-i18n="dawn.statusSteady">信号稳定</span>
+                        <p id="companion-bubble" data-i18n="dawn.bubbleIdle">我在。手机别收太久。</p>
                     </div>
                 </div>
             </div>
 
 
             <div class="phone-action-dock" id="phone-action-dock">
-                <button id="btn-confirm-path" class="btn btn-primary phone-primary" disabled data-i18n="phone.sendRoute" title="发送当前规划路线">发送路线</button>
-                <button id="btn-end-turn" class="btn btn-risk phone-secondary" data-i18n="phone.skip" title="跳过本次行动">跳过</button>
+                <button id="btn-confirm-path" class="btn btn-primary phone-primary" disabled data-i18n="phone.sendRoute" title="执行当前指令" data-i18n-title="phone.executeTitle">执行</button>
+                <button id="btn-end-turn" class="btn btn-risk phone-secondary" data-i18n="phone.skip" title="跳过本次行动" data-i18n-title="phone.skipTitle">跳过</button>
 
-                <div id="tool-section" class="phone-tool-row is-hidden" aria-label="场上工具">
-                    <button id="btn-tool-route" class="tool-mode-btn active" type="button" data-tool-mode="route" data-i18n="tool.route" title="移动：点击 Dawn 周围可走格">移动</button>
-                    <button id="btn-tool-patch" class="tool-mode-btn" type="button" data-tool-mode="patch" title="补片：铺一格临时路，踩过即碎"><span data-i18n="tool.patch">补片</span> <b id="patch-count">0</b></button>
-                    <button id="btn-tool-beacon" class="tool-mode-btn" type="button" data-tool-mode="beacon" title="诱饵：放在任意可用格吸引追击"><span data-i18n="tool.beacon">诱饵</span> <b id="beacon-count">0</b></button>
-                    <button id="btn-tool-break" class="tool-mode-btn" type="button" data-tool-mode="break" title="碎解：拆掉一个关键格阻断追路"><span data-i18n="tool.break">碎解</span> <b id="break-count">0</b></button>
+                <div id="tool-section" class="phone-tool-row is-hidden" aria-label="场上工具" data-i18n-aria-label="toolbox.menu">
+                    <button id="btn-tool-route" class="tool-mode-btn active" type="button" data-tool-mode="route" data-i18n="tool.route" title="移动：点击 Dawn 周围可走格" data-i18n-title="tool.routeTitle">移动</button>
+                    <button id="btn-tool-patch" class="tool-mode-btn" type="button" data-tool-mode="patch" title="补片：铺一格临时路，踩过即碎" data-i18n-title="tool.patchTitle"><span data-i18n="tool.patch">补片</span> <b id="patch-count">0</b></button>
+                    <button id="btn-tool-beacon" class="tool-mode-btn" type="button" data-tool-mode="beacon" title="诱饵：放在任意可用格吸引追击" data-i18n-title="tool.beaconTitle"><span data-i18n="tool.beacon">诱饵</span> <b id="beacon-count">0</b></button>
+                    <button id="btn-tool-break" class="tool-mode-btn" type="button" data-tool-mode="break" title="碎解：拆掉一个关键格阻断追路" data-i18n-title="tool.breakTitle"><span data-i18n="tool.break">碎解</span> <b id="break-count">0</b></button>
                 </div>
 
                 <div class="action-section phone-fold-panel" id="rotation-section">
                     <div class="fold-line fold-title-line">
-                        <strong data-i18n="fold.title">空间折叠</strong>
-                    <span id="rotation-status" class="rotation-cost-inline"><span data-i18n="fold.cost">消耗</span><b id="rotation-charge">1 AP</b></span>
-                        <button class="info-hint" type="button" aria-label="旋转说明">!</button>
+                        <strong data-i18n="fold.title">旋转魔方</strong>
+                    <span id="rotation-status" class="rotation-cost-inline"><span data-i18n="fold.cost">节拍</span><b id="rotation-charge" data-i18n="fold.enemyMoves">敌人会动</b></span>
+                        <button class="info-hint" type="button" aria-label="旋转说明" data-i18n-aria-label="fold.info" data-i18n-title="fold.info">!</button>
                         <p class="info-tooltip" id="rotation-budget-hint" role="tooltip" data-i18n="fold.tip">旋转会改变钥匙、门和敌人的相对位置；误转可悔棋。</p>
                     </div>
                     <div class="fold-line fold-controls-line">
-                        <select id="rotate-axis" class="cyber-select fold-select" aria-label="轴向">
-                            <option value="X">X 轴</option>
-                            <option value="Y">Y 轴</option>
-                            <option value="Z">Z 轴</option>
+                        <select id="rotate-axis" class="cyber-select fold-select" aria-label="轴向" data-i18n-aria-label="fold.axis">
+                            <option value="X" data-i18n="fold.axisX">X 轴</option>
+                            <option value="Y" data-i18n="fold.axisY">Y 轴</option>
+                            <option value="Z" data-i18n="fold.axisZ">Z 轴</option>
                         </select>
-                        <select id="rotate-layer" class="cyber-select fold-select" aria-label="层数">
+                        <select id="rotate-layer" class="cyber-select fold-select" aria-label="层数" data-i18n-aria-label="fold.layer">
                             <!-- 根据 N 动态填充 -->
                         </select>
-                        <button id="btn-rotate-ccw" class="btn btn-action fold-arrow" aria-label="逆时针旋转" title="逆时针旋转当前层">↶</button>
-                        <button id="btn-rotate-cw" class="btn btn-action fold-arrow" aria-label="顺时针旋转" title="顺时针旋转当前层">↷</button>
+                        <button id="btn-rotate-ccw" class="btn btn-action fold-arrow" aria-label="向左拧层" title="向左拧动当前层" data-i18n-aria-label="fold.ccw" data-i18n-title="fold.ccw">↶</button>
+                        <button id="btn-rotate-cw" class="btn btn-action fold-arrow" aria-label="向右拧层" title="向右拧动当前层" data-i18n-aria-label="fold.cw" data-i18n-title="fold.cw">↷</button>
                     </div>
                     <div id="rotation-preview-chip" class="rotation-preview-chip is-compact">X 轴 · 第 1 层 · ↻ / ↺</div>
                 </div>
@@ -300,13 +406,18 @@
                         <p class="comms-line protagonist" data-i18n="comms.live">我还在。你别突然消失。</p>
                     </div>
                     <p class="comms-line protagonist" id="comms-live-line" data-i18n="comms.live">我还在。你别突然消失。</p>
-                    <p class="comms-line system" id="comms-context-line" data-i18n="comms.context">通讯只在安全间隙展开；路线直接在 3D 魔方上画。</p>
-                    <p class="comms-line system route-command-preview" id="route-command-preview" data-i18n="comms.routeEmpty">走向：未规划</p>
+                    <p class="comms-line system" id="comms-context-line" data-i18n="comms.context">通讯只在安全间隙打开；移动直接点 3D 魔方上的相邻格。</p>
+                    <p class="comms-line system route-command-preview" id="route-command-preview" data-i18n="comms.routeEmpty">下一步：未选择</p>
                 </div>
-                <div class="comms-choices" aria-label="通讯选项">
-                    <button class="terminal-choice" type="button" data-comms-choice="0" aria-label="认真回应">(｀・ω・´)</button>
-                    <button class="terminal-choice" type="button" data-comms-choice="1" aria-label="担心回应">(´･ω･`)</button>
-                    <button class="terminal-choice" type="button" data-comms-choice="2" aria-label="吐槽回应">(¬‿¬)</button>
+                <div class="comms-choices" aria-label="通讯选项" data-i18n-aria-label="comms.choices">
+                    <button class="terminal-choice" type="button" data-comms-choice="0" aria-label="认真回应" data-i18n-aria-label="comms.replyFocused">(｀・ω・´)</button>
+                    <button class="terminal-choice" type="button" data-comms-choice="1" aria-label="担心回应" data-i18n-aria-label="comms.replyWorried">(´･ω･`)</button>
+                    <button class="terminal-choice" type="button" data-comms-choice="2" aria-label="吐槽回应" data-i18n-aria-label="comms.replyTease">(¬‿¬)</button>
+                </div>
+                <!-- A+B Comms free chat input container -->
+                <div id="comms-chat-input-container" class="comms-chat-input-container is-hidden" style="margin-top: 10px; display: flex; gap: 8px;">
+                    <input type="text" id="comms-chat-input" placeholder="输入消息对 Dawn 说..." data-i18n-placeholder="comms.chatPlaceholder" style="flex: 1; background: rgba(0, 0, 0, 0.4); border: 1px solid rgba(0, 240, 255, 0.3); border-radius: 6px; color: #fff; padding: 6px 10px; font-family: inherit; font-size: 0.95rem; outline: none;" />
+                    <button id="btn-send-chat" data-i18n="comms.send" style="background: rgba(0, 240, 255, 0.2); border: 1px solid var(--neon-blue); border-radius: 6px; color: var(--neon-blue); padding: 6px 12px; cursor: pointer; font-weight: bold; font-size: 0.95rem;">发送</button>
                 </div>
             </section>
 
@@ -317,8 +428,8 @@
         <div class="glass-panel esc-console-panel">
             <section class="esc-console-column">
                 <span class="terminal-kicker" data-i18n="console.kicker">PAUSED CONSOLE</span>
-                <h2 id="esc-level-title">当前残局</h2>
-                <p id="esc-level-desc">读取中。</p>
+                <h2 id="esc-level-title" data-i18n="game.currentPuzzle">当前残局</h2>
+                <p id="esc-level-desc" data-i18n="game.loading">读取中。</p>
                 <div class="objective-list esc-objectives">
                     <div class="objective-item">
                         <span class="obj-dot active-yellow" id="obj-key-dot"></span>
@@ -337,16 +448,16 @@
             <section class="esc-console-column esc-actions">
                 <span class="terminal-kicker" data-i18n="console.survival">SURVIVAL DATA</span>
                 <div class="survival-grid">
-                    <div><span data-i18n="hud.trust">信任值</span><strong id="console-trust-display">80</strong></div>
+                    <div style="display:none"><span data-i18n="console.trust">信任值</span><strong id="console-trust-display">80</strong></div>
                     <div><span data-i18n="console.rotation">旋转数</span><strong id="console-rotation-display">0</strong></div>
                     <div><span data-i18n="console.turn">本局回合</span><strong id="console-turn-display">1</strong></div>
-                    <div><span data-i18n="console.ap">剩余 AP</span><strong id="console-ap-display">2</strong></div>
+                    <div><span data-i18n="console.ap">当前状态</span><strong id="console-ap-display">可行动</strong></div>
                 </div>
                 <button class="btn-lang-toggle console-lang" type="button" data-lang-toggle>中 / EN</button>
-                <button id="btn-console-resume" class="btn btn-primary btn-large" type="button" data-i18n="console.resume" title="关闭暂停控制台并继续">继续游戏</button>
-                <button id="btn-console-reset" class="btn btn-secondary btn-large" type="button" data-i18n="console.reset" title="重置当前关卡">重新开始</button>
-                <button id="btn-console-settings" class="btn btn-secondary btn-large" type="button" data-i18n="settings.title" title="打开游戏设置">游戏设置</button>
-                <button id="btn-main-menu" class="btn btn-danger btn-large" type="button" data-i18n="console.menu" title="退出本局并返回残局册">返回菜单</button>
+                <button id="btn-console-resume" class="btn btn-primary btn-large" type="button" data-i18n="console.resume" title="关闭暂停控制台并继续" data-i18n-title="console.resumeTitle">继续游戏</button>
+                <button id="btn-console-reset" class="btn btn-secondary btn-large" type="button" data-i18n="console.reset" title="重置当前关卡" data-i18n-title="console.resetTitle">重新开始</button>
+                <button id="btn-console-settings" class="btn btn-secondary btn-large" type="button" data-i18n="settings.title" title="打开游戏设置" data-i18n-title="console.settingsTitle">游戏设置</button>
+                <button id="btn-main-menu" class="btn btn-danger btn-large" type="button" data-i18n="console.menu" title="退出本局并返回残局册" data-i18n-title="console.menuTitle">返回菜单</button>
             </section>
         </div>
     </div>
@@ -354,17 +465,17 @@
     <div id="bullet-time-overlay" class="bullet-time-overlay" aria-hidden="true"></div>
 
     <div id="settings-overlay" class="settings-overlay" aria-hidden="true">
-        <section class="settings-panel glass-panel" aria-label="游戏设置">
+        <section class="settings-panel glass-panel" aria-label="游戏设置" data-i18n-aria-label="settings.title">
             <div class="settings-header">
                 <span class="terminal-kicker" data-i18n="settings.kicker">SYSTEM PATCH</span>
                 <h2 data-i18n="settings.title">游戏设置</h2>
-                <button id="settings-close-btn" class="settings-close-btn" type="button" aria-label="关闭设置" title="关闭设置">×</button>
+                <button id="settings-close-btn" class="settings-close-btn" type="button" aria-label="关闭设置" title="关闭设置" data-i18n-aria-label="settings.close" data-i18n-title="settings.close">×</button>
             </div>
 
             <div class="settings-grid">
                 <article class="settings-card">
                     <span class="settings-label" data-i18n="settings.language">语言</span>
-                    <div class="segmented-control" role="group" aria-label="语言">
+                    <div class="segmented-control" role="group" aria-label="语言" data-i18n-aria-label="settings.language">
                         <button class="settings-segment" type="button" data-settings-lang="zh">中</button>
                         <button class="settings-segment" type="button" data-settings-lang="en">EN</button>
                     </div>
@@ -379,16 +490,29 @@
 
                 <article class="settings-card">
                     <span class="settings-label" data-i18n="settings.precision">倒计时精度</span>
-                    <div class="segmented-control" role="group" aria-label="倒计时精度">
+                    <div class="segmented-control" role="group" aria-label="倒计时精度" data-i18n-aria-label="settings.precision">
                         <button class="settings-segment" type="button" data-settings-precision="0">3</button>
                         <button class="settings-segment" type="button" data-settings-precision="1">3.0</button>
                         <button class="settings-segment" type="button" data-settings-precision="2">3.00</button>
                     </div>
                 </article>
 
+                <article class="settings-card performance-card">
+                    <span class="settings-label" data-i18n="settings.lowPower">低功耗/屏幕共享</span>
+                    <button id="settings-low-power-btn" class="settings-toggle" type="button" aria-pressed="false" data-i18n="settings.lowPowerOff">标准画质</button>
+                </article>
+
                 <article class="settings-card">
                     <span class="settings-label" data-i18n="settings.devMode">开发者模式</span>
                     <button id="settings-devmode-btn" class="settings-toggle danger" type="button" aria-pressed="false" data-i18n="settings.devUnlock">解锁所有关卡</button>
+                </article>
+
+                <article id="settings-gemini-card" class="settings-card is-hidden">
+                    <span class="settings-label" data-i18n="settings.gemini">Gemini API Key</span>
+                    <div style="display: flex; gap: 8px; width: 100%;">
+                        <input id="settings-gemini-key" type="password" placeholder="输入 Gemini API Key..." data-i18n-placeholder="settings.geminiPlaceholder" style="flex: 1; padding: 6px 10px; background: rgba(0, 10, 20, 0.6); color: #00f0ff; border: 1px solid rgba(0, 240, 255, 0.3); border-radius: 4px; font-family: monospace; font-size: 0.75rem;" />
+                        <button id="settings-save-gemini-btn" class="settings-toggle" type="button" data-i18n="settings.saveGemini" style="padding: 6px 12px; background: rgba(0, 240, 255, 0.15); border-color: rgba(0, 240, 255, 0.3); color: #00f0ff; min-width: 60px;">保存</button>
+                    </div>
                 </article>
 
                 <article class="settings-card">
@@ -397,19 +521,19 @@
                 </article>
 
                 <article class="settings-card">
-                    <span class="settings-label">清除存档</span>
-                    <button id="settings-clear-progress-btn" class="settings-toggle danger" type="button">删除所有进度</button>
+                    <span class="settings-label" data-i18n="settings.clearProgress">清除存档</span>
+                    <button id="settings-clear-progress-btn" class="settings-toggle danger" type="button" data-i18n="settings.clearProgressBtn">删除所有进度</button>
                 </article>
 
                 <article id="settings-dev-tuning" class="settings-card dev-tuning-card is-hidden">
                     <span class="settings-label">DEV TUNING</span>
                     <label class="settings-slider-row">
-                        <span>E-7 移动速度</span>
+                        <span data-i18n="settings.playerSpeed">Dawn 移动速度</span>
                         <input id="settings-player-speed" type="range" min="360" max="900" step="30" value="600">
                         <b id="settings-player-speed-value">0.60s</b>
                     </label>
                     <label class="settings-slider-row">
-                        <span>怪物移动速度</span>
+                        <span data-i18n="settings.enemySpeed">怪物移动速度</span>
                         <input id="settings-enemy-speed" type="range" min="50" max="180" step="5" value="100">
                         <b id="settings-enemy-speed-value">1.00x</b>
                     </label>
@@ -417,12 +541,12 @@
             </div>
 
             <div class="settings-guide">
-                <h3>玩法指南</h3>
+                <h3 data-i18n="settings.guideTitle">玩法指南</h3>
                 <div class="guide-grid">
-                    <article><b>➜</b><span>点 Dawn 周围发亮格移动，途中只缓存下一步。</span></article>
-                    <article><b>⟳</b><span>按 Shift 进入 Twist，拖 3D 控制环拧层。</span></article>
-                    <article><b>▧</b><span>补片铺一次路，Dawn 踩过后碎掉。</span></article>
-                    <article><b>◇</b><span>诱饵拉偏追击压力，碎解切断必经格。</span></article>
+                    <article><b>➜</b><span data-i18n="settings.guideMove">点 Dawn 周围发亮格移动，途中只缓存下一步。</span></article>
+                    <article><b>⟳</b><span data-i18n="settings.guideTwist">按 Shift 进入旋转魔方，拖 3D 控制环拧层。</span></article>
+                    <article><b>▧</b><span data-i18n="settings.guidePatch">补片铺一次路，Dawn 踩过后碎掉。</span></article>
+                    <article><b>◇</b><span data-i18n="settings.guideTools">诱饵拉偏追击压力，碎解切断必经格。</span></article>
                 </div>
             </div>
 
@@ -434,7 +558,7 @@
                     <label><span data-i18n="settings.key.beacon">部署信标</span><button class="keybind-button" type="button" data-keybind-action="beacon">3</button></label>
                     <label><span data-i18n="settings.key.break">碎解</span><button class="keybind-button" type="button" data-keybind-action="break">4</button></label>
                     <label><span data-i18n="settings.key.wait">原地待命</span><button class="keybind-button" type="button" data-keybind-action="wait">Space</button></label>
-                    <label><span data-i18n="settings.key.twist">Twist 模式</span><button class="keybind-button" type="button" data-keybind-action="twist">Shift</button></label>
+                    <label><span data-i18n="settings.key.twist">旋转魔方</span><button class="keybind-button" type="button" data-keybind-action="twist">Shift</button></label>
                 </div>
             </div>
         </section>
@@ -453,8 +577,8 @@
                     <label class="analysis-tone-control">
                         <span data-i18n="gameover.tone">语气</span>
                         <select id="analysis-tone" class="cyber-select">
-                            <option value="coach">最强大脑</option>
-                            <option value="cute">可爱陪练</option>
+                            <option value="coach" data-i18n="gameover.toneCoach">最强大脑</option>
+                            <option value="cute" data-i18n="gameover.toneCute">可爱陪练</option>
                         </select>
                     </label>
                 </div>
@@ -472,23 +596,23 @@
             <div id="act-ending-comic" class="comic-strip finale-comic is-hidden">
                 <article class="comic-frame">
                     <span class="comic-no">01</span>
-                    <p>门开了。</p>
-                    <small>我承认，这一秒我差点以为我们赢了。</small>
+                    <p data-i18n="victory.comic1Title">门开了。</p>
+                    <small data-i18n="victory.comic1Body">我承认，这一秒我差点以为我们赢了。</small>
                 </article>
                 <article class="comic-frame danger-frame">
                     <span class="comic-no">02</span>
-                    <p>门后不是出口。</p>
-                    <small>是更大的外壳。很好，牢房还带升级包。</small>
+                    <p data-i18n="victory.comic2Title">门后不是出口。</p>
+                    <small data-i18n="victory.comic2Body">是更大的外壳。很好，牢房还带升级包。</small>
                 </article>
                 <article class="comic-frame">
                     <span class="comic-no">03</span>
-                    <p>那东西在记录。</p>
-                    <small>它不是在放我们走。它在学我们怎么逃。</small>
+                    <p data-i18n="victory.comic3Title">那东西在记录。</p>
+                    <small data-i18n="victory.comic3Body">它不是在放我们走。它在学我们怎么逃。</small>
                 </article>
                 <article class="comic-frame danger-frame">
                     <span class="comic-no">04</span>
-                    <p>第二幕接入。</p>
-                    <small>别笑。等我出去以后，再决定要不要原谅你。</small>
+                    <p data-i18n="victory.comic4Title">第二幕接入。</p>
+                    <small data-i18n="victory.comic4Body">别笑。等我出去以后，再决定要不要原谅你。</small>
                 </article>
             </div>
             <div class="stats-summary" id="victory-summary"></div>
@@ -498,16 +622,16 @@
 
     <div id="archive-overlay" class="overlay archive-overlay" aria-hidden="true">
         <section class="archive-room glass-panel">
-            <button id="archive-close-btn" class="settings-close-btn" type="button" aria-label="关闭档案">×</button>
+            <button id="archive-close-btn" class="settings-close-btn" type="button" aria-label="关闭档案" data-i18n-aria-label="archive.close" data-i18n-title="archive.close">×</button>
             <span class="terminal-kicker">TROPHY ROOM</span>
-            <h2>档案与成就陈列室</h2>
+            <h2 data-i18n="archive.roomTitle">档案与成就陈列室</h2>
             <div class="archive-room-grid">
                 <section>
-                    <h3>成就徽章</h3>
+                    <h3 data-i18n="archive.roomAchievements">成就徽章</h3>
                     <div id="archive-room-achievements" class="archive-room-list"></div>
                 </section>
                 <section>
-                    <h3>剧情数据盘</h3>
+                    <h3 data-i18n="archive.roomEntries">剧情数据盘</h3>
                     <div id="archive-room-entries" class="archive-room-list"></div>
                 </section>
             </div>
@@ -516,7 +640,7 @@
 
     <div id="credits-overlay" class="overlay credits-overlay" aria-hidden="true">
         <section class="credits-terminal glass-panel">
-            <button id="credits-close-btn" class="settings-close-btn" type="button" aria-label="关闭致谢">×</button>
+            <button id="credits-close-btn" class="settings-close-btn" type="button" aria-label="关闭致谢" data-i18n-aria-label="credits.close" data-i18n-title="credits.close">×</button>
             <span class="terminal-kicker">CREDITS</span>
             <pre>
 DAWN CUBE / 黎明魔方
@@ -532,13 +656,13 @@ Special Thanks ............ Operating Agent
     </div>
 
     <!-- 载入脚本 -->
-    <script src="locales.js?v=20260628-m11-polish"></script>
-    <script src="audio.js?v=20260609-phone-v3"></script>
-    <script src="levels.js?v=20260628-m11-polish"></script>
-    <script src="game.js?v=20260628-m11-polish"></script>
-    <script src="render.js?v=20260628-m11-polish"></script>
-    <script src="dialogue.js?v=20260628-m11-polish"></script>
-    <script src="story.js?v=20260628-m11-polish"></script>
-    <script src="main.js?v=20260628-m11-polish"></script>
+    <script src="locales.js?v=20260629-m11-5-release"></script>
+    <script src="audio.js?v=20260629-m11-5-release"></script>
+    <script src="levels.js?v=20260629-m11-5-release"></script>
+    <script src="game.js?v=20260629-m11-5-release"></script>
+    <script src="render.js?v=20260629-m11-5-release"></script>
+    <script src="dialogue.js?v=20260629-m11-5-release"></script>
+    <script src="story.js?v=20260629-m11-5-release"></script>
+    <script src="main.js?v=20260629-m11-5-release"></script>
 </body>
 </html>

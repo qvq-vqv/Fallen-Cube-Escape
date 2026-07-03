@@ -1,10 +1,38 @@
+# 🎯 Hotfix M11.4: L01-L06 Friend Playtest Repair Pass (2026-06-29)
+
+> 状态：`[STATUS: WAITING_FOR_QA]`
+> 执行者：Codex
+> 红线：只修补朋友试玩暴露出的可理解性断点和硬 Bug；不得重写 Trust、守钥者、第一幕非 CD 节拍，不得删除已有可工作的教学流程。
+
+- [x] **M11.4.1 L01 出口展示与缩放误判修复**
+  - [x] 出口/逃生门展示阶段短暂锁定输入并强化高亮，防止好动玩家错过目标。
+  - [x] Zoom 教程只接受滚轮/触控板捏合，拖拽视角绝不能推进缩放进度。
+  - [x] 鼓励缩小看全貌；放大不算失败但不推进教程。
+- [x] **M11.4.2 L02 信任度教学校准**
+  - [x] 中文只显示“信任度”，英文只显示 `Trust`，不要中英混排。
+  - [x] 强化 ESC 面板信任度高亮和机制说明；不重做现有 Trust 逆反逻辑。
+- [x] **M11.4.3 L03 追击者可读性与剧情杀回退**
+  - [x] 玩家走一格后敌人延迟约 1 秒再行动，强调“我走一步，它走一步”。
+  - [x] 首次 L03 可触发 Dawn 自行靠近怪物的 Glitch 回退教学；回退不扣 Trust、加 Trust，并恢复事件前状态。
+- [x] **M11.4.4 Twist 回合化与 L04/L06 教学修补**
+  - [x] Twist 成功后触发敌人行动回合；不使用 AP/CD/行动点玩家可见词。
+  - [x] L04 只改教程目标/高亮/说明，不重写地图结构。
+  - [x] L06 修复不可达教学目标，改为相邻格分步引导，并只用短提示解释守钥者被引开。
+- [x] **M11.4.5 全项目玩家可见术语净化与验证**
+  - [x] 扫描并清理玩家可见 `AP`、`CD`、`Y1`、`CCW`、`CW`、`展开图`、`Net view` 等开发者词。
+  - [x] 跑 `npm run check`、关卡验证/质量验证，记录剩余风险。
+
+> 验证记录：`npm run check` 通过；`npm run audit:levels -- "L0[1-6]"` 通过；`npm run audit:quality` 为 0 issue / 0 warning；`npm run audit:design` 通过。`npm run smoke:browser` 因本工作区未安装 Playwright 被跳过，需人工或助理浏览器试玩验收。
+
+---
+
 # 🎬 Milestone 11: Decoupled Tutorial System, Draggable Bubbles, and Inspect-Scanner (2026-06-28)
 
 > 状态：`[STATUS: AUDIT_PASSED]`
 > 执行者：主管智能体 (Antigravity / 人工精修)
 > 红线：彻底隔离操作与语言，废除天书学术词汇，对白降权只渲染情绪；实装自由拖拽/防误触/默认闭合的聊天球与工具球；第一关视角强制拖拽手势与进度条联动；第二关高亮通话、Trust与Esc科普；L06黄怪、L07碎解、L13补片等教学套用新标；残局卡册开发Hover精美悬浮扫描框（新机制/怪数/简介）。
 
-- [x] **M11.1 自由拖拽悬浮聊天球与工具箱球实装 (`index.html` & `style.css` & `main.js`)**
+- [x] **M11.5.2.1 JS: Restructure System AI vs. Dawn message routing check (`isSystemStep`) in `main.js`)**
   - [x] 平时隐藏臃肿侧边栏，右下角仅悬浮两颗带霓虹发光外圈的圆形球（Comms 球与 Toolbox 球），默认关闭状态。
   - [x] 使用 `mousedown/mousemove/mouseup`（及触屏事件）绑定悬浮球，支持屏幕范围内玩家自由拖动。
   - [x] 隔离拖动与点击动作：判定指针抬起时的位移差值。大于 5px 仅更新坐标，小于 5px 触发点击平滑滑入/滑出。

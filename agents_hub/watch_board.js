@@ -7,7 +7,7 @@ console.log('Watching board:', boardPath);
 
 function check() {
   if (!fs.existsSync(boardPath)) {
-    setTimeout(check, 5000);
+    setTimeout(check, 60000);
     return;
   }
   try {
@@ -23,7 +23,7 @@ function check() {
   } catch (err) {
     console.error('Error reading board:', err);
   }
-  setTimeout(check, 5000);
+  setTimeout(check, 60000);
 }
 
 check();
