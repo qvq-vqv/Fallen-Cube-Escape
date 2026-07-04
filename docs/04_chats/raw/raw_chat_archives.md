@@ -477,3 +477,59 @@
 - 用户说 “release / 发布稳定版” 时，Codex 应协助把当前验收通过版本推到 `release` 稳定分支，并让 Vercel 正式站跟随 `release`。
 - itch 采用手动稳定包策略：只在用户确认版本稳定后上传 HTML5 ZIP，不随每次 GitHub push 自动更新。
 - 新增 `.gitignore`，避免自动备份时误提交 `node_modules/`、`dist/`、`test_runs/`、`.DS_Store`、`.env*`。
+
+---
+
+## 2026-07-04 19:26 CST - 老师试玩反馈：追击者/旋转模式/守钥者/L07/工具箱/旋转十字箭头
+
+**用户原始反馈摘要**:
+> “又有新的需要改的了。这次一个老师试玩后给了新的东西：
+> 1. 追击者介绍有问题……追击者下一步的提示亮度应提高……
+> 2. 开启旋转魔方模式以后，背景应该变成黄色……无旋转魔方的地图把ui删掉……第9关也会有不可旋转魔方的安排……
+> 3. 第6关只出现守钥人即可……守钥者变成：先检测是否可以直接吃掉主角，如果无法直接吃掉，再去守门。
+> 4. 工具箱UI太小了……第7关引导不够明显……需要无旋转的。
+> 5. 新手教程里面黄色箭头还是很不明显……
+> 6. 魔方更灵敏些……是否可以先识别滑动时的第一个格子，然后出一个十字箭头……”
+
+**确认后的设计口径**:
+- 追击者教程改成“根据玩家最新位置动态预测”，危险格显著提亮。
+- 旋转模式用好看的黄色/琥珀视觉状态区分；无旋转关隐藏旋转 UI。
+- 守钥者拿钥匙后先判断本回合是否能抓到 Dawn；能抓就追人，不能抓才守门。
+- L06 只保留守钥者。
+- L07 改为无旋转，强教程连续放置 3 个碎解，真正讲“堵住守钥者路线”。
+- 工具箱有工具时右侧自动展开，按钮变大。
+- 教程箭头/目标高亮加强。
+- 旋转操作做 MVP：按下首个格子后出现十字箭头，横/竖拖拽选择候选层。
+
+**本轮完成**:
+- `levels.js`
+  - L03 文案改为动态预测说明。
+  - L06 `rotationEnabled: false`，移除追击者，只保留守钥者。
+  - L07 `rotationEnabled: false`，增加 3 次碎解教程步骤，设置守钥者/缺口/验证规则，`breakSolutionUses: 3` 可被验证。
+  - L09 `rotationEnabled: false`。
+- `game.js`
+  - 新增守钥者 post-key 目标逻辑：可在当前步数内抓玩家则追玩家，否则守门。
+  - 教程期间禁止跳过回合，防止强引导关卡被空等绕过。
+- `render.js`
+  - 危险格预告由单薄红圈改为更亮的外环 + 白色中心 + 斜杠组合。
+  - 旋转模式按下首格后显示十字箭头，拖动时根据横/竖意图选择候选层。
+- `main.js`
+  - 无旋转关隐藏旋转按钮并清理残留高亮。
+  - 旋转按钮可关闭；Esc 可退出旋转模式。
+  - 工具箱有工具时右侧自动展开，教程工具步骤高亮具体工具按钮。
+- `style.css`
+  - 旋转模式添加琥珀/黄色画布状态。
+  - 工具箱右侧 dock 放大。
+  - 教程箭头、目标高亮、十字箭头样式增强。
+- `tools/validate-levels.js`, `tools/playtest_bot.js`
+  - 同步守钥者新 AI 逻辑。
+  - 验证器支持 `minBreakUses`，用于证明 L07 三拆路线。
+
+**验证结果**:
+- `npm run check`: PASS。
+- `git diff --check`: PASS。
+- `npm run playtest`: PASS；L07 `Used: break` 且 risk `ok`。
+- `npm run audit:levels`: PASS。
+- `npm run audit:quality`: PASS，0 issues / 3 warnings（旧的第二幕短关提醒）。
+- `npm run audit:design`: 仍报旧 warning：L14/L16 duplicate fingerprint。
+- `npm run smoke:browser`: 未完成。第一次系统 Chrome headless SIGABRT / EPERM；按权限重跑被系统拒绝，原因是 workspace approval credits 不足。因此本轮还需要人工浏览器视觉 QA。

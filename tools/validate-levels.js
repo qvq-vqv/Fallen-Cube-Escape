@@ -161,6 +161,7 @@ function cloneState(state, action = null) {
         usedPatch: state.usedPatch,
         usedBeacon: state.usedBeacon,
         usedBreak: state.usedBreak,
+        usedBreakCount: state.usedBreakCount || 0,
         keyMovedByRotation: false,
         keyPickupAction: state.keyPickupAction,
         log: action ? [...state.log, action] : [...state.log]
@@ -304,9 +305,11 @@ function getAITarget(engine, state, ai) {
 
     if (ai.type === 'guardian') {
         if (state.hasKey) {
-            return ai.aggro === 'guardDoor'
-                ? state.exit
-                : state.player;
+            if (ai.aggro !== 'guardDoor') return state.player;
+            const pathToPlayer = findPathForState(engine, state, ai.pos, state.player, 'ai');
+            const canCatchPlayer = pathToPlayer && pathToPlayer.length > 1 &&
+                pathToPlayer.length - 1 <= getAIStepBudget(state, ai);
+            return canCatchPlayer ? state.player : state.exit;
         }
         if (state.keyMovedByRotation) {
             return state.key;
@@ -369,7 +372,8 @@ function stateKey(state) {
         state.usedBridge ? 1 : 0,
         state.usedPatch ? 1 : 0,
         state.usedBeacon ? 1 : 0,
-        state.usedBreak ? 1 : 0
+        state.usedBreak ? 1 : 0,
+        state.usedBreakCount || 0
     ].join('|');
 }
 
@@ -501,7 +505,9 @@ function generateBreakActions(engine, state, options) {
 }
 
 function generateMoveActions(engine, state, options) {
-    const actions = [{ type: 'move', sequence: [], usesBridge: false }];
+    const actions = options.forbidWait || (options.forbidOpeningWait && state.log.length === 0)
+        ? []
+        : [{ type: 'move', sequence: [], usesBridge: false }];
     const maxSteps = 2;
 
     const walk = (current, stepsLeft, activePatches, sequence, usesBridge) => {
@@ -569,7 +575,7 @@ function satisfiesRequirements(state, options) {
     if (options.requireBridge && !state.usedBridge) return false;
     if (options.requirePatch && !state.usedPatch) return false;
     if (options.requireBeacon && !state.usedBeacon) return false;
-    if (options.requireBreak && !state.usedBreak) return false;
+    if (options.requireBreak && (state.usedBreakCount || 0) < (options.requireBreakCount || 1)) return false;
     return true;
 }
 
@@ -608,6 +614,7 @@ function solveLevel(level, levelIndex, options = {}) {
         usedPatch: false,
         usedBeacon: false,
         usedBreak: false,
+        usedBreakCount: 0,
         keyMovedByRotation: false,
         keyPickupAction: engine.hasKey ? 0 : -1,
         log: []
@@ -628,7 +635,8 @@ function solveLevel(level, levelIndex, options = {}) {
         const breakActions = generateBreakActions(engine, state, options);
         const missingRequiredPatch = options.requirePatch && !state.usedPatch;
         const missingRequiredBeacon = options.requireBeacon && !state.usedBeacon;
-        const missingRequiredBreak = options.requireBreak && !state.usedBreak;
+        const missingRequiredBreak = options.requireBreak &&
+            (state.usedBreakCount || 0) < (options.requireBreakCount || 1);
         const toolActions = [
             ...patchActions,
             ...beaconActions,
@@ -680,6 +688,7 @@ function solveLevel(level, levelIndex, options = {}) {
                 nextState.activePatches.delete(action.cell);
                 nextState.voids.add(action.cell);
                 nextState.usedBreak = true;
+                nextState.usedBreakCount = (nextState.usedBreakCount || 0) + 1;
             } else if (action.type === 'move') {
                 nextState.usedBridge = nextState.usedBridge || action.usesBridge;
                 for (const destination of action.sequence) {
@@ -923,10 +932,16 @@ levelBook.forEach((level, index) => {
         ? solveLevel(level, index, { requireBeacon: true })
         : null;
     const noBreakSolution = level.breakCharges && validation.breakTool
-        ? solveLevel(level, index, { noBreak: true })
+        ? solveLevel(level, index, {
+            noBreak: true,
+            forbidWait: Boolean(validation.noOpeningWait)
+        })
         : null;
     const breakSolution = level.breakCharges && validation.breakTool
-        ? solveLevel(level, index, { requireBreak: true })
+        ? solveLevel(level, index, {
+            requireBreak: true,
+            requireBreakCount: Math.max(1, Number(validation.minBreakUses || 1))
+        })
         : null;
     const patchBeaconSolution = level.patchCharges && level.beaconCharges && validation.patchTool && validation.beaconTool
         ? solveLevel(level, index, { requirePatch: true, requireBeacon: true })
@@ -990,6 +1005,7 @@ levelBook.forEach((level, index) => {
         usesPatch,
         usesBeacon,
         usesBreak,
+        breakUses: solution ? (solution.usedBreakCount || 0) : null,
         bridgeSolutionExists: Boolean(bridgeSolution),
         patchSolutionExists: Boolean(patchSolution),
         beaconSolutionExists: Boolean(beaconSolution),
@@ -1033,6 +1049,7 @@ levelBook.forEach((level, index) => {
         patchSolution: patchSolution ? patchSolution.log.map(action => formatAction(engine, action)) : null,
         beaconSolution: beaconSolution ? beaconSolution.log.map(action => formatAction(engine, action)) : null,
         breakSolution: breakSolution ? breakSolution.log.map(action => formatAction(engine, action)) : null,
+        breakSolutionUses: breakSolution ? (breakSolution.usedBreakCount || 0) : null,
         patchBeaconSolution: patchBeaconSolution ? patchBeaconSolution.log.map(action => formatAction(engine, action)) : null
     };
 

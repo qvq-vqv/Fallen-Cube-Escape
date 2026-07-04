@@ -5,6 +5,39 @@
 
 ---
 
+## 2026-07-04 最新补丁：老师试玩反馈已落地
+
+**当前阶段**: `[TEACHER_PLAYTEST_FEEDBACK_PASS_READY_FOR_REVIEW]`
+
+本轮已完成老师试玩反馈修复：
+
+- 追击者教程不再说“固定下一步”，改成“根据 Dawn 最新位置动态预测”；危险格预告明显提亮。
+- 旋转模式进入后画布变成琥珀/黄色状态；无旋转关隐藏旋转按钮并清残留高亮。
+- 守钥者拿钥匙后会先判断当前步数内能否直接抓玩家；能抓则追人，不能抓才守门。
+- L06 只保留守钥者，且无旋转。
+- L07 无旋转，工具箱强引导 3 次碎解；验证器可证明 `breakSolutionUses: 3`。
+- L09 无旋转。
+- 工具箱有工具时自动展开到右侧，按钮放大。
+- 教程箭头/目标高亮加强。
+- 旋转手感做了“点击首格 + 十字箭头 + 横/竖拖拽候选层”的 MVP。
+
+验证结果：
+
+- `npm run check`: PASS。
+- `git diff --check`: PASS。
+- `npm run playtest`: PASS。
+- `npm run audit:levels`: PASS。
+- `npm run audit:quality`: PASS，0 issues / 3 warnings（旧第二幕短关提醒）。
+- `npm run audit:design`: 仍有旧 warning：L14/L16 duplicate fingerprint。
+- `npm run smoke:browser`: 未完成；系统 Chrome/Playwright 权限与审批额度阻塞，需要人工浏览器视觉 QA。
+
+注意：
+
+- L07 的抽象求解器仍能找到“不按教程、慢走绕路”的 noBreak 路线，但真实教程期间 `skipTurn` 被禁用，工具步骤会强制玩家先做三次碎解；本轮设计目标是教学体验先成立。
+- 当前工作树仍有 `.DS_Store` 修改，不要提交它。
+
+---
+
 ## 0. 你的身份与工作方式
 
 - 你是本项目的物理写码执行者，不是只给建议的顾问。

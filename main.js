@@ -23,6 +23,9 @@ document.addEventListener('DOMContentLoaded', () => {
     const originalUpdateUI = game.updateUI;
     game.updateUI = function() {
         originalUpdateUI.call(game);
+        if (typeof syncRotationAvailability === 'function') {
+            syncRotationAvailability();
+        }
         if (typeof updateFloatingToolsCount === 'function') {
             updateFloatingToolsCount();
         }
@@ -244,6 +247,7 @@ document.addEventListener('DOMContentLoaded', () => {
         achievements: new Set(safeParseArray('dimensionHackAchievements'))
     };
     let twistMode = false;
+    let toolsMenuUserCollapsed = false;
     let lastTutorialNoticeKey = '';
 
     function persistUnlockedActs() {
@@ -1434,13 +1438,14 @@ document.addEventListener('DOMContentLoaded', () => {
         selectedLevelIndex = index;
         isGameActive = false;
         setBulletTimeActive(false);
-        setTwistMode(false);
+        setTwistMode(false, { silent: true });
         setupOverlay.classList.remove('active');
         gameoverOverlay.classList.remove('active', 'jump-alert', 'signal-lost');
         victoryOverlay.classList.remove('active');
         gameContainer.style.display = 'grid';
         gameContainer.classList.add('preplay-stage', 'inspect-stage');
         game.initLevel(index, true);
+        syncRotationAvailability();
         hideTutorialDialogue();
         game.setRealtimeMode?.(false);
         game.stopRealtime?.();
@@ -1554,16 +1559,53 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
-    function setTwistMode(enabled) {
-        twistMode = Boolean(enabled);
+    function syncRotationAvailability() {
+        const hasRotation = Boolean(game?.rotationEnabled);
+        btnTwistMode?.classList.toggle('is-hidden', !hasRotation);
+        btnTwistMode?.setAttribute('aria-hidden', String(!hasRotation));
+        document.body?.classList.toggle('rotation-level-enabled', hasRotation);
+        document.body?.classList.toggle('rotation-level-disabled', !hasRotation);
+        if (!hasRotation && twistMode) {
+            setTwistMode(false, { silent: true });
+        } else if (!hasRotation) {
+            render.clearLayerHighlight?.();
+            render.clearTwistControlRings?.();
+        }
+        return hasRotation;
+    }
+
+    function resetLevelModeChrome() {
+        toolsMenuUserCollapsed = false;
+        setTwistMode(false, { silent: true });
+        syncRotationAvailability();
+        updateFloatingToolsCount();
+    }
+
+    function setTwistMode(enabled, options = {}) {
+        const shouldEnable = Boolean(enabled);
+        if (shouldEnable && !game.rotationEnabled) {
+            twistMode = false;
+            btnTwistMode?.classList.remove('active');
+            btnTwistMode?.setAttribute('aria-pressed', 'false');
+            document.body?.classList.remove('twist-interaction-active');
+            render.setInteractionMode?.('route');
+            render.clearLayerHighlight?.();
+            render.clearTwistControlRings?.();
+            if (!options.silent) {
+                feel.note(window.t?.('note.rotationMissing') || '本关暂未引入旋转', 'warn');
+            }
+            return false;
+        }
+
+        twistMode = shouldEnable;
         btnTwistMode?.classList.toggle('active', twistMode);
         btnTwistMode?.setAttribute('aria-pressed', String(twistMode));
         document.body?.classList.toggle('twist-interaction-active', twistMode);
         render.setInteractionMode?.(twistMode ? 'twist' : 'route');
         if (twistMode) {
             game.clearPlannedPath();
-            feel.note(window.t?.('note.twistOn') || '空间折叠：拖拽魔方面拧当前层，世界流速放慢', 'info');
-        } else {
+            if (!options.silent) feel.note(window.t?.('note.twistOn') || '空间折叠：拖拽魔方面拧当前层，世界流速放慢', 'info');
+        } else if (!options.silent) {
             render.clearLayerHighlight?.();
             feel.note(
                 game.realtimeMode
@@ -1571,7 +1613,10 @@ document.addEventListener('DOMContentLoaded', () => {
                     : (window.t?.('note.routeMode') || '路线模式：在 3D 表面画路'),
                 'info'
             );
+        } else {
+            render.clearLayerHighlight?.();
         }
+        return true;
     }
 
     function toggleEscConsole(force = null) {
@@ -1808,14 +1853,12 @@ document.addEventListener('DOMContentLoaded', () => {
             if (code === keybinds.break) return applyToolKeybind('break');
             if (code === keybinds.wait) return triggerTemporalKeybind('down');
             if (code === keybinds.twist && !event.repeat && isGameActive) {
-                setTwistMode(true);
-                return true;
+                return setTwistMode(true);
             }
         } else {
             if (code === keybinds.wait) return triggerTemporalKeybind('up');
             if (code === keybinds.twist && isGameActive) {
-                setTwistMode(false);
-                return true;
+                return setTwistMode(false);
             }
         }
         return false;
@@ -1969,10 +2012,11 @@ document.addEventListener('DOMContentLoaded', () => {
 
     function positionFloatingToolboxMenu() {
         const menu = document.getElementById('floating-toolbox-menu');
-        if (!menu || !toolsFloatBubble) return;
-        const rect = toolsFloatBubble.getBoundingClientRect();
-        menu.style.left = `${rect.left + rect.width / 2 - menu.offsetWidth / 2}px`;
-        menu.style.bottom = `${window.innerHeight - rect.top + 8}px`;
+        if (!menu) return;
+        menu.style.left = '';
+        menu.style.bottom = '';
+        menu.style.right = 'clamp(1rem, 2.2vw, 2rem)';
+        menu.style.top = '50%';
     }
 
     function toggleFloatingToolboxMenu(force = null) {
@@ -1981,6 +2025,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const shouldShow = force === null
             ? menu.classList.contains('is-hidden')
             : Boolean(force);
+        toolsMenuUserCollapsed = !shouldShow;
         menu.classList.toggle('is-hidden', !shouldShow);
         if (shouldShow) {
             positionFloatingToolboxMenu();
@@ -2031,12 +2076,8 @@ document.addEventListener('DOMContentLoaded', () => {
         }
 
         const menu = document.getElementById('floating-toolbox-menu');
-        if (mode !== 'route') {
-            if (menu && !menu.classList.contains('is-hidden')) {
-                positionFloatingToolboxMenu();
-            }
-        } else if (menu) {
-            menu.classList.add('is-hidden');
+        if (menu && !menu.classList.contains('is-hidden')) {
+            positionFloatingToolboxMenu();
         }
     }
 
@@ -2062,9 +2103,14 @@ document.addEventListener('DOMContentLoaded', () => {
             toolsFloatBubble.classList.toggle('is-hidden', !hasTools);
             toolsFloatBubble.classList.toggle('has-tools', hasTools);
             toolsFloatBubble.classList.toggle('is-tool-active', hasTools && game.toolMode !== 'route');
+            toolsFloatBubble.setAttribute('aria-expanded', String(hasTools && !toolsMenuUserCollapsed));
+            const menu = document.getElementById('floating-toolbox-menu');
             if (!hasTools) {
-                const menu = document.getElementById('floating-toolbox-menu');
                 menu?.classList.add('is-hidden');
+                toolsMenuUserCollapsed = false;
+            } else if (menu && !toolsMenuUserCollapsed) {
+                menu.classList.remove('is-hidden');
+                positionFloatingToolboxMenu();
             }
         }
     }
@@ -2101,12 +2147,13 @@ document.addEventListener('DOMContentLoaded', () => {
         gameContainer.style.display = 'grid';
         setTerminalTab('comms');
         setPhoneCollapsed(getDefaultPhoneCollapsed(), { persist: false });
-        setTwistMode(false);
+        setTwistMode(false, { silent: true });
         setBulletTimeActive(false);
         isGameActive = true;
 
         await showLoadingSequence(game.levels[selectedLevelIndex]);
         game.initLevel(selectedLevelIndex, false);
+        resetLevelModeChrome();
         game.applyRealtimeTuning?.(settingsState);
         game.setRealtimeMode?.(true);
         game.stopRealtime?.();
@@ -2194,6 +2241,7 @@ document.addEventListener('DOMContentLoaded', () => {
         if (levelId) localStorage.removeItem(`dawnCubeTutorialDismissed:${levelId}`);
         setBulletTimeActive(false);
         game.initLevel(game.currentLevelIndex, false);
+        resetLevelModeChrome();
         game.setRealtimeMode?.(true);
         game.startRealtime?.();
         renderUnreadBadges();
@@ -2213,6 +2261,7 @@ document.addEventListener('DOMContentLoaded', () => {
     function returnToLevelBook() {
         isGameActive = false;
         setBulletTimeActive(false);
+        setTwistMode(false, { silent: true });
         gameContainer.style.display = 'grid';
         gameContainer.classList.add('preplay-stage');
         gameContainer.classList.remove('inspect-stage');
@@ -2643,7 +2692,7 @@ document.addEventListener('DOMContentLoaded', () => {
         if (event.target === creditsOverlay) closeCredits();
     });
     btnTwistMode?.addEventListener('click', () => {
-        if (render.isAnimating) return;
+        if (render.isAnimating && !twistMode) return;
         setTwistMode(!twistMode);
     });
     tutorialHelperClose?.addEventListener('click', () => {
@@ -2738,7 +2787,11 @@ document.addEventListener('DOMContentLoaded', () => {
                 return;
             }
 
-            // 6. 如果正在使用工具，Esc 先回到普通移动，避免误操作
+            // 6. 如果正在使用旋转/工具，Esc 先回到普通移动，避免误操作
+            if (isGameActive && twistMode) {
+                setTwistMode(false);
+                return;
+            }
             if (isGameActive && game.toolMode && game.toolMode !== 'route') {
                 game.setToolMode('route');
                 toggleFloatingToolboxMenu(false);
@@ -2880,6 +2933,7 @@ document.addEventListener('DOMContentLoaded', () => {
             gameContainer.style.display = 'grid';
             gameContainer.classList.add('preplay-stage');
             isGameActive = false;
+            setTwistMode(false, { silent: true });
             render.setPresentationMode?.('constellation');
             render.setGameViewportBias?.(false);
             setTerminalTab('comms');
@@ -2959,7 +3013,12 @@ document.addEventListener('DOMContentLoaded', () => {
         if (step.uiTarget === 'esc') return btnEscMenu;
         if (step.type === 'esc') return btnEscMenu;
         if (step.type === 'closeEsc') return btnConsoleResume || escConsole;
-        if (step.openTools || step.type === 'tool') return toolsFloatBubble;
+        if (step.type === 'tool' && step.tool) {
+            return document.querySelector(`#floating-toolbox-menu [data-tool-mode="${step.tool}"]`)
+                || document.querySelector(`#tool-section [data-tool-mode="${step.tool}"]`)
+                || toolsFloatBubble;
+        }
+        if (step.openTools) return toolsFloatBubble;
         if (step.type === 'twist') return btnTwistMode || toolsFloatBubble;
         return null;
     }
@@ -2969,6 +3028,9 @@ document.addEventListener('DOMContentLoaded', () => {
         btnEscMenu?.classList.toggle('tutorial-target', step?.type === 'esc' || step?.uiTarget === 'esc');
         commsFloatBubble?.classList.remove('tutorial-target');
         toolsFloatBubble?.classList.toggle('tutorial-target', step?.openTools || step?.type === 'tool' || step?.uiTarget === 'tools');
+        document.querySelectorAll('[data-tool-mode]').forEach(btn => {
+            btn.classList.toggle('tutorial-target', step?.type === 'tool' && btn.dataset.toolMode === step.tool);
+        });
         const uiTarget = getTutorialUiTarget(step);
         showTutorialUiArrow(uiTarget);
     }
@@ -2978,6 +3040,7 @@ document.addEventListener('DOMContentLoaded', () => {
         btnEscMenu?.classList.remove('tutorial-target');
         commsFloatBubble?.classList.remove('tutorial-target');
         toolsFloatBubble?.classList.remove('tutorial-target');
+        document.querySelectorAll('[data-tool-mode]').forEach(btn => btn.classList.remove('tutorial-target'));
         hideTutorialUiArrow();
     }
 
@@ -3280,7 +3343,13 @@ document.addEventListener('DOMContentLoaded', () => {
             audio.play('routeTick');
         }
 
-        if (step.openTools || step.type === 'tool' || step.type === 'twist') openPhonePanel('tasks');
+        if (step.openTools || step.type === 'tool' || step.type === 'twist') {
+            openPhonePanel('tasks');
+            if (step.openTools || step.type === 'tool') {
+                toolsMenuUserCollapsed = false;
+                toggleFloatingToolboxMenu(true);
+            }
+        }
 
         card.classList.add('is-hidden');
         card.dataset.levelId = game.currentLevel?.id;
@@ -3464,6 +3533,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const menu = document.getElementById('floating-toolbox-menu');
         if (menu && !menu.classList.contains('is-hidden')) {
             if (!event.target.closest('#tools-float-bubble') && !event.target.closest('#floating-toolbox-menu')) {
+                toolsMenuUserCollapsed = true;
                 menu.classList.add('is-hidden');
             }
         }

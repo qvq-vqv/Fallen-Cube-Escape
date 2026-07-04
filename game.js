@@ -1026,6 +1026,11 @@ class GameEngine {
 
     skipTurn() {
         if (this.gameState !== 'playing') return;
+        if (this.tutorialActive) {
+            this.playFeel?.('invalid');
+            this.showFeel?.(this.t('note.finishGuideFirst', '先完成当前系统引导。'), 'warn');
+            return;
+        }
         if (this.realtimeMode) {
             this.recordEvent('wait', { cooldown: this.playerCooldownRemaining });
             this.playerCooldownRemaining = Math.max(this.playerCooldownRemaining, this.playerMoveCooldownMs * 0.45);
@@ -2304,6 +2309,24 @@ class GameEngine {
         return 2;
     }
 
+    getGuardianPostKeyTarget(ai, { mutateState = true } = {}) {
+        if (ai.aggro !== 'guardDoor') {
+            if (mutateState) ai.state = 'rage';
+            return this.playerPos;
+        }
+
+        const budget = this.getAIStepBudget(ai);
+        const playerPath = this.findPath(ai.pos, this.playerPos, { actor: 'ai' });
+        const canCatchPlayer = playerPath && playerPath.length > 1 && playerPath.length - 1 <= budget;
+        if (canCatchPlayer) {
+            if (mutateState) ai.state = 'rage';
+            return this.playerPos;
+        }
+
+        if (mutateState) ai.state = 'gate';
+        return this.exitPos ?? this.playerPos;
+    }
+
     getAITarget(ai) {
         if (this.beaconCell !== null && this.beaconTTL > 0 && this.isWalkableForAI(this.beaconCell)) {
             ai.state = ai.type === 'guardian' ? 'lure' : 'bait';
@@ -2312,12 +2335,7 @@ class GameEngine {
 
         if (ai.type === 'guardian') {
             if (this.hasKey) {
-                if (ai.aggro === 'guardDoor') {
-                    ai.state = 'gate';
-                    return this.exitPos ?? this.playerPos;
-                }
-                ai.state = 'rage';
-                return this.playerPos;
+                return this.getGuardianPostKeyTarget(ai);
             }
 
             if (this.keyPos === null) {
@@ -2387,9 +2405,7 @@ class GameEngine {
 
         if (ai.type === 'guardian') {
             if (this.hasKey) {
-                return ai.aggro === 'guardDoor'
-                    ? this.exitPos ?? this.playerPos
-                    : this.playerPos;
+                return this.getGuardianPostKeyTarget(ai, { mutateState: false });
             }
             if (this.keyPos === null) return ai.pos;
             if (this.cells[this.playerPos].face === this.cells[this.keyPos].face) {

@@ -283,7 +283,11 @@ function aiTarget(engine, state, ai) {
         return state.beaconCell;
     }
     if (ai.type === 'guardian') {
-        if (state.hasKey) return ai.aggro === 'guardDoor' ? state.exit : state.player;
+        if (state.hasKey) {
+            if (ai.aggro !== 'guardDoor') return state.player;
+            const canCatchPlayer = shortestDistance(engine, state, ai.pos, state.player, 'ai') <= aiBudget(state, ai);
+            return canCatchPlayer ? state.player : state.exit;
+        }
         if (state.keyMovedByRotation) return state.key;
         if (engine.cells[state.player].face === engine.cells[state.key].face) return state.player;
         return state.key;

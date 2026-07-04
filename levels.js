@@ -170,8 +170,8 @@
             {
                 type: 'dialog',
                 text: {
-                    zh: '系统提示：红色追击者会预告下一步。先确认它和红格，再移动。',
-                    en: 'System: the red chaser previews its next step. Check it and the red tile before moving.'
+                    zh: '系统提示：红色追击者会根据 Dawn 的最新位置重新判断路线。红色危险格只是当前局面的预测。',
+                    en: 'System: the red chaser recalculates from Dawn\'s latest position. Red danger tiles are a live prediction, not a fixed path.'
                 },
                 focusCell: { face: 0, row: 0, col: 1 },
                 focus: { x: 52, y: 40 },
@@ -182,8 +182,8 @@
             {
                 type: 'dialog',
                 text: {
-                    zh: '系统提示：红格是它下一步。先看红，再落脚。',
-                    en: 'System: red marks its next step. Read red, then move.'
+                    zh: '系统提示：每次行动前先看红格。你移动后，红格会跟着刷新。',
+                    en: 'System: read red before every move. After you move, the red prediction updates.'
                 },
                 tone: 'system',
                 speaker: '系统广播'
@@ -276,10 +276,10 @@
             {
                 type: 'tool',
                 tool: 'break',
-                targetCell: { face: 4, row: 0, col: 2 },
+                targetCell: { face: 4, row: 0, col: 1 },
                 text: {
-                    zh: '系统提示：选『碎解』，拆掉守卫上方那格。',
-                    en: 'System: choose Break and remove the tile above the keeper.'
+                    zh: '系统提示：选『碎解』，先拆守钥者左侧亮格。我们走另一条线。',
+                    en: 'System: choose Break and remove the highlighted tile left of the keeper. We will route around.'
                 },
                 speaker: '系统广播',
                 openTools: true,
@@ -288,10 +288,22 @@
             {
                 type: 'tool',
                 tool: 'break',
-                targetCell: { face: 4, row: 2, col: 2 },
+                targetCell: { face: 0, row: 2, col: 2 },
                 text: {
-                    zh: '系统提示：再拆下方那格，把它困住。',
-                    en: 'System: remove the lower tile too and trap it.'
+                    zh: '系统提示：再拆它上缘那格，切掉第二条追路。',
+                    en: 'System: remove the upper edge tile and cut the second chase lane.'
+                },
+                speaker: '系统广播',
+                openTools: true,
+                tone: 'system'
+            },
+            {
+                type: 'tool',
+                tool: 'break',
+                targetCell: { face: 3, row: 0, col: 0 },
+                text: {
+                    zh: '系统提示：最后拆右侧折角。三处断点连起来，守钥者才真的绕不过来。',
+                    en: 'System: break the right corner last. Three cuts together seal the keeper route.'
                 },
                 speaker: '系统广播',
                 openTools: true,
@@ -300,8 +312,8 @@
             {
                 type: 'dialog',
                 text: {
-                    zh: '“它困住了。绕过去，拿钥匙，跑路。”',
-                    en: '"It is trapped. Loop around, take the key, run."'
+                    zh: '“现在它真被堵住了。绕过去，拿钥匙，跑路。”',
+                    en: '"Now it is actually blocked. Loop around, take the key, run."'
                 },
                 tone: 'steady'
             }
@@ -555,7 +567,7 @@
                     player: at(0, 1, 1),
                     key: at(4, 1, 0),
                     exit: at(1, 1, 1),
-                    rotationEnabled: true,
+                    rotationEnabled: false,
                     guardianAggro: 'lure',
                     validation: {
                         solvable: true,
@@ -570,8 +582,7 @@
                         hasThreats: true
                     },
                     ais: [
-                        { type: 'guardian', pos: at(4, 1, 2) },
-                        { type: 'chaser', pos: at(5, 0, 0) }
+                        { type: 'guardian', pos: at(4, 1, 2) }
                     ]
                 },
                 {
@@ -593,6 +604,11 @@
                     rotationEnabled: false,
                     guardianAggro: 'guardDoor',
                     breakCharges: 3,
+                    voids: [
+                        at(0, 0, 1),
+                        at(0, 1, 0),
+                        at(4, 1, 2)
+                    ],
                     validation: {
                         solvable: true,
                         breakTool: true,
@@ -602,10 +618,12 @@
                         guardianRage: true,
                         guardianPostKeyStepBudget: 2,
                         keyAvoidsCenter: true,
-                        maxKeyPickupAction: 1,
+                        noOpeningWait: true,
+                        minBreakUses: 3,
+                        maxKeyPickupAction: 4,
                         hasThreats: true
                     },
-                    ais: [{ type: 'guardian', pos: at(4, 1, 2) }]
+                    ais: [{ type: 'guardian', pos: at(4, 0, 2) }]
                 },
                 {
                     title: { zh: 'L08 取钥即逃', en: 'L08 Grab and Run' },
@@ -655,7 +673,7 @@
                     player: at(0, 1, 1),
                     key: at(4, 1, 0),
                     exit: at(1, 1, 1),
-                    rotationEnabled: true,
+                    rotationEnabled: false,
                     validation: {
                         solvable: true,
                         mustReadThreat: true,

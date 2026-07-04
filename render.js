@@ -83,6 +83,7 @@ class RenderEngine {
         this.twistRingMeshes = [];
         this.hoveredTwistRing = null;
         this.hoveredTwistCandidates = [];
+        this.twistCrossHint = null;
         this.twistControlRingsEnabled = false;
         this.playerSpeechBubble = null;
         this.lastSpeechBubbleText = '';
@@ -312,9 +313,53 @@ class RenderEngine {
         if (this.interactionMode !== 'twist') {
             this.clearLayerHighlight();
             this.clearTwistControlRings();
+            this.hideTwistCrossHint();
         } else {
             this.ensureTwistControlRings();
         }
+    }
+
+    ensureTwistCrossHint() {
+        if (!this.container || this.twistCrossHint) return this.twistCrossHint;
+        const hint = document.createElement('div');
+        hint.className = 'twist-cross-hint is-hidden';
+        hint.setAttribute('aria-hidden', 'true');
+        hint.innerHTML = `
+            <span class="twist-cross-arm twist-cross-up">↑</span>
+            <span class="twist-cross-arm twist-cross-right">→</span>
+            <span class="twist-cross-arm twist-cross-down">↓</span>
+            <span class="twist-cross-arm twist-cross-left">←</span>
+            <span class="twist-cross-core"></span>
+        `;
+        this.container.appendChild(hint);
+        this.twistCrossHint = hint;
+        return hint;
+    }
+
+    showTwistCrossHint(clientX, clientY, candidates = []) {
+        const hint = this.ensureTwistCrossHint();
+        if (!hint || !this.container) return;
+        const rect = this.container.getBoundingClientRect();
+        hint.style.left = `${clientX - rect.left}px`;
+        hint.style.top = `${clientY - rect.top}px`;
+        hint.classList.remove('is-hidden', 'is-horizontal', 'is-vertical', 'is-blocked');
+        hint.classList.toggle('is-disabled', !candidates.length);
+    }
+
+    setTwistCrossIntent(intent = null) {
+        const hint = this.twistCrossHint;
+        if (!hint || hint.classList.contains('is-hidden')) return;
+        hint.classList.remove('is-horizontal', 'is-vertical', 'is-blocked');
+        if (!intent) return;
+        if (intent.includes('horizontal')) hint.classList.add('is-horizontal');
+        if (intent.includes('vertical')) hint.classList.add('is-vertical');
+        if (intent.includes('blocked')) hint.classList.add('is-blocked');
+    }
+
+    hideTwistCrossHint() {
+        if (!this.twistCrossHint) return;
+        this.twistCrossHint.classList.add('is-hidden');
+        this.twistCrossHint.classList.remove('is-horizontal', 'is-vertical', 'is-blocked', 'is-disabled');
     }
 
     handleBoardPointerDown(event) {
@@ -337,6 +382,11 @@ class RenderEngine {
             if (this.controls) this.controls.enabled = false;
             const twistCandidates = ringHit ? [] : this.getViewTwistCandidatesFromCell(cellId);
             this.pointerDown.twistCandidates = twistCandidates;
+            if (ringHit) {
+                this.hideTwistCrossHint();
+            } else {
+                this.showTwistCrossHint(event.clientX, event.clientY, twistCandidates);
+            }
             const layer = ringHit || this.getActiveTutorialTwistLayer() || this.getPrimaryTwistCandidate(twistCandidates);
             if (layer) this.highlightLayer(layer.axis, layer.layer);
         }
@@ -348,26 +398,36 @@ class RenderEngine {
             if (this.pointerDown?.mode === 'twist') {
                 const down = this.pointerDown;
                 if (down.twistRing) {
+                    this.hideTwistCrossHint();
                     this.highlightLayer(down.twistRing.axis, down.twistRing.layer);
                     return;
                 }
                 const tutorialLayer = this.getActiveTutorialTwistLayer();
                 if (tutorialLayer) {
+                    const tutorialIntent = Math.abs(event.clientX - down.x) >= Math.abs(event.clientY - down.y)
+                        ? 'horizontal'
+                        : 'vertical';
+                    this.setTwistCrossIntent(tutorialIntent);
                     this.highlightLayer(tutorialLayer.axis, tutorialLayer.layer);
                     return;
                 }
                 const dx = event.clientX - down.x;
                 const dy = event.clientY - down.y;
                 if (Math.hypot(dx, dy) > 6) {
+                    const absDx = Math.abs(dx);
+                    const absDy = Math.abs(dy);
                     const dragCandidate = this.getBestTwistCandidateForDrag(down.twistCandidates || [], dx, dy);
                     down.dragCandidate = dragCandidate;
                     if (dragCandidate) {
+                        this.setTwistCrossIntent(dragCandidate.dragIntent);
                         this.highlightLayer(dragCandidate.axis, dragCandidate.layer);
                     } else {
+                        this.setTwistCrossIntent(absDx >= absDy ? 'horizontal-blocked' : 'vertical-blocked');
                         this.clearLayerHighlight();
                     }
                     return;
                 }
+                this.setTwistCrossIntent(null);
                 const layer = this.getPrimaryTwistCandidate(down.twistCandidates || []);
                 if (layer) this.highlightLayer(layer.axis, layer.layer);
                 return;
@@ -405,6 +465,7 @@ class RenderEngine {
         const down = this.pointerDown;
         this.pointerDown = null;
         this.pointerLastCell = null;
+        this.hideTwistCrossHint();
         if (this.renderer?.domElement?.hasPointerCapture?.(event.pointerId)) {
             this.renderer.domElement.releasePointerCapture(event.pointerId);
         }
@@ -3203,8 +3264,13 @@ class RenderEngine {
             mesh.position.copy(this.getCellWorldPosition(aiState.nextCell, 'pulse').clone().addScaledVector(normal, 0.045));
             mesh.quaternion.setFromUnitVectors(new THREE.Vector3(0, 0, 1), normal);
             const urgency = Math.max(0, Math.min(1, aiState.progress));
-            mesh.material.opacity = 0.12 + urgency * 0.62;
-            const scale = 0.72 + urgency * 0.28 + Math.sin(Date.now() * (0.006 + urgency * 0.018)) * 0.06;
+            if (mesh.userData?.outerMaterial) {
+                mesh.userData.outerMaterial.opacity = 0.42 + urgency * 0.44;
+            }
+            if (mesh.userData?.innerMaterial) {
+                mesh.userData.innerMaterial.opacity = 0.20 + urgency * 0.28;
+            }
+            const scale = 0.88 + urgency * 0.26 + Math.sin(Date.now() * (0.008 + urgency * 0.02)) * 0.075;
             mesh.scale.set(scale, scale, 1);
         });
         Object.keys(this.threatPreviewMeshes).forEach(key => {
@@ -3218,20 +3284,46 @@ class RenderEngine {
 
     createThreatPreviewMesh(cellId, color) {
         const normal = this.getCellNormalVector(this.game.cells[cellId]);
-        const ring = new THREE.Mesh(
-            new THREE.RingGeometry(0.34, 0.48, 48),
+        const warningColor = new THREE.Color(color).lerp(new THREE.Color(0xff2d73), 0.55);
+        const group = new THREE.Group();
+        const outerMaterial = new THREE.MeshBasicMaterial({
+            color: warningColor,
+            transparent: true,
+            opacity: 0.64,
+            side: THREE.DoubleSide,
+            depthWrite: false,
+            blending: THREE.AdditiveBlending
+        });
+        const innerMaterial = new THREE.MeshBasicMaterial({
+            color: 0xffffff,
+            transparent: true,
+            opacity: 0.28,
+            side: THREE.DoubleSide,
+            depthWrite: false,
+            blending: THREE.AdditiveBlending
+        });
+        const outer = new THREE.Mesh(new THREE.RingGeometry(0.31, 0.55, 64), outerMaterial);
+        const inner = new THREE.Mesh(new THREE.CircleGeometry(0.18, 48), innerMaterial);
+        const slash = new THREE.Mesh(
+            new THREE.PlaneGeometry(0.76, 0.055),
             new THREE.MeshBasicMaterial({
-                color: new THREE.Color(color),
+                color: 0xffffff,
                 transparent: true,
-                opacity: 0.18,
+                opacity: 0.58,
                 side: THREE.DoubleSide,
                 depthWrite: false,
                 blending: THREE.AdditiveBlending
             })
         );
-        ring.position.copy(this.getCellWorldPosition(cellId, 'pulse').clone().addScaledVector(normal, 0.045));
-        ring.quaternion.setFromUnitVectors(new THREE.Vector3(0, 0, 1), normal);
-        return ring;
+        slash.rotation.z = Math.PI / 4;
+        group.add(outer);
+        group.add(inner);
+        group.add(slash);
+        group.userData.outerMaterial = outerMaterial;
+        group.userData.innerMaterial = innerMaterial;
+        group.position.copy(this.getCellWorldPosition(cellId, 'pulse').clone().addScaledVector(normal, 0.045));
+        group.quaternion.setFromUnitVectors(new THREE.Vector3(0, 0, 1), normal);
+        return group;
     }
 
     getRealtimeEntityDistance(aiId) {
