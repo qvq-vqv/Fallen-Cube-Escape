@@ -69,6 +69,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const btnConsoleReset = document.getElementById('btn-console-reset');
     const btnConsoleSettings = document.getElementById('btn-console-settings');
     const btnTwistMode = document.getElementById('btn-twist-mode');
+    const rotationSection = document.getElementById('rotation-section');
     const phonePanel = document.getElementById('phone-panel');
     const phoneNotch = document.getElementById('phone-notch');
     const tutorialHelperClose = document.getElementById('tutorial-helper-close');
@@ -1561,8 +1562,10 @@ document.addEventListener('DOMContentLoaded', () => {
 
     function syncRotationAvailability() {
         const hasRotation = Boolean(game?.rotationEnabled);
-        btnTwistMode?.classList.toggle('is-hidden', !hasRotation);
-        btnTwistMode?.setAttribute('aria-hidden', String(!hasRotation));
+        btnTwistMode?.classList.add('is-hidden');
+        btnTwistMode?.setAttribute('aria-hidden', 'true');
+        rotationSection?.classList.add('is-hidden');
+        rotationSection?.setAttribute('aria-hidden', 'true');
         document.body?.classList.toggle('rotation-level-enabled', hasRotation);
         document.body?.classList.toggle('rotation-level-disabled', !hasRotation);
         if (!hasRotation && twistMode) {
@@ -1593,6 +1596,19 @@ document.addEventListener('DOMContentLoaded', () => {
             render.clearTwistControlRings?.();
             if (!options.silent) {
                 feel.note(window.t?.('note.rotationMissing') || '本关暂未引入旋转', 'warn');
+            }
+            return false;
+        }
+        if (shouldEnable) {
+            twistMode = false;
+            btnTwistMode?.classList.remove('active');
+            btnTwistMode?.setAttribute('aria-pressed', 'false');
+            document.body?.classList.remove('twist-interaction-active');
+            render.setInteractionMode?.('route');
+            render.clearLayerHighlight?.();
+            render.clearTwistControlRings?.();
+            if (!options.silent) {
+                feel.note(window.t?.('note.longPressTwist') || '长按魔方格子，等十字箭头出现后拖动旋转。', 'info');
             }
             return false;
         }
@@ -1853,12 +1869,17 @@ document.addEventListener('DOMContentLoaded', () => {
             if (code === keybinds.break) return applyToolKeybind('break');
             if (code === keybinds.wait) return triggerTemporalKeybind('down');
             if (code === keybinds.twist && !event.repeat && isGameActive) {
-                return setTwistMode(true);
+                if (game.rotationEnabled) {
+                    feel.note(window.t?.('note.longPressTwist') || '长按魔方格子，等十字箭头出现后拖动旋转。', 'info');
+                } else {
+                    feel.note(window.t?.('note.rotationMissing') || '本关暂未引入旋转', 'warn');
+                }
+                return true;
             }
         } else {
             if (code === keybinds.wait) return triggerTemporalKeybind('up');
             if (code === keybinds.twist && isGameActive) {
-                return setTwistMode(false);
+                return true;
             }
         }
         return false;
@@ -2015,7 +2036,7 @@ document.addEventListener('DOMContentLoaded', () => {
         if (!menu) return;
         menu.style.left = '';
         menu.style.bottom = '';
-        menu.style.right = 'clamp(1rem, 2.2vw, 2rem)';
+        menu.style.right = 'clamp(0.75rem, 1.6vw, 1.5rem)';
         menu.style.top = '50%';
     }
 
@@ -2099,6 +2120,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }
 
         const hasTools = game.patchCharges > 0 || game.beaconCharges > 0 || game.breakCharges > 0 || game.activePatchCells.size > 0 || game.beaconCell !== null;
+        document.body?.classList.toggle('tools-dock-active', hasTools);
         if (toolsFloatBubble) {
             toolsFloatBubble.classList.toggle('is-hidden', !hasTools);
             toolsFloatBubble.classList.toggle('has-tools', hasTools);
@@ -3006,9 +3028,20 @@ document.addEventListener('DOMContentLoaded', () => {
         arrow.classList.remove('is-hidden');
     }
 
+    function getElementFocusPercent(targetEl) {
+        if (!targetEl) return { x: 50, y: 48 };
+        const rect = targetEl.getBoundingClientRect();
+        if (!rect.width || !rect.height) return { x: 50, y: 48 };
+        return {
+            x: Math.max(8, Math.min(92, ((rect.left + rect.width / 2) / window.innerWidth) * 100)),
+            y: Math.max(8, Math.min(92, ((rect.top + rect.height / 2) / window.innerHeight) * 100))
+        };
+    }
+
     function getTutorialUiTarget(step) {
         if (!step) return null;
-        if (step.uiTarget === 'twist') return btnTwistMode || toolsFloatBubble;
+        const canvasContainer = document.getElementById('canvas-container');
+        if (step.uiTarget === 'twist') return canvasContainer;
         if (step.uiTarget === 'tools') return toolsFloatBubble;
         if (step.uiTarget === 'esc') return btnEscMenu;
         if (step.type === 'esc') return btnEscMenu;
@@ -3019,27 +3052,39 @@ document.addEventListener('DOMContentLoaded', () => {
                 || toolsFloatBubble;
         }
         if (step.openTools) return toolsFloatBubble;
-        if (step.type === 'twist') return btnTwistMode || toolsFloatBubble;
+        if (step.type === 'twist') return canvasContainer;
         return null;
     }
 
     function updateTutorialControlTargets(step, isSystemStep) {
-        btnTwistMode?.classList.toggle('tutorial-target', step?.type === 'twist' || step?.uiTarget === 'twist');
+        const canvasContainer = document.getElementById('canvas-container');
+        const menu = document.getElementById('floating-toolbox-menu');
+        const floatBubbleLayer = document.getElementById('float-bubble-layer');
+        const shouldLiftFloatLayer = Boolean(step?.openTools || step?.type === 'tool' || step?.uiTarget === 'tools');
+        canvasContainer?.classList.toggle('tutorial-target', step?.type === 'twist' || step?.uiTarget === 'twist');
         btnEscMenu?.classList.toggle('tutorial-target', step?.type === 'esc' || step?.uiTarget === 'esc');
         commsFloatBubble?.classList.remove('tutorial-target');
         toolsFloatBubble?.classList.toggle('tutorial-target', step?.openTools || step?.type === 'tool' || step?.uiTarget === 'tools');
+        menu?.classList.toggle('tutorial-target-shell', step?.type === 'tool');
+        floatBubbleLayer?.classList.toggle('tutorial-focus-shell', shouldLiftFloatLayer);
         document.querySelectorAll('[data-tool-mode]').forEach(btn => {
             btn.classList.toggle('tutorial-target', step?.type === 'tool' && btn.dataset.toolMode === step.tool);
         });
         const uiTarget = getTutorialUiTarget(step);
         showTutorialUiArrow(uiTarget);
+        return uiTarget;
     }
 
     function clearTutorialControlTargets() {
-        btnTwistMode?.classList.remove('tutorial-target');
+        const canvasContainer = document.getElementById('canvas-container');
+        const menu = document.getElementById('floating-toolbox-menu');
+        const floatBubbleLayer = document.getElementById('float-bubble-layer');
+        canvasContainer?.classList.remove('tutorial-target');
         btnEscMenu?.classList.remove('tutorial-target');
         commsFloatBubble?.classList.remove('tutorial-target');
         toolsFloatBubble?.classList.remove('tutorial-target');
+        menu?.classList.remove('tutorial-target-shell');
+        floatBubbleLayer?.classList.remove('tutorial-focus-shell');
         document.querySelectorAll('[data-tool-mode]').forEach(btn => btn.classList.remove('tutorial-target'));
         hideTutorialUiArrow();
     }
@@ -3338,7 +3383,7 @@ document.addEventListener('DOMContentLoaded', () => {
             return;
         }
 
-        updateTutorialControlTargets(step, isSystemStep);
+        const uiTarget = updateTutorialControlTargets(step, isSystemStep);
         if (isNewTutorialNotice) {
             audio.play('routeTick');
         }
@@ -3357,7 +3402,28 @@ document.addEventListener('DOMContentLoaded', () => {
         closeDawnChatWindow({ clearNotice: false });
         setTutorialDialogue(step);
         const pointerCellId = step.targetCellId ?? step.focusCellId;
-        setTutorialVignette(false);
+        const boardFocus = pointerCellId !== undefined
+            ? render.getCellScreenFocusPercent?.(pointerCellId, 'route')
+            : null;
+        const shouldSpotlightUi = Boolean(uiTarget && (
+            step.openTools ||
+            step.uiTarget ||
+            step.type === 'tool' ||
+            step.type === 'twist' ||
+            step.type === 'esc' ||
+            step.type === 'closeEsc'
+        ));
+        const shouldSpotlightBoard = Boolean(boardFocus && (
+            step.type === 'move' ||
+            step.type === 'tool' ||
+            step.highlightTarget ||
+            step.targetCellId !== undefined ||
+            step.focusCellId !== undefined
+        ));
+        setTutorialVignette(
+            shouldSpotlightUi || shouldSpotlightBoard,
+            shouldSpotlightUi ? getElementFocusPercent(uiTarget) : (boardFocus || { x: 50, y: 48 })
+        );
         const showGesture = step.type === 'look' || step.type === 'zoom';
         tutorialLookGesture?.classList.toggle('is-hidden', !showGesture);
         if (showGesture) {
@@ -3530,13 +3596,6 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Close floating panels when clicking outside
     document.addEventListener('pointerdown', event => {
-        const menu = document.getElementById('floating-toolbox-menu');
-        if (menu && !menu.classList.contains('is-hidden')) {
-            if (!event.target.closest('#tools-float-bubble') && !event.target.closest('#floating-toolbox-menu')) {
-                toolsMenuUserCollapsed = true;
-                menu.classList.add('is-hidden');
-            }
-        }
         if (game && !game.tutorialActive) {
             const dialogueConsole = document.getElementById('tutorial-dialogue-console');
             if (dialogueConsole && !dialogueConsole.classList.contains('is-hidden')) {

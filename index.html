@@ -187,7 +187,7 @@
         <div id="canvas-container">
             <!-- 3D Canvas 将插入此处 -->
             <div id="canvas-overlay-ui">
-                <div id="route-tip" class="help-tooltip" data-i18n="game.routeTip">点击 Dawn 周围的格子移动；按 Shift 进入旋转魔方。</div>
+                <div id="route-tip" class="help-tooltip" data-i18n="game.routeTip">短点 Dawn 周围格子移动；长按格子出现十字箭头旋转。</div>
                 <div id="tool-mode-indicator" class="tool-mode-indicator" aria-live="polite">
                     <span id="tool-mode-icon" class="tool-mode-icon" aria-hidden="true">➜</span>
                     <strong id="tool-mode-title" data-i18n="tool.mode.routeTitle">移动模式</strong>
@@ -263,7 +263,6 @@
                 </section>
             </div>
             <button id="audio-toggle" class="audio-toggle" type="button" aria-pressed="true" title="开启或关闭声音" data-i18n="audio.on" data-i18n-title="audio.toggleTitle">声音 开</button>
-            <button id="btn-twist-mode" class="twist-toggle" type="button" aria-pressed="false" title="旋转魔方：拖拽控制环拧动一层魔方" data-i18n="fold.title" data-i18n-title="meta.twist">旋转</button>
         </div>
 
         <div id="float-bubble-layer" class="float-bubble-layer" aria-label="悬浮快捷球" data-i18n-aria-label="toolbox.layer">
@@ -544,7 +543,7 @@
                 <h3 data-i18n="settings.guideTitle">玩法指南</h3>
                 <div class="guide-grid">
                     <article><b>➜</b><span data-i18n="settings.guideMove">点 Dawn 周围发亮格移动，途中只缓存下一步。</span></article>
-                    <article><b>⟳</b><span data-i18n="settings.guideTwist">按 Shift 进入旋转魔方，拖 3D 控制环拧层。</span></article>
+                    <article><b>⟳</b><span data-i18n="settings.guideTwist">长按一个格子，出现十字箭头后横拖/竖拖旋转空间。</span></article>
                     <article><b>▧</b><span data-i18n="settings.guidePatch">补片铺一次路，Dawn 踩过后碎掉。</span></article>
                     <article><b>◇</b><span data-i18n="settings.guideTools">诱饵拉偏追击压力，碎解切断必经格。</span></article>
                 </div>
@@ -558,7 +557,6 @@
                     <label><span data-i18n="settings.key.beacon">部署信标</span><button class="keybind-button" type="button" data-keybind-action="beacon">3</button></label>
                     <label><span data-i18n="settings.key.break">碎解</span><button class="keybind-button" type="button" data-keybind-action="break">4</button></label>
                     <label><span data-i18n="settings.key.wait">原地待命</span><button class="keybind-button" type="button" data-keybind-action="wait">Space</button></label>
-                    <label><span data-i18n="settings.key.twist">旋转魔方</span><button class="keybind-button" type="button" data-keybind-action="twist">Shift</button></label>
                 </div>
             </div>
         </section>

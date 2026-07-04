@@ -217,18 +217,17 @@
             {
                 type: 'dialog',
                 text: {
-                    zh: '系统提示：左下角是「旋转魔方」。点它进入拧层模式。',
-                    en: 'System: the bottom-left Layer Twist button enters layer-twist mode.'
+                    zh: '系统提示：长按魔方上的一个格子，等十字箭头出现后拖动方向，就能拧动对应层。',
+                    en: 'System: long-press a cube tile, wait for the cross arrows, then drag a direction to twist that layer.'
                 },
-                uiTarget: 'twist',
                 tone: 'system',
                 speaker: '系统广播'
             },
             {
                 type: 'twist',
                 text: {
-                    zh: '系统提示：现在拖动 Dawn 最近的最上层，把路拧到钥匙旁。',
-                    en: 'System: now drag the top layer closest to Dawn and bring the road beside the key.'
+                    zh: '系统提示：长按 Dawn 附近的格子，出现十字箭头后拖动，把路拧到钥匙旁。',
+                    en: 'System: long-press a tile near Dawn. When the cross arrows appear, drag to bring the road beside the key.'
                 },
                 axis: 'Y',
                 layer: 2,

@@ -34,6 +34,9 @@ class RenderEngine {
         this.boundLookPointerDown = () => { this.lookPointerDown = true; };
         this.boundLookPointerUp = () => { this.lookPointerDown = false; };
         this.boardPointerAttached = false;
+        this.longPressTwistTimer = null;
+        this.longPressTwistDelayMs = 360;
+        this.longPressTwistMoveTolerance = 9;
         
         // 游戏引擎实例引用
         this.game = null;
@@ -362,6 +365,58 @@ class RenderEngine {
         this.twistCrossHint.classList.remove('is-horizontal', 'is-vertical', 'is-blocked', 'is-disabled');
     }
 
+    clearLongPressTwistTimer() {
+        if (!this.longPressTwistTimer) return;
+        window.clearTimeout(this.longPressTwistTimer);
+        this.longPressTwistTimer = null;
+    }
+
+    beginLongPressTwist() {
+        const down = this.pointerDown;
+        if (!down || down.mode !== 'route' || !down.longPressTwistArmed) return;
+        if (!this.game?.rotationEnabled || this.game?.gameState !== 'playing') return;
+        if (down.cellId === null || down.cellId === undefined) return;
+
+        const candidates = this.getViewTwistCandidatesFromCell(down.cellId);
+        if (!candidates.length && !this.getActiveTutorialTwistLayer()) {
+            down.longPressTwistArmed = false;
+            down.longPressTwistBlocked = true;
+            this.showTwistCrossHint(down.x, down.y, []);
+            this.setTwistCrossIntent('horizontal-blocked');
+            return;
+        }
+
+        down.mode = 'twist';
+        down.longPressTwist = true;
+        down.twistCandidates = candidates;
+        this.interactionMode = 'twist';
+        if (this.controls) this.controls.enabled = false;
+        this.game.clearPlannedPath?.();
+        document.body?.classList.add('twist-interaction-active');
+        this.showTwistCrossHint(down.x, down.y, candidates);
+        const layer = this.getActiveTutorialTwistLayer() || this.getPrimaryTwistCandidate(candidates);
+        if (layer) this.highlightLayer(layer.axis, layer.layer);
+    }
+
+    cancelLongPressTwist() {
+        this.clearLongPressTwistTimer();
+        if (this.pointerDown) {
+            this.pointerDown.longPressTwistArmed = false;
+        }
+    }
+
+    endLongPressTwist() {
+        this.clearLongPressTwistTimer();
+        this.interactionMode = 'route';
+        document.body?.classList.remove('twist-interaction-active');
+        if (this.controls) {
+            this.controls.enabled = true;
+            this.controls.enableRotate = true;
+        }
+        this.hideTwistCrossHint();
+        this.clearLayerHighlight();
+    }
+
     handleBoardPointerDown(event) {
         if (!this.game || this.isAnimating) return;
         const cellId = this.pickBoardCell(event);
@@ -376,6 +431,18 @@ class RenderEngine {
         this.pointerLastCell = cellId;
         if (this.renderer?.domElement?.setPointerCapture) {
             this.renderer.domElement.setPointerCapture(event.pointerId);
+        }
+        if (this.interactionMode === 'route' &&
+            this.game.rotationEnabled &&
+            this.game.gameState === 'playing' &&
+            cellId !== null &&
+            cellId !== undefined) {
+            this.clearLongPressTwistTimer();
+            this.pointerDown.longPressTwistArmed = true;
+            this.longPressTwistTimer = window.setTimeout(() => {
+                this.longPressTwistTimer = null;
+                this.beginLongPressTwist();
+            }, this.longPressTwistDelayMs);
         }
         if (this.interactionMode === 'twist') {
             event.preventDefault();
@@ -394,6 +461,12 @@ class RenderEngine {
 
     handleBoardPointerMove(event) {
         if (!this.game || this.isAnimating) return;
+        if (this.pointerDown?.longPressTwistArmed && !this.pointerDown.longPressTwist) {
+            const moved = Math.hypot(event.clientX - this.pointerDown.x, event.clientY - this.pointerDown.y);
+            if (moved > this.longPressTwistMoveTolerance) {
+                this.cancelLongPressTwist();
+            }
+        }
         if (this.interactionMode === 'twist') {
             if (this.pointerDown?.mode === 'twist') {
                 const down = this.pointerDown;
@@ -460,12 +533,16 @@ class RenderEngine {
     }
 
     handleBoardPointerUp(event) {
+        this.clearLongPressTwistTimer();
         if (!this.pointerDown || !this.game || this.isAnimating || this.game.l03CutsceneActive) return;
         const moved = Math.hypot(event.clientX - this.pointerDown.x, event.clientY - this.pointerDown.y);
         const down = this.pointerDown;
         this.pointerDown = null;
         this.pointerLastCell = null;
         this.hideTwistCrossHint();
+        if (down.longPressTwist) {
+            this.endLongPressTwist();
+        }
         if (this.renderer?.domElement?.hasPointerCapture?.(event.pointerId)) {
             this.renderer.domElement.releasePointerCapture(event.pointerId);
         }
@@ -498,7 +575,7 @@ class RenderEngine {
             return;
         }
 
-        if (down.mode === 'route' && moved <= 18) {
+        if (down.mode === 'route' && !down.longPressTwistBlocked && moved <= 18) {
             const cellId = this.pickBoardCell(event);
             if (cellId === null || cellId === undefined) return;
             this.game.handleBoardCellClick(cellId);
@@ -629,6 +706,16 @@ class RenderEngine {
         return {
             x: rect.left + (projected.x + 1) * 0.5 * rect.width,
             y: rect.top + (1 - (projected.y + 1) * 0.5) * rect.height
+        };
+    }
+
+    getCellScreenFocusPercent(cellId, role = 'route') {
+        if (!Number.isInteger(cellId)) return null;
+        const point = this.getClientPointFromWorld(this.getCellWorldPosition(cellId, role));
+        if (!point || typeof window === 'undefined') return null;
+        return {
+            x: Math.max(8, Math.min(92, (point.x / window.innerWidth) * 100)),
+            y: Math.max(8, Math.min(92, (point.y / window.innerHeight) * 100))
         };
     }
 
@@ -3264,13 +3351,19 @@ class RenderEngine {
             mesh.position.copy(this.getCellWorldPosition(aiState.nextCell, 'pulse').clone().addScaledVector(normal, 0.045));
             mesh.quaternion.setFromUnitVectors(new THREE.Vector3(0, 0, 1), normal);
             const urgency = Math.max(0, Math.min(1, aiState.progress));
+            if (mesh.userData?.fillMaterial) {
+                mesh.userData.fillMaterial.opacity = 0.52 + urgency * 0.32;
+            }
             if (mesh.userData?.outerMaterial) {
-                mesh.userData.outerMaterial.opacity = 0.42 + urgency * 0.44;
+                mesh.userData.outerMaterial.opacity = 0.82 + urgency * 0.16;
             }
             if (mesh.userData?.innerMaterial) {
-                mesh.userData.innerMaterial.opacity = 0.20 + urgency * 0.28;
+                mesh.userData.innerMaterial.opacity = 0.34 + urgency * 0.24;
             }
-            const scale = 0.88 + urgency * 0.26 + Math.sin(Date.now() * (0.008 + urgency * 0.02)) * 0.075;
+            if (mesh.userData?.slashMaterial) {
+                mesh.userData.slashMaterial.opacity = 0.74 + urgency * 0.2;
+            }
+            const scale = 0.98 + urgency * 0.26 + Math.sin(Date.now() * (0.008 + urgency * 0.02)) * 0.09;
             mesh.scale.set(scale, scale, 1);
         });
         Object.keys(this.threatPreviewMeshes).forEach(key => {
@@ -3284,12 +3377,21 @@ class RenderEngine {
 
     createThreatPreviewMesh(cellId, color) {
         const normal = this.getCellNormalVector(this.game.cells[cellId]);
-        const warningColor = new THREE.Color(color).lerp(new THREE.Color(0xff2d73), 0.55);
+        const warningColor = new THREE.Color(0xff102b);
+        const dangerFill = new THREE.Color(color).lerp(new THREE.Color(0xff001d), 0.86);
         const group = new THREE.Group();
+        const fillMaterial = new THREE.MeshBasicMaterial({
+            color: dangerFill,
+            transparent: true,
+            opacity: 0.58,
+            side: THREE.DoubleSide,
+            depthWrite: false,
+            blending: THREE.AdditiveBlending
+        });
         const outerMaterial = new THREE.MeshBasicMaterial({
             color: warningColor,
             transparent: true,
-            opacity: 0.64,
+            opacity: 0.9,
             side: THREE.DoubleSide,
             depthWrite: false,
             blending: THREE.AdditiveBlending
@@ -3302,25 +3404,30 @@ class RenderEngine {
             depthWrite: false,
             blending: THREE.AdditiveBlending
         });
+        const slashMaterial = new THREE.MeshBasicMaterial({
+            color: 0xffffff,
+            transparent: true,
+            opacity: 0.82,
+            side: THREE.DoubleSide,
+            depthWrite: false,
+            blending: THREE.AdditiveBlending
+        });
+        const fill = new THREE.Mesh(new THREE.CircleGeometry(0.52, 72), fillMaterial);
         const outer = new THREE.Mesh(new THREE.RingGeometry(0.31, 0.55, 64), outerMaterial);
         const inner = new THREE.Mesh(new THREE.CircleGeometry(0.18, 48), innerMaterial);
         const slash = new THREE.Mesh(
             new THREE.PlaneGeometry(0.76, 0.055),
-            new THREE.MeshBasicMaterial({
-                color: 0xffffff,
-                transparent: true,
-                opacity: 0.58,
-                side: THREE.DoubleSide,
-                depthWrite: false,
-                blending: THREE.AdditiveBlending
-            })
+            slashMaterial
         );
         slash.rotation.z = Math.PI / 4;
+        group.add(fill);
         group.add(outer);
         group.add(inner);
         group.add(slash);
+        group.userData.fillMaterial = fillMaterial;
         group.userData.outerMaterial = outerMaterial;
         group.userData.innerMaterial = innerMaterial;
+        group.userData.slashMaterial = slashMaterial;
         group.position.copy(this.getCellWorldPosition(cellId, 'pulse').clone().addScaledVector(normal, 0.045));
         group.quaternion.setFromUnitVectors(new THREE.Vector3(0, 0, 1), normal);
         return group;
