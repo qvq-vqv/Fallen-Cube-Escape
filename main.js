@@ -3040,8 +3040,6 @@ document.addEventListener('DOMContentLoaded', () => {
 
     function getTutorialUiTarget(step) {
         if (!step) return null;
-        const canvasContainer = document.getElementById('canvas-container');
-        if (step.uiTarget === 'twist') return canvasContainer;
         if (step.uiTarget === 'tools') return toolsFloatBubble;
         if (step.uiTarget === 'esc') return btnEscMenu;
         if (step.type === 'esc') return btnEscMenu;
@@ -3052,16 +3050,13 @@ document.addEventListener('DOMContentLoaded', () => {
                 || toolsFloatBubble;
         }
         if (step.openTools) return toolsFloatBubble;
-        if (step.type === 'twist') return canvasContainer;
         return null;
     }
 
     function updateTutorialControlTargets(step, isSystemStep) {
-        const canvasContainer = document.getElementById('canvas-container');
         const menu = document.getElementById('floating-toolbox-menu');
         const floatBubbleLayer = document.getElementById('float-bubble-layer');
         const shouldLiftFloatLayer = Boolean(step?.openTools || step?.type === 'tool' || step?.uiTarget === 'tools');
-        canvasContainer?.classList.toggle('tutorial-target', step?.type === 'twist' || step?.uiTarget === 'twist');
         btnEscMenu?.classList.toggle('tutorial-target', step?.type === 'esc' || step?.uiTarget === 'esc');
         commsFloatBubble?.classList.remove('tutorial-target');
         toolsFloatBubble?.classList.toggle('tutorial-target', step?.openTools || step?.type === 'tool' || step?.uiTarget === 'tools');
@@ -3076,10 +3071,8 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     function clearTutorialControlTargets() {
-        const canvasContainer = document.getElementById('canvas-container');
         const menu = document.getElementById('floating-toolbox-menu');
         const floatBubbleLayer = document.getElementById('float-bubble-layer');
-        canvasContainer?.classList.remove('tutorial-target');
         btnEscMenu?.classList.remove('tutorial-target');
         commsFloatBubble?.classList.remove('tutorial-target');
         toolsFloatBubble?.classList.remove('tutorial-target');
@@ -3409,16 +3402,12 @@ document.addEventListener('DOMContentLoaded', () => {
             step.openTools ||
             step.uiTarget ||
             step.type === 'tool' ||
-            step.type === 'twist' ||
             step.type === 'esc' ||
             step.type === 'closeEsc'
         ));
         const shouldSpotlightBoard = Boolean(boardFocus && (
             step.type === 'move' ||
-            step.type === 'tool' ||
-            step.highlightTarget ||
-            step.targetCellId !== undefined ||
-            step.focusCellId !== undefined
+            step.type === 'twist'
         ));
         setTutorialVignette(
             shouldSpotlightUi || shouldSpotlightBoard,
