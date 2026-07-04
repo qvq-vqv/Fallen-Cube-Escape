@@ -2110,6 +2110,18 @@ document.addEventListener('DOMContentLoaded', () => {
         const floatingBreak = document.getElementById('floating-break-count');
         const floatingPatch = document.getElementById('floating-patch-count');
         const floatingBeacon = document.getElementById('floating-beacon-count');
+        const levelTools = {
+            break: Boolean(game.isToolAvailableInLevel?.('break')),
+            patch: Boolean(game.isToolAvailableInLevel?.('patch')),
+            beacon: Boolean(game.isToolAvailableInLevel?.('beacon'))
+        };
+
+        Object.entries(levelTools).forEach(([mode, available]) => {
+            document.querySelectorAll(`[data-tool-mode="${mode}"]`).forEach(btn => {
+                btn.classList.toggle('is-hidden', !available);
+                btn.setAttribute('aria-hidden', String(!available));
+            });
+        });
 
         if (floatingBreak) floatingBreak.textContent = game.breakCharges;
         if (floatingPatch) floatingPatch.textContent = game.patchCharges;
@@ -2123,7 +2135,7 @@ document.addEventListener('DOMContentLoaded', () => {
             toolsFloatBadge.classList.toggle('is-hidden', !showBadge);
         }
 
-        const hasTools = game.patchCharges > 0 || game.beaconCharges > 0 || game.breakCharges > 0 || game.activePatchCells.size > 0 || game.beaconCell !== null;
+        const hasTools = levelTools.patch || levelTools.beacon || levelTools.break || game.activePatchCells.size > 0 || game.beaconCell !== null;
         document.body?.classList.toggle('tools-dock-active', hasTools);
         if (toolsFloatBubble) {
             toolsFloatBubble.classList.toggle('is-hidden', !hasTools);

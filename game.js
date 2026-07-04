@@ -1113,6 +1113,11 @@ class GameEngine {
                 }
             }
         }
+        if (nextMode !== 'route' && !this.isToolAvailableInLevel(nextMode)) {
+            this.playFeel('invalid');
+            this.showFeel(this.t('note.toolUnavailable', '本局没有这个道具'), 'warn');
+            return;
+        }
         if (nextMode === 'patch' && this.patchCharges <= 0) {
             this.playFeel('invalid');
             this.showFeel(this.t('note.noPatch', '没有可用补片'), 'warn');
@@ -1139,6 +1144,16 @@ class GameEngine {
         this.updateUI();
     }
 
+    isToolAvailableInLevel(mode = 'route') {
+        if (mode === 'route') return true;
+        const toolCharges = {
+            patch: Number(this.currentLevel?.patchCharges || 0),
+            beacon: Number(this.currentLevel?.beaconCharges || 0),
+            break: Number(this.currentLevel?.breakCharges || 0)
+        };
+        return Boolean(toolCharges[mode] > 0);
+    }
+
     placePatch(cellId) {
         if (this.gameState !== 'playing') return false;
         if (this.tutorialActive) {
@@ -1160,7 +1175,6 @@ class GameEngine {
         this.pushHistory('patch');
         this.patchCharges -= 1;
         this.activePatchCells.add(cellId);
-        this.toolMode = 'route';
         this.recordEvent('patchPlaced', { at: cellId });
         this.playFeel('patchPlace');
         this.showFeel(this.t('note.patchPlaced', '临时补片已铺好。别停在上面。'), 'good', true);
@@ -1200,7 +1214,6 @@ class GameEngine {
         this.beaconCharges -= 1;
         this.beaconCell = cellId;
         this.beaconTTL = Math.max(1, Number(this.currentLevel?.beaconDuration || 1));
-        this.toolMode = 'route';
         this.recordEvent('beaconPlaced', { at: cellId, ttl: this.beaconTTL });
         this.playFeel('beaconPlace');
         this.showFeel(this.t('note.beaconPlaced', '诱饵信标已投放'), 'good', true);
@@ -1245,7 +1258,6 @@ class GameEngine {
         this.breakCharges -= 1;
         this.activePatchCells.delete(cellId);
         this.voidCells.add(cellId);
-        this.toolMode = 'route';
         this.recordEvent('breakPlaced', { at: cellId });
         this.playFeel('patchBreak');
         this.showFeel(this.formatText('note.brokeCell', '已碎解 {cell}', { cell: this.describeCell(cellId) }), 'warn', true);
@@ -2974,7 +2986,12 @@ class GameEngine {
         const hasRotation = this.rotationEnabled;
         const hasThreats = this.ais.length > 0;
         const hasTracker = this.trackingEnabled;
-        const hasTools = this.patchCharges > 0 || this.beaconCharges > 0 || this.breakCharges > 0 || this.activePatchCells.size > 0 || this.beaconCell !== null;
+        const levelTools = {
+            patch: this.isToolAvailableInLevel('patch'),
+            beacon: this.isToolAvailableInLevel('beacon'),
+            break: this.isToolAvailableInLevel('break')
+        };
+        const hasTools = levelTools.patch || levelTools.beacon || levelTools.break || this.activePatchCells.size > 0 || this.beaconCell !== null;
         document.getElementById('rotation-status')?.classList.toggle('is-hidden', !hasRotation);
         document.getElementById('rotation-budget-hint')?.classList.toggle('is-hidden', !hasRotation);
         document.getElementById('rotation-section')?.classList.toggle('is-hidden', !hasRotation);
@@ -2986,10 +3003,14 @@ class GameEngine {
         document.getElementById('break-count') && (document.getElementById('break-count').innerText = this.breakCharges);
         document.querySelectorAll('[data-tool-mode]').forEach(btn => {
             const mode = btn.dataset.toolMode;
+            const isLevelTool = mode === 'patch' || mode === 'beacon' || mode === 'break';
+            const isAvailableInLevel = !isLevelTool || levelTools[mode];
+            btn.classList.toggle('is-hidden', !isAvailableInLevel);
+            btn.setAttribute('aria-hidden', String(!isAvailableInLevel));
             btn.classList.toggle('active', this.toolMode === mode);
-            if (mode === 'patch') btn.disabled = this.patchCharges <= 0;
-            if (mode === 'beacon') btn.disabled = this.beaconCharges <= 0;
-            if (mode === 'break') btn.disabled = this.breakCharges <= 0;
+            if (mode === 'patch') btn.disabled = !isAvailableInLevel || this.patchCharges <= 0;
+            if (mode === 'beacon') btn.disabled = !isAvailableInLevel || this.beaconCharges <= 0;
+            if (mode === 'break') btn.disabled = !isAvailableInLevel || this.breakCharges <= 0;
             if (mode === 'route') btn.disabled = false;
         });
         const axisEl = document.getElementById('rotate-axis');
