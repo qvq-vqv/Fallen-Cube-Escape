@@ -1436,6 +1436,7 @@ document.addEventListener('DOMContentLoaded', () => {
     function enterInspectPreview(index = selectedLevelIndex) {
         const level = game.levels[index];
         if (!level) return;
+        clearTutorialChrome({ resetTutorialState: true });
         selectedLevelIndex = index;
         isGameActive = false;
         setBulletTimeActive(false);
@@ -1447,7 +1448,7 @@ document.addEventListener('DOMContentLoaded', () => {
         gameContainer.classList.add('preplay-stage', 'inspect-stage');
         game.initLevel(index, true);
         syncRotationAvailability();
-        hideTutorialDialogue();
+        clearTutorialChrome({ resetTutorialState: true });
         game.setRealtimeMode?.(false);
         game.stopRealtime?.();
         game.gameState = 'setup';
@@ -1461,6 +1462,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     function exitInspectPreview() {
+        clearTutorialChrome({ resetTutorialState: true });
         inspectOverlay?.classList.remove('active');
         inspectOverlay?.setAttribute('aria-hidden', 'true');
         game.stopRealtime?.();
@@ -1527,6 +1529,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     function showLanding() {
+        clearTutorialChrome({ resetTutorialState: true });
         isGameActive = false;
         landingOverlay?.classList.add('active');
         setupOverlay.classList.remove('active');
@@ -1541,6 +1544,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     function showLevelBook({ openArchive = false } = {}) {
+        clearTutorialChrome({ resetTutorialState: true });
         isGameActive = false;
         landingOverlay?.classList.remove('active');
         setupOverlay.classList.add('active');
@@ -2158,6 +2162,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     async function startSelectedLevel() {
+        clearTutorialChrome({ resetTutorialState: true });
         setupOverlay.classList.remove('active');
         inspectOverlay?.classList.remove('active');
         inspectOverlay?.setAttribute('aria-hidden', 'true');
@@ -2281,6 +2286,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     function returnToLevelBook() {
+        clearTutorialChrome({ resetTutorialState: true });
         isGameActive = false;
         setBulletTimeActive(false);
         setTwistMode(false, { silent: true });
@@ -2939,6 +2945,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     restartBtns.forEach(btn => {
         btn.addEventListener('click', () => {
+            clearTutorialChrome({ resetTutorialState: true });
             const shouldEnterNextAct = game.gameState === 'win' && Boolean(game.currentLevel?.actFinale);
             if (shouldEnterNextAct) {
                 const nextAct = (game.currentLevel?.act || 1) + 1;
@@ -3079,6 +3086,9 @@ document.addEventListener('DOMContentLoaded', () => {
         menu?.classList.remove('tutorial-target-shell');
         floatBubbleLayer?.classList.remove('tutorial-focus-shell');
         document.querySelectorAll('[data-tool-mode]').forEach(btn => btn.classList.remove('tutorial-target'));
+        document.querySelectorAll('.tutorial-target, .tutorial-target-shell, .tutorial-focus-shell').forEach(el => {
+            el.classList.remove('tutorial-target', 'tutorial-target-shell', 'tutorial-focus-shell');
+        });
         hideTutorialUiArrow();
     }
 
@@ -3313,8 +3323,32 @@ document.addEventListener('DOMContentLoaded', () => {
         hideTutorialUiArrow();
         tutorialBlackout?.classList.remove('active');
         tutorialLookGesture?.classList.add('is-hidden');
+        tutorialLookGesture?.classList.remove('is-complete');
         tutorialLookProgress?.style.setProperty('--look-progress', '0%');
         gameContainer.classList.remove('tutorial-vignette');
+    }
+
+    function clearTutorialChrome({ clearCommsNotice = true, resetTutorialState = false } = {}) {
+        clearTutorialSecondaryFocusTimers();
+        clearTutorialControlTargets();
+        hideTutorialDialogue({ clearCommsNotice });
+        render.hideTutorialPointer?.();
+        render.clearLayerHighlight?.();
+        render.clearTwistControlRings?.();
+        game.setRealtimePaused?.(false);
+        tutorialBlackout?.classList.remove('active', 'is-flat');
+        tutorialBlackout?.style.setProperty('--focus-x', '50%');
+        tutorialBlackout?.style.setProperty('--focus-y', '48%');
+        gameContainer.classList.remove('tutorial-vignette');
+        const card = document.getElementById('tutorial-helper-card');
+        card?.classList.add('is-hidden');
+        if (resetTutorialState) {
+            game.tutorialActive = false;
+            game.currentTutorialStepIndex = -1;
+            game.activeTutorialSteps = [];
+            lastTutorialNoticeKey = '';
+            lastDawnTutorialMessageKey = '';
+        }
     }
 
     function completeTutorial({ clearCommsNotice = false } = {}) {
