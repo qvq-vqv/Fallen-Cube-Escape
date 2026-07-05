@@ -701,6 +701,12 @@ document.addEventListener('DOMContentLoaded', () => {
 
     function renderScannerChips(level, index, { compact = false } = {}) {
         const stats = getLevelStats(level);
+        const enemyTypes = Object.keys(stats.enemyCounts);
+        const guardianOnly = stats.totalEnemies > 0 && enemyTypes.length === 1 && enemyTypes[0] === 'guardian';
+        const enemyChipClass = stats.totalEnemies ? (guardianOnly ? 'guardian' : 'danger') : 'safe';
+        const enemyChipLabel = guardianOnly
+            ? (window.t?.('scanner.guardian') || '守')
+            : (window.t?.('scanner.enemy') || '敌');
         const enemyText = Object.entries(stats.enemyCounts)
             .map(([type, count]) => {
                 const meta = enemyMeta[type];
@@ -709,7 +715,7 @@ document.addEventListener('DOMContentLoaded', () => {
             })
             .join(' / ') || (window.t?.('scanner.noEnemies') || '无敌人');
         const chips = [
-            `<span class="scanner-chip ${stats.totalEnemies ? 'danger' : 'safe'}">${escapeHtml(window.t?.('scanner.enemy') || '敌')} ${stats.totalEnemies}</span>`,
+            `<span class="scanner-chip ${enemyChipClass}">${escapeHtml(enemyChipLabel)} ${stats.totalEnemies}</span>`,
             `<span class="scanner-chip key">${escapeHtml(window.t?.('scanner.key') || '钥')} ${stats.keyCount}</span>`,
             `<span class="scanner-chip">${escapeHtml(window.t?.('scanner.exit') || '门')} ${stats.exitCount}</span>`
         ];
@@ -1243,8 +1249,8 @@ document.addEventListener('DOMContentLoaded', () => {
         const guardianRule = summarizeGuardianRule(level);
         if (guardianRule && includeAlwaysTools) {
             icons.push(makeMetaToken({
-                type: 'rule',
-                symbol: level.guardianAggro === 'guardDoor' ? '▣' : '!',
+                type: 'rule rule-guardian',
+                symbol: level.guardianAggro === 'guardDoor' ? '▣' : '◆',
                 label: guardianRule
             }));
         }
@@ -3455,8 +3461,9 @@ document.addEventListener('DOMContentLoaded', () => {
             step.type === 'move' ||
             step.type === 'twist'
         ));
+        const vignetteDisabled = step.disableVignette === true || game.currentLevel?.id === 'L04';
         setTutorialVignette(
-            shouldSpotlightUi || shouldSpotlightBoard,
+            !vignetteDisabled && (shouldSpotlightUi || shouldSpotlightBoard),
             shouldSpotlightUi ? getElementFocusPercent(uiTarget) : (boardFocus || { x: 50, y: 48 })
         );
         const showGesture = step.type === 'look' || step.type === 'zoom';

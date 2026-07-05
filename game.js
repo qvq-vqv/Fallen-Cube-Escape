@@ -3859,7 +3859,7 @@ class GameEngine {
         if (points.length < 2) return;
 
         ctx.save();
-        ctx.strokeStyle = ai.type === 'guardian' && this.hasKey ? '#ff0055' : (ai.color || '#ff0055');
+        ctx.strokeStyle = ai.color || '#ff0055';
         ctx.lineWidth = 2.4;
         ctx.shadowColor = ctx.strokeStyle;
         ctx.shadowBlur = 8;

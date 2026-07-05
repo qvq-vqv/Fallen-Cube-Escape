@@ -3377,8 +3377,10 @@ class RenderEngine {
 
     createThreatPreviewMesh(cellId, color) {
         const normal = this.getCellNormalVector(this.game.cells[cellId]);
-        const warningColor = new THREE.Color(0xff102b);
-        const dangerFill = new THREE.Color(color).lerp(new THREE.Color(0xff001d), 0.86);
+        const markerColor = new THREE.Color(color || '#ff0055');
+        const warningColor = markerColor.clone().lerp(new THREE.Color(0xffffff), 0.08);
+        const dangerFill = markerColor.clone().lerp(new THREE.Color(0x050814), 0.22);
+        const slashColor = markerColor.clone().lerp(new THREE.Color(0xffffff), 0.34);
         const group = new THREE.Group();
         const fillMaterial = new THREE.MeshBasicMaterial({
             color: dangerFill,
@@ -3405,7 +3407,7 @@ class RenderEngine {
             blending: THREE.AdditiveBlending
         });
         const slashMaterial = new THREE.MeshBasicMaterial({
-            color: 0xffffff,
+            color: slashColor,
             transparent: true,
             opacity: 0.82,
             side: THREE.DoubleSide,
