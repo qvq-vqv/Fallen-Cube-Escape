@@ -74,7 +74,6 @@ class RenderEngine {
         this.edgeWhite = null;
         this.edgeColorScratch = null;
         this.laserFrame = 0;
-        this.layerHighlightMaterial = null;
         this.presentationMode = 'game';
         this.presentationAngle = 0;
         this.presentationSpeed = 0;
@@ -1273,8 +1272,6 @@ class RenderEngine {
         Object.values(this.badgeTextureCache).forEach(texture => texture.dispose?.());
         this.faceTextureCache = {};
         this.badgeTextureCache = {};
-        this.layerHighlightMaterial?.dispose?.();
-        this.layerHighlightMaterial = null;
         this.cleanupFallback();
 
         if (this.renderer) {
@@ -1819,19 +1816,6 @@ class RenderEngine {
             emissiveIntensity,
             shininess: 90
         });
-    }
-
-    getLayerHighlightMaterial() {
-        if (!this.layerHighlightMaterial) {
-            this.layerHighlightMaterial = new THREE.MeshBasicMaterial({
-                color: 0xffd447,
-                transparent: true,
-                opacity: 0.42,
-                side: THREE.DoubleSide,
-                depthWrite: false
-            });
-        }
-        return this.layerHighlightMaterial;
     }
 
     createTokenBase(color, radius = 0.4) {
@@ -4544,105 +4528,10 @@ class RenderEngine {
         return Math.min(N - 1, Math.max(0, idx));
     }
 
-    // 旋转层高亮 (Visual Layer Highlight)
+    // 旋转层高亮已禁用：长按十字箭头是唯一旋转引导，避免整层发光误导玩家。
     highlightLayer(axis, layerIdx) {
-        if (this.renderMode === 'fallback') {
-            this.drawFallbackScene();
-            return;
-        }
-
-        if (!axis || layerIdx === null || layerIdx === undefined) {
-            this.clearLayerHighlight();
-            return;
-        }
-
-        this.cublets.forEach(cublet => {
-            const currentLayer = this.getLayerVal(cublet.position, axis);
-            const line = cublet.children[0]; // 边缘线
-            const isTargetLayer = (currentLayer === layerIdx);
-            
-            if (isTargetLayer) {
-                if (!cublet.userData.layerOverlay) {
-                    const overlaySize = this.getCubletSize() * 1.055;
-                    const overlay = new THREE.Mesh(
-                        new THREE.BoxGeometry(overlaySize, overlaySize, overlaySize),
-                        this.getLayerHighlightMaterial()
-                    );
-                    overlay.userData.isLayerOverlay = true;
-                    overlay.renderOrder = 6;
-                    cublet.add(overlay);
-                    cublet.userData.layerOverlay = overlay;
-                }
-                cublet.userData.layerOverlay.visible = true;
-
-                // 高亮该旋转层网格边缘
-                if (line && line.material) {
-                    line.userData.isLayerHighlight = true;
-                    if (line.material.uniforms?.diffuse) {
-                        line.material.uniforms.diffuse.value.setHex(0xffd700);
-                        line.material.uniforms.opacity.value = 1;
-                        line.material.uniforms.dashSize.value = 1000;
-                        line.material.uniforms.gapSize.value = 0.0001;
-                        line.material.uniforms.dashOffset.value = 0;
-                    } else {
-                        line.material.color.setHex(0xffd700); // 亮金色
-                        line.material.opacity = 0.85;
-                        if ('dashSize' in line.material) {
-                            line.material.dashSize = 1000;
-                            line.material.gapSize = 0.0001;
-                        }
-                    }
-                }
-                
-                // 仅高亮该层可读面贴色，避免更改黑色底座的共享材质
-                cublet.material.forEach(mat => {
-                    if (mat && mat.userData && mat.userData.readableFace) {
-                        const highlighted = new THREE.Color(mat.userData.baseColor)
-                            .lerp(new THREE.Color(0xfff2aa), 0.32);
-                        mat.color.copy(highlighted);
-                        if (mat.emissive) {
-                            mat.emissiveIntensity = Math.max(1.08, mat.userData.baseEmissiveIntensity || 0.34);
-                        }
-                        mat.opacity = 1;
-                    } else if (mat && mat.emissive && mat.emissive.getHex() !== 0) {
-                        mat.emissiveIntensity = 0.45; // 增加发光亮度
-                    }
-                });
-            } else {
-                if (cublet.userData.layerOverlay) {
-                    cublet.userData.layerOverlay.visible = false;
-                }
-
-                // 恢复普通层状态
-                if (line && line.material) {
-                    line.userData.isLayerHighlight = false;
-                    if (line.material.uniforms?.diffuse) {
-                        line.material.uniforms.diffuse.value.setHex(line.userData?.baseColor || 0x00f0ff);
-                        line.material.uniforms.opacity.value = line.userData?.baseOpacity || 0.72;
-                        line.material.uniforms.dashSize.value = line.userData?.baseDashSize || 0.42;
-                        line.material.uniforms.gapSize.value = line.userData?.baseGapSize || 0.18;
-                    } else {
-                        line.material.color.setHex(line.userData?.baseColor || 0x00f0ff);
-                        line.material.opacity = line.userData?.baseOpacity || 0.72;
-                        if ('dashSize' in line.material) {
-                            line.material.dashSize = line.userData?.baseDashSize || 0.42;
-                            line.material.gapSize = line.userData?.baseGapSize || 0.18;
-                        }
-                    }
-                }
-                cublet.material.forEach(mat => {
-                    if (mat && mat.userData && mat.userData.readableFace) {
-                        mat.color.setHex(mat.userData.baseColor);
-                        if (mat.emissive) {
-                            mat.emissiveIntensity = mat.userData.baseEmissiveIntensity || 0.34;
-                        }
-                        mat.opacity = mat.userData.baseOpacity;
-                    } else if (mat && mat.emissive && mat.emissive.getHex() !== 0) {
-                        mat.emissiveIntensity = 0.15; // 恢复默认亮度
-                    }
-                });
-            }
-        });
+        this.clearLayerHighlight();
+        return;
     }
 
     clearLayerHighlight() {
