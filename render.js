@@ -432,15 +432,24 @@ class RenderEngine {
             this.renderer.domElement.setPointerCapture(event.pointerId);
         }
         if (this.interactionMode === 'route' &&
-            this.game.rotationEnabled &&
             this.game.gameState === 'playing' &&
             cellId !== null &&
             cellId !== undefined) {
             this.clearLongPressTwistTimer();
-            this.pointerDown.longPressTwistArmed = true;
+            if (this.game.rotationEnabled) {
+                this.pointerDown.longPressTwistArmed = true;
+            }
             this.longPressTwistTimer = window.setTimeout(() => {
                 this.longPressTwistTimer = null;
-                this.beginLongPressTwist();
+                if (this.game.rotationEnabled) {
+                    this.beginLongPressTwist();
+                    return;
+                }
+                this.pointerDown.longPressTwistBlocked = true;
+                this.showTwistCrossHint(event.clientX, event.clientY, []);
+                this.setTwistCrossIntent('horizontal-blocked');
+                this.game.playFeel?.('invalid');
+                this.game.showFeel?.(this.game.t('note.rotationMissing', '本关禁用旋转'), 'warn', true);
             }, this.longPressTwistDelayMs);
         }
         if (this.interactionMode === 'twist') {
@@ -475,7 +484,7 @@ class RenderEngine {
                     return;
                 }
                 const tutorialLayer = this.getActiveTutorialTwistLayer();
-                if (tutorialLayer) {
+                if (tutorialLayer && !this.getActiveTutorialTwistStep()?.allowAnyTwist) {
                     const tutorialIntent = Math.abs(event.clientX - down.x) >= Math.abs(event.clientY - down.y)
                         ? 'horizontal'
                         : 'vertical';
@@ -558,7 +567,7 @@ class RenderEngine {
                 ? down.twistCandidates
                 : this.getViewTwistCandidatesFromCell(down.cellId);
             const tutorialLayer = this.getActiveTutorialTwistLayer();
-            const dragCandidate = tutorialLayer || this.getBestTwistCandidateForDrag(twistCandidates, dx, dy);
+            const dragCandidate = (activeTutorialTwist?.allowAnyTwist ? null : tutorialLayer) || this.getBestTwistCandidateForDrag(twistCandidates, dx, dy);
             if (!down.twistRing && twistCandidates.length && !dragCandidate) {
                 this.showTwistViewWarning();
                 return;
@@ -569,7 +578,9 @@ class RenderEngine {
                 return;
             }
             this.highlightLayer(layer.axis, layer.layer);
-            const direction = activeTutorialTwist?.direction || this.getScreenProjectedTwistDirection(layer, down.x, down.y, dx, dy, down.cellId);
+            const direction = activeTutorialTwist?.allowAnyTwist
+                ? this.getScreenProjectedTwistDirection(layer, down.x, down.y, dx, dy, down.cellId)
+                : (activeTutorialTwist?.direction || this.getScreenProjectedTwistDirection(layer, down.x, down.y, dx, dy, down.cellId));
             this.game.rotateLayer(layer.axis, layer.layer, direction);
             return;
         }
@@ -2360,10 +2371,7 @@ class RenderEngine {
             this.scene.remove(this.beaconMesh);
             this.disposeObject(this.beaconMesh);
         }
-        Object.values(this.threatPreviewMeshes || {}).forEach(mesh => {
-            this.scene.remove(mesh);
-            this.disposeObject(mesh);
-        });
+        this.clearThreatPreviewMeshes();
         
         this.aiMeshes = {};
         this.playerMesh = null;
@@ -3320,6 +3328,10 @@ class RenderEngine {
     }
 
     updateThreatPreviewMeshes(aiStates) {
+        if (window.dawnCubeSettings?.threatPreviewEnabled === false) {
+            this.clearThreatPreviewMeshes();
+            return;
+        }
         const active = new Set();
         aiStates.forEach(aiState => {
             if (aiState.nextCell === null || aiState.nextCell === undefined) return;
@@ -3357,6 +3369,14 @@ class RenderEngine {
             this.disposeObject(mesh);
             delete this.threatPreviewMeshes[key];
         });
+    }
+
+    clearThreatPreviewMeshes() {
+        Object.values(this.threatPreviewMeshes || {}).forEach(mesh => {
+            this.scene?.remove(mesh);
+            this.disposeObject(mesh);
+        });
+        this.threatPreviewMeshes = {};
     }
 
     createThreatPreviewMesh(cellId, color) {

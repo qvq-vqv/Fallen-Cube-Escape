@@ -123,6 +123,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const settingsCloseBtn = document.getElementById('settings-close-btn');
     const settingsAudioBtn = document.getElementById('settings-audio-btn');
     const settingsLowPowerBtn = document.getElementById('settings-low-power-btn');
+    const settingsThreatPreviewBtn = document.getElementById('settings-threat-preview-btn');
     const settingsDevModeBtn = document.getElementById('settings-devmode-btn');
     const settingsResetTutorialsBtn = document.getElementById('settings-reset-tutorials-btn');
     const settingsClearProgressBtn = document.getElementById('settings-clear-progress-btn');
@@ -201,6 +202,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const settingsState = {
         precision: Math.max(0, Math.min(2, Number(localStorage.getItem('dawnCubeTimerPrecision') || 1))),
         lowPowerMode: localStorage.getItem('dawnCubeLowPowerMode') === 'true',
+        threatPreviewEnabled: localStorage.getItem('dawnCubeThreatPreviewEnabled') !== 'false',
         devMode: localStorage.getItem('dimensionHackDevMode') === 'true',
         playerMoveMs: Math.max(360, Math.min(900, Number(localStorage.getItem('dawnCubePlayerMoveMs') || 600))),
         enemySpeedScale: Math.max(0.5, Math.min(1.8, Number(localStorage.getItem('dawnCubeEnemySpeedScale') || 1))),
@@ -250,6 +252,7 @@ document.addEventListener('DOMContentLoaded', () => {
     let twistMode = false;
     let toolsMenuUserCollapsed = false;
     let lastTutorialNoticeKey = '';
+    let lastTutorialToolsAutoOpenKey = '';
 
     function persistUnlockedActs() {
         localStorage.setItem('dimensionHackUnlockedActs', JSON.stringify([...unlockedActs].sort((a, b) => a - b)));
@@ -726,7 +729,7 @@ document.addEventListener('DOMContentLoaded', () => {
             chips.push(`<span class="scanner-chip new">NEW ${escapeHtml(name)}</span>`);
         });
         if (!level.rotationEnabled) {
-            chips.push(`<span class="scanner-chip no-twist">${escapeHtml(window.t?.('scanner.noTwist') || '无旋转')}</span>`);
+            chips.push(`<span class="scanner-chip no-twist">${escapeHtml(window.t?.('scanner.noTwist') || '禁旋转')}</span>`);
         }
         return chips.join('');
     }
@@ -1202,8 +1205,8 @@ document.addEventListener('DOMContentLoaded', () => {
         } else if (!level.rotationEnabled && includeAlwaysTools) {
             icons.push(makeMetaToken({
                 type: 'rule rule-no-twist',
-                symbol: '—',
-                label: window.t?.('scanner.noTwist') || '无旋转'
+                symbol: '⊘',
+                label: window.t?.('scanner.noTwist') || '禁旋转'
             }));
         }
         if (level.bridges?.length && (includeAlwaysTools || index === firstBridgeIndex)) {
@@ -1605,7 +1608,7 @@ document.addEventListener('DOMContentLoaded', () => {
             render.clearLayerHighlight?.();
             render.clearTwistControlRings?.();
             if (!options.silent) {
-                feel.note(window.t?.('note.rotationMissing') || '本关暂未引入旋转', 'warn');
+                feel.note(window.t?.('note.rotationMissing') || '本关禁用旋转', 'warn');
             }
             return false;
         }
@@ -1686,6 +1689,7 @@ document.addEventListener('DOMContentLoaded', () => {
     function persistSettings() {
         localStorage.setItem('dawnCubeTimerPrecision', String(settingsState.precision));
         localStorage.setItem('dawnCubeLowPowerMode', String(settingsState.lowPowerMode));
+        localStorage.setItem('dawnCubeThreatPreviewEnabled', String(settingsState.threatPreviewEnabled));
         localStorage.setItem('dimensionHackDevMode', String(settingsState.devMode));
         localStorage.setItem('dawnCubePlayerMoveMs', String(settingsState.playerMoveMs));
         localStorage.setItem('dawnCubeEnemySpeedScale', String(settingsState.enemySpeedScale));
@@ -1741,6 +1745,13 @@ document.addEventListener('DOMContentLoaded', () => {
                 ? (window.t?.('settings.lowPowerOn') || '低功耗中')
                 : (window.t?.('settings.lowPowerOff') || '标准画质');
         }
+        if (settingsThreatPreviewBtn) {
+            settingsThreatPreviewBtn.classList.toggle('active', settingsState.threatPreviewEnabled);
+            settingsThreatPreviewBtn.setAttribute('aria-pressed', String(settingsState.threatPreviewEnabled));
+            settingsThreatPreviewBtn.textContent = settingsState.threatPreviewEnabled
+                ? (window.t?.('settings.threatPreviewOn') || '显示光圈')
+                : (window.t?.('settings.threatPreviewOff') || '隐藏光圈');
+        }
         if (settingsDevModeBtn) {
             settingsDevModeBtn.classList.toggle('active', settingsState.devMode);
             settingsDevModeBtn.setAttribute('aria-pressed', String(settingsState.devMode));
@@ -1773,6 +1784,15 @@ document.addEventListener('DOMContentLoaded', () => {
     function applyToolKeybind(action) {
         if (!isGameActive || render.isAnimating) return false;
         if (game.realtimeMode) game.tutorialInputDismissed = true;
+        if (action === 'route') {
+            game.setToolMode('route');
+            toggleFloatingToolboxMenu(false);
+            if (game.realtimeMode && game.canAutoResumeRealtimeFromInput?.()) {
+                game.setRealtimePaused?.(false);
+            }
+            feel.note(window.t?.('tool.mode.routeTitle') || '移动模式', 'info');
+            return true;
+        }
         const target = document.querySelector(`[data-tool-mode="${action}"]`);
         if (target && !target.disabled) {
             game.setToolMode(action);
@@ -1882,7 +1902,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 if (game.rotationEnabled) {
                     feel.note(window.t?.('note.longPressTwist') || '长按魔方格子，等十字箭头出现后拖动旋转。', 'info');
                 } else {
-                    feel.note(window.t?.('note.rotationMissing') || '本关暂未引入旋转', 'warn');
+                    feel.note(window.t?.('note.rotationMissing') || '本关禁用旋转', 'warn');
                 }
                 return true;
             }
@@ -2053,13 +2073,17 @@ document.addEventListener('DOMContentLoaded', () => {
     function toggleFloatingToolboxMenu(force = null) {
         const menu = document.getElementById('floating-toolbox-menu');
         if (!menu) return;
+        const wasOpen = !menu.classList.contains('is-hidden');
         const shouldShow = force === null
-            ? menu.classList.contains('is-hidden')
+            ? !wasOpen
             : Boolean(force);
         toolsMenuUserCollapsed = !shouldShow;
         menu.classList.toggle('is-hidden', !shouldShow);
+        toolsFloatBubble?.setAttribute('aria-expanded', String(shouldShow));
         if (shouldShow) {
             positionFloatingToolboxMenu();
+        } else if (wasOpen && game.toolMode !== 'route') {
+            game.setToolMode('route');
         }
     }
 
@@ -2232,8 +2256,9 @@ document.addEventListener('DOMContentLoaded', () => {
         feel.flashScreen('info');
 
         // L03 Automated Cutscene
-        if (selectedLevelIndex === 2) {
+        if (selectedLevelIndex === 2 && game.tutorialActive && !game.l03RollbackTriggered) {
             game.l03CutsceneActive = true;
+            game.setRealtimePaused?.(true);
             const showL03TutorialAfterRollback = () => {
                 game.l03CutsceneActive = false;
                 if (game.currentLevelIndex === 2 && game.tutorialActive && game.l03RollbackTriggered) {
@@ -2260,6 +2285,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
                 // Step 1: Move Dawn to at(0, 1, 0)
                 const targetCell1 = game.resolveCoord({ face: 0, row: 1, col: 0 });
+                render.spawnCellPulse?.(targetCell1, '#8bdcff', 0.9);
                 game.movePlayerRealtime(targetCell1);
 
                 // Wait 1.5 seconds for the move animation to complete and enemy turn to run
@@ -2272,9 +2298,15 @@ document.addEventListener('DOMContentLoaded', () => {
 
                 // Step 2: Dawn keeps going to the monster's cell at(0, 0, 0)
                 const targetCell2 = game.resolveCoord({ face: 0, row: 0, col: 0 });
+                render.spawnCellPulse?.(targetCell2, '#ff0055', 1.15);
                 game.movePlayerRealtime(targetCell2);
 
                 // The contact will occur, triggering rollback.
+                setTimeout(() => {
+                    if (game.currentLevelIndex === 2 && game.gameState === 'playing' && !game.l03RollbackTriggered) {
+                        game.checkCollisions?.();
+                    }
+                }, 620);
                 setTimeout(showL03TutorialAfterRollback, 1200);
 
             }, 1000);
@@ -2626,6 +2658,18 @@ document.addEventListener('DOMContentLoaded', () => {
             : (window.currentLang === 'en' ? 'Standard visuals restored' : '已恢复标准画质');
         feel.note(note, settingsState.lowPowerMode ? 'good' : 'info');
     });
+    settingsThreatPreviewBtn?.addEventListener('click', () => {
+        settingsState.threatPreviewEnabled = !settingsState.threatPreviewEnabled;
+        persistSettings();
+        renderSettingsPanel();
+        if (!settingsState.threatPreviewEnabled) {
+            render.clearThreatPreviewMeshes?.();
+        }
+        const note = settingsState.threatPreviewEnabled
+            ? (window.t?.('settings.threatPreviewOnNote') || '敌人预判光圈已开启')
+            : (window.t?.('settings.threatPreviewOffNote') || '敌人预判光圈已关闭');
+        feel.note(note, settingsState.threatPreviewEnabled ? 'good' : 'info');
+    });
     settingsDevModeBtn?.addEventListener('click', () => {
         settingsState.devMode = !settingsState.devMode;
         persistSettings();
@@ -2890,7 +2934,7 @@ document.addEventListener('DOMContentLoaded', () => {
         btn.addEventListener('click', () => {
             if (render.isAnimating) return;
             game.setToolMode(btn.dataset.toolMode);
-            toggleFloatingToolboxMenu(game.toolMode !== 'route');
+            toggleFloatingToolboxMenu(true);
         });
     });
 
@@ -3405,6 +3449,7 @@ document.addEventListener('DOMContentLoaded', () => {
             card.classList.add('is-hidden');
             hideTutorialDialogue();
             clearTutorialControlTargets();
+            lastTutorialToolsAutoOpenKey = '';
             if (typeof render !== 'undefined') render.hideTutorialPointer?.();
             return;
         }
@@ -3435,9 +3480,11 @@ document.addEventListener('DOMContentLoaded', () => {
 
         if (step.openTools || step.type === 'tool' || step.type === 'twist') {
             openPhonePanel('tasks');
-            if (step.openTools || step.type === 'tool') {
+            const shouldAutoOpenTools = (step.openTools || step.type === 'tool') && lastTutorialToolsAutoOpenKey !== noticeKey;
+            if (shouldAutoOpenTools) {
                 toolsMenuUserCollapsed = false;
                 toggleFloatingToolboxMenu(true);
+                lastTutorialToolsAutoOpenKey = noticeKey;
             }
         }
 

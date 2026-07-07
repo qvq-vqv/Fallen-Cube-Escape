@@ -283,11 +283,16 @@
                 <b id="comms-float-badge" class="float-bubble-badge is-hidden">0</b>
             </button>
             <button id="tools-float-bubble" class="float-bubble tools-bubble" type="button" aria-label="打开工具箱" data-i18n-aria-label="toolbox.openTools" data-i18n-title="toolbox.openTools">
-                <span>⚙️</span>
+                <svg class="toolbox-icon-svg" viewBox="0 0 48 48" width="100%" height="100%" aria-hidden="true">
+                    <rect x="15" y="9" width="18" height="8" rx="3" fill="none" stroke="currentColor" stroke-width="4"/>
+                    <rect x="7" y="17" width="34" height="24" rx="5" fill="currentColor"/>
+                    <rect x="7" y="24" width="34" height="4" fill="rgba(2, 8, 16, 0.5)"/>
+                    <rect x="20" y="22" width="8" height="8" rx="2" fill="#dfffe8"/>
+                    <path d="M11 35h26" stroke="rgba(2, 8, 16, 0.46)" stroke-width="3" stroke-linecap="round"/>
+                </svg>
                 <b id="tools-float-badge" class="float-bubble-badge is-hidden">0</b>
             </button>
             <div id="floating-toolbox-menu" class="floating-toolbox-menu is-hidden" aria-label="工具快捷菜单" data-i18n-aria-label="toolbox.menu">
-                <button class="tool-bubble-btn" data-tool-mode="route" title="移动路径" data-i18n-title="toolbox.routeTitle">🏃</button>
                 <button class="tool-bubble-btn" data-tool-mode="break" id="btn-floating-break" title="碎解工具" data-i18n-title="toolbox.breakTitle">🔨<span id="floating-break-count">0</span></button>
                 <button class="tool-bubble-btn" data-tool-mode="patch" id="btn-floating-patch" title="补片工具" data-i18n-title="toolbox.patchTitle">🟩<span id="floating-patch-count">0</span></button>
                 <button class="tool-bubble-btn" data-tool-mode="beacon" id="btn-floating-beacon" title="信标工具" data-i18n-title="toolbox.beaconTitle">📡<span id="floating-beacon-count">0</span></button>
@@ -364,7 +369,6 @@
                 <button id="btn-end-turn" class="btn btn-risk phone-secondary" data-i18n="phone.skip" title="跳过本次行动" data-i18n-title="phone.skipTitle">跳过</button>
 
                 <div id="tool-section" class="phone-tool-row is-hidden" aria-label="场上工具" data-i18n-aria-label="toolbox.menu">
-                    <button id="btn-tool-route" class="tool-mode-btn active" type="button" data-tool-mode="route" data-i18n="tool.route" title="移动：点击 Dawn 周围可走格" data-i18n-title="tool.routeTitle">移动</button>
                     <button id="btn-tool-patch" class="tool-mode-btn" type="button" data-tool-mode="patch" title="补片：铺一格临时路，踩过即碎" data-i18n-title="tool.patchTitle"><span data-i18n="tool.patch">补片</span> <b id="patch-count">0</b></button>
                     <button id="btn-tool-beacon" class="tool-mode-btn" type="button" data-tool-mode="beacon" title="诱饵：放在任意可用格吸引追击" data-i18n-title="tool.beaconTitle"><span data-i18n="tool.beacon">诱饵</span> <b id="beacon-count">0</b></button>
                     <button id="btn-tool-break" class="tool-mode-btn" type="button" data-tool-mode="break" title="碎解：拆掉一个关键格阻断追路" data-i18n-title="tool.breakTitle"><span data-i18n="tool.break">碎解</span> <b id="break-count">0</b></button>
@@ -499,6 +503,11 @@
                 <article class="settings-card performance-card">
                     <span class="settings-label" data-i18n="settings.lowPower">低功耗/屏幕共享</span>
                     <button id="settings-low-power-btn" class="settings-toggle" type="button" aria-pressed="false" data-i18n="settings.lowPowerOff">标准画质</button>
+                </article>
+
+                <article class="settings-card">
+                    <span class="settings-label" data-i18n="settings.threatPreview">敌人预判提示</span>
+                    <button id="settings-threat-preview-btn" class="settings-toggle" type="button" aria-pressed="true" data-i18n="settings.threatPreviewOn">显示光圈</button>
                 </article>
 
                 <article class="settings-card">

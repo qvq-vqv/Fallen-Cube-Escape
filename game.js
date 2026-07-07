@@ -1541,6 +1541,7 @@ class GameEngine {
     }
 
     scheduleActOneEnemyStep(delayMs = 900) {
+        if (this.l03CutsceneActive) return;
         if (this.enemyTurnInProgress || this.gameState !== 'playing') return;
         const scheduledLevel = this.currentLevelIndex;
         this.enemyTurnInProgress = true;
@@ -2068,7 +2069,8 @@ class GameEngine {
         if (this.tutorialActive) {
             const step = this.activeTutorialSteps[this.currentTutorialStepIndex];
             if (step && step.type === 'twist') {
-                if (axis === step.axis && layerIdx === step.layer && direction === step.direction) {
+                const fixedTwist = step.axis && Number.isInteger(step.layer) && step.direction;
+                if (!fixedTwist || step.allowAnyTwist || (axis === step.axis && layerIdx === step.layer && direction === step.direction)) {
                     // Allowed
                 } else {
                     this.playFeel?.('invalid');
@@ -2081,7 +2083,7 @@ class GameEngine {
         }
         if (!this.rotationEnabled) {
             this.playFeel('invalid');
-            this.showFeel(this.t('note.rotationMissing', '本关暂未引入旋转'), 'warn', true);
+            this.showFeel(this.t('note.rotationMissing', '本关禁用旋转'), 'warn', true);
             return;
         }
         if (!this.realtimeMode && this.playerAP < 1) {

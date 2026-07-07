@@ -229,9 +229,7 @@
                     zh: '系统提示：长按 Dawn 附近的格子，出现十字箭头后拖动，把路拧到钥匙旁。',
                     en: 'System: long-press a tile near Dawn. When the cross arrows appear, drag to bring the road beside the key.'
                 },
-                axis: 'Y',
-                layer: 2,
-                direction: 'CW',
+                allowAnyTwist: true,
                 focusCell: { face: 4, row: 1, col: 1 },
                 focus: { x: 50, y: 40 },
                 tone: 'system',
@@ -266,8 +264,8 @@
             {
                 type: 'dialog',
                 text: {
-                    zh: '系统提示：碎解会移除指定地块。先拆关键格，再走路线。',
-                    en: 'System: Break removes a target tile. Break the key cells first, then route around.'
+                    zh: '系统提示：碎解会移除指定地块。工具箱会保持展开；点绿色工具箱球收回，并回到移动。',
+                    en: 'System: Break removes a target tile. The toolbox stays open; tap the green toolbox bubble to close it and return to moving.'
                 },
                 tone: 'system',
                 speaker: '系统广播'
