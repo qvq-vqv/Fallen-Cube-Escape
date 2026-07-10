@@ -308,7 +308,8 @@ class RenderEngine {
     }
 
     setInteractionMode(mode = 'route') {
-        this.interactionMode = mode === 'twist' ? 'twist' : 'route';
+        const canTwist = mode === 'twist' && Boolean(this.game?.rotationEnabled);
+        this.interactionMode = canTwist ? 'twist' : 'route';
         if (this.controls) {
             this.controls.enableRotate = this.interactionMode === 'route';
         }
@@ -339,6 +340,10 @@ class RenderEngine {
     }
 
     showTwistCrossHint(clientX, clientY, candidates = []) {
+        if (!this.game?.rotationEnabled || this.game?.gameState !== 'playing') {
+            this.hideTwistCrossHint();
+            return;
+        }
         const hint = this.ensureTwistCrossHint();
         if (!hint || !this.container) return;
         const rect = this.container.getBoundingClientRect();
@@ -446,8 +451,8 @@ class RenderEngine {
                     return;
                 }
                 this.pointerDown.longPressTwistBlocked = true;
-                this.showTwistCrossHint(event.clientX, event.clientY, []);
-                this.setTwistCrossIntent('horizontal-blocked');
+                this.hideTwistCrossHint();
+                this.clearLayerHighlight();
                 this.game.playFeel?.('invalid');
                 this.game.showFeel?.(this.game.t('note.rotationMissing', '本关禁用旋转'), 'warn', true);
             }, this.longPressTwistDelayMs);

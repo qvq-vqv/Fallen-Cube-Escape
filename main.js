@@ -1584,6 +1584,8 @@ document.addEventListener('DOMContentLoaded', () => {
         if (!hasRotation && twistMode) {
             setTwistMode(false, { silent: true });
         } else if (!hasRotation) {
+            render.cancelLongPressTwist?.();
+            render.hideTwistCrossHint?.();
             render.clearLayerHighlight?.();
             render.clearTwistControlRings?.();
         }
@@ -1605,6 +1607,8 @@ document.addEventListener('DOMContentLoaded', () => {
             btnTwistMode?.setAttribute('aria-pressed', 'false');
             document.body?.classList.remove('twist-interaction-active');
             render.setInteractionMode?.('route');
+            render.cancelLongPressTwist?.();
+            render.hideTwistCrossHint?.();
             render.clearLayerHighlight?.();
             render.clearTwistControlRings?.();
             if (!options.silent) {
@@ -3529,7 +3533,7 @@ document.addEventListener('DOMContentLoaded', () => {
             if (textEl) {
                 const lang = window.currentLang === 'en' ? 'en' : 'zh';
                 const labels = {
-                    look: { zh: '按住鼠标拖动旋转视角', en: 'Hold and drag to rotate' },
+                    look: { zh: '按住拖动查看魔方面', en: 'Hold and drag to look around' },
                     zoom: { zh: '滚动或捏合缩放视野', en: 'Scroll or pinch to zoom' }
                 };
                 textEl.textContent = labels[step.type]?.[lang] || labels.look[lang];
