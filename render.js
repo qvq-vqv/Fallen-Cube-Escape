@@ -36,6 +36,7 @@ class RenderEngine {
         this.boardPointerAttached = false;
         this.longPressTwistTimer = null;
         this.longPressTwistDelayMs = 360;
+        this.longPressTwistDisabledDelayMs = 1050;
         this.longPressTwistMoveTolerance = 9;
         
         // 游戏引擎实例引用
@@ -406,6 +407,7 @@ class RenderEngine {
         this.clearLongPressTwistTimer();
         if (this.pointerDown) {
             this.pointerDown.longPressTwistArmed = false;
+            this.pointerDown.longPressTwistDisabledArmed = false;
         }
     }
 
@@ -443,6 +445,8 @@ class RenderEngine {
             this.clearLongPressTwistTimer();
             if (this.game.rotationEnabled) {
                 this.pointerDown.longPressTwistArmed = true;
+            } else {
+                this.pointerDown.longPressTwistDisabledArmed = true;
             }
             this.longPressTwistTimer = window.setTimeout(() => {
                 this.longPressTwistTimer = null;
@@ -451,11 +455,12 @@ class RenderEngine {
                     return;
                 }
                 this.pointerDown.longPressTwistBlocked = true;
+                this.pointerDown.longPressTwistDisabledArmed = false;
                 this.hideTwistCrossHint();
                 this.clearLayerHighlight();
                 this.game.playFeel?.('invalid');
                 this.game.showFeel?.(this.game.t('note.rotationMissing', '本关禁用旋转'), 'warn', true);
-            }, this.longPressTwistDelayMs);
+            }, this.game.rotationEnabled ? this.longPressTwistDelayMs : this.longPressTwistDisabledDelayMs);
         }
         if (this.interactionMode === 'twist') {
             event.preventDefault();
@@ -474,7 +479,7 @@ class RenderEngine {
 
     handleBoardPointerMove(event) {
         if (!this.game || this.isAnimating) return;
-        if (this.pointerDown?.longPressTwistArmed && !this.pointerDown.longPressTwist) {
+        if ((this.pointerDown?.longPressTwistArmed || this.pointerDown?.longPressTwistDisabledArmed) && !this.pointerDown.longPressTwist) {
             const moved = Math.hypot(event.clientX - this.pointerDown.x, event.clientY - this.pointerDown.y);
             if (moved > this.longPressTwistMoveTolerance) {
                 this.cancelLongPressTwist();

@@ -3063,7 +3063,30 @@ document.addEventListener('DOMContentLoaded', () => {
 
     function isSystemTutorialStep(step) {
         if (!step) return false;
-        return step.type !== 'dialog' || step.tone === 'system' || step.speaker === '系统广播';
+        return step.type !== 'dialog' || step.tone === 'system' || isSystemSpeakerValue(step.speaker);
+    }
+
+    function isSystemSpeakerValue(value) {
+        if (value && typeof value === 'object') {
+            return isSystemSpeakerValue(textOf(value));
+        }
+        const speaker = String(value || '').trim().toLowerCase();
+        return speaker === '系统广播' ||
+            speaker === '系统提示' ||
+            speaker === 'system' ||
+            speaker === 'system ai' ||
+            speaker === 'system broadcast';
+    }
+
+    function getTutorialSpeakerLabel(step, isSystem) {
+        if (step?.speaker && typeof step.speaker === 'object') {
+            return textOf(step.speaker) || (isSystem ? (window.t?.('console.systemSpeaker') || '系统广播') : 'Dawn');
+        }
+        if (isSystem || isSystemSpeakerValue(step?.speaker)) {
+            return window.t?.('console.systemSpeaker') || '系统广播';
+        }
+        const speaker = String(step?.speaker || '').trim();
+        return speaker || 'Dawn';
     }
 
     function ensureTutorialUiArrow() {
@@ -3330,7 +3353,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const text = getTutorialStepText(step);
         const tone = step?.tone || 'steady';
         const isSystem = isSystemTutorialStep(step);
-        const speaker = textOf(step?.speaker) || (isSystem ? (window.t?.('console.systemSpeaker') || '系统广播') : 'Dawn');
+        const speaker = getTutorialSpeakerLabel(step, isSystem);
         tutorialDialogueConsole.classList.remove('is-hidden');
         tutorialDialogueConsole.classList.toggle('is-system', isSystem);
         tutorialDialogueConsole.classList.toggle('is-dawn', !isSystem);
