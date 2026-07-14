@@ -27,6 +27,9 @@ class RenderEngine {
         this.pointerLastCell = null;
         this.interactionMode = 'route';
         this.hoveredCellId = null;
+        this.hoverFeedbackGroup = null;
+        this.hoverFeedbackCellId = null;
+        this.hoverFeedbackKind = null;
         this.boundPointerDown = this.handleBoardPointerDown.bind(this);
         this.boundPointerMove = this.handleBoardPointerMove.bind(this);
         this.boundPointerUp = this.handleBoardPointerUp.bind(this);
@@ -319,6 +322,7 @@ class RenderEngine {
             this.clearTwistControlRings();
             this.hideTwistCrossHint();
         } else {
+            this.clearBoardHoverFeedback();
             this.ensureTwistControlRings();
         }
     }
@@ -350,24 +354,36 @@ class RenderEngine {
         const rect = this.container.getBoundingClientRect();
         hint.style.left = `${clientX - rect.left}px`;
         hint.style.top = `${clientY - rect.top}px`;
-        hint.classList.remove('is-hidden', 'is-horizontal', 'is-vertical', 'is-blocked');
+        hint.classList.remove('is-hidden', 'is-horizontal', 'is-vertical', 'is-up', 'is-right', 'is-down', 'is-left', 'is-blocked');
         hint.classList.toggle('is-disabled', !candidates.length);
     }
 
     setTwistCrossIntent(intent = null) {
         const hint = this.twistCrossHint;
         if (!hint || hint.classList.contains('is-hidden')) return;
-        hint.classList.remove('is-horizontal', 'is-vertical', 'is-blocked');
+        hint.classList.remove('is-horizontal', 'is-vertical', 'is-up', 'is-right', 'is-down', 'is-left', 'is-blocked');
         if (!intent) return;
-        if (intent.includes('horizontal')) hint.classList.add('is-horizontal');
-        if (intent.includes('vertical')) hint.classList.add('is-vertical');
-        if (intent.includes('blocked')) hint.classList.add('is-blocked');
+        const normalized = String(intent);
+        if (normalized.includes('up')) hint.classList.add('is-up');
+        else if (normalized.includes('right')) hint.classList.add('is-right');
+        else if (normalized.includes('down')) hint.classList.add('is-down');
+        else if (normalized.includes('left')) hint.classList.add('is-left');
+        else if (normalized.includes('horizontal')) hint.classList.add('is-right');
+        else if (normalized.includes('vertical')) hint.classList.add('is-down');
+        if (normalized.includes('blocked')) hint.classList.add('is-blocked');
     }
 
     hideTwistCrossHint() {
         if (!this.twistCrossHint) return;
         this.twistCrossHint.classList.add('is-hidden');
-        this.twistCrossHint.classList.remove('is-horizontal', 'is-vertical', 'is-blocked', 'is-disabled');
+        this.twistCrossHint.classList.remove('is-horizontal', 'is-vertical', 'is-up', 'is-right', 'is-down', 'is-left', 'is-blocked', 'is-disabled');
+    }
+
+    getTwistCrossDirectionFromDelta(dx = 0, dy = 0, deadZone = 6) {
+        if (Math.hypot(dx, dy) <= deadZone) return null;
+        return Math.abs(dx) >= Math.abs(dy)
+            ? (dx > 0 ? 'right' : 'left')
+            : (dy > 0 ? 'down' : 'up');
     }
 
     clearLongPressTwistTimer() {
@@ -387,7 +403,7 @@ class RenderEngine {
             down.longPressTwistArmed = false;
             down.longPressTwistBlocked = true;
             this.showTwistCrossHint(down.x, down.y, []);
-            this.setTwistCrossIntent('horizontal-blocked');
+            this.setTwistCrossIntent('right-blocked');
             return;
         }
 
@@ -397,6 +413,7 @@ class RenderEngine {
         this.interactionMode = 'twist';
         if (this.controls) this.controls.enabled = false;
         this.game.clearPlannedPath?.();
+        this.clearBoardHoverFeedback();
         document.body?.classList.add('twist-interaction-active');
         this.showTwistCrossHint(down.x, down.y, candidates);
         const layer = this.getActiveTutorialTwistLayer() || this.getPrimaryTwistCandidate(candidates);
@@ -486,6 +503,7 @@ class RenderEngine {
             }
         }
         if (this.interactionMode === 'twist') {
+            this.clearBoardHoverFeedback();
             if (this.pointerDown?.mode === 'twist') {
                 const down = this.pointerDown;
                 if (down.twistRing) {
@@ -495,9 +513,8 @@ class RenderEngine {
                 }
                 const tutorialLayer = this.getActiveTutorialTwistLayer();
                 if (tutorialLayer && !this.getActiveTutorialTwistStep()?.allowAnyTwist) {
-                    const tutorialIntent = Math.abs(event.clientX - down.x) >= Math.abs(event.clientY - down.y)
-                        ? 'horizontal'
-                        : 'vertical';
+                    const tutorialIntent = this.getTwistCrossDirectionFromDelta(event.clientX - down.x, event.clientY - down.y)
+                        || (Math.abs(event.clientX - down.x) >= Math.abs(event.clientY - down.y) ? 'right' : 'down');
                     this.setTwistCrossIntent(tutorialIntent);
                     this.highlightLayer(tutorialLayer.axis, tutorialLayer.layer);
                     return;
@@ -513,7 +530,8 @@ class RenderEngine {
                         this.setTwistCrossIntent(dragCandidate.dragIntent);
                         this.highlightLayer(dragCandidate.axis, dragCandidate.layer);
                     } else {
-                        this.setTwistCrossIntent(absDx >= absDy ? 'horizontal-blocked' : 'vertical-blocked');
+                        const blockedIntent = this.getTwistCrossDirectionFromDelta(dx, dy) || (absDx >= absDy ? 'right' : 'down');
+                        this.setTwistCrossIntent(`${blockedIntent}-blocked`);
                         this.clearLayerHighlight();
                     }
                     return;
@@ -546,12 +564,16 @@ class RenderEngine {
         }
 
         const cellId = this.pickBoardCell(event);
+        this.updateBoardHoverFeedback(cellId);
         if (!this.pointerDown || this.pointerDown.mode !== 'route') return;
         this.pointerLastCell = cellId;
     }
 
     handleBoardPointerUp(event) {
         this.clearLongPressTwistTimer();
+        if (event?.type === 'pointerleave') {
+            this.clearBoardHoverFeedback();
+        }
         if (!this.pointerDown || !this.game || this.isAnimating || this.game.l03CutsceneActive) return;
         const moved = Math.hypot(event.clientX - this.pointerDown.x, event.clientY - this.pointerDown.y);
         const down = this.pointerDown;
@@ -687,12 +709,13 @@ class RenderEngine {
         const intentSeparation = Math.abs(absDx - absDy) / dragLength;
         if (intentSeparation < 0.18) return null;
         const horizontalIntent = absDx >= absDy;
+        const dragIntent = this.getTwistCrossDirectionFromDelta(dx, dy, 1) || (horizontalIntent ? 'right' : 'down');
         const nx = dx / dragLength;
         const ny = dy / dragLength;
         const scored = candidates
             .map(candidate => ({
                 ...candidate,
-                dragIntent: horizontalIntent ? 'horizontal' : 'vertical',
+                dragIntent,
                 dragScore: Math.abs(candidate.screenX * nx + candidate.screenY * ny),
                 intentScore: horizontalIntent
                     ? Math.abs(candidate.screenX)
@@ -915,6 +938,257 @@ class RenderEngine {
         this.hoveredTwistRing = host;
     }
 
+    ensureBoardHoverFeedback() {
+        if (this.hoverFeedbackGroup || !this.scene) return this.hoverFeedbackGroup;
+
+        const group = new THREE.Group();
+        group.visible = false;
+        group.renderOrder = 12;
+
+        const plate = new THREE.Mesh(
+            new THREE.PlaneGeometry(0.86, 0.86),
+            new THREE.MeshBasicMaterial({
+                color: 0x8bdcff,
+                transparent: true,
+                opacity: 0.16,
+                side: THREE.DoubleSide,
+                depthWrite: false,
+                depthTest: true
+            })
+        );
+        plate.userData.hoverPart = 'plate';
+        group.add(plate);
+
+        const ring = new THREE.Mesh(
+            new THREE.RingGeometry(0.31, 0.48, 64),
+            new THREE.MeshBasicMaterial({
+                color: 0xdffbff,
+                transparent: true,
+                opacity: 0.82,
+                side: THREE.DoubleSide,
+                depthWrite: false,
+                depthTest: true,
+                blending: THREE.AdditiveBlending
+            })
+        );
+        ring.position.z = 0.018;
+        ring.userData.hoverPart = 'ring';
+        group.add(ring);
+
+        const inner = new THREE.Mesh(
+            new THREE.RingGeometry(0.1, 0.18, 48),
+            new THREE.MeshBasicMaterial({
+                color: 0xdffbff,
+                transparent: true,
+                opacity: 0.36,
+                side: THREE.DoubleSide,
+                depthWrite: false,
+                depthTest: true,
+                blending: THREE.AdditiveBlending
+            })
+        );
+        inner.position.z = 0.024;
+        inner.userData.hoverPart = 'inner';
+        group.add(inner);
+
+        const cross = new THREE.Group();
+        const crossMat = new THREE.MeshBasicMaterial({
+            color: 0xff4d7d,
+            transparent: true,
+            opacity: 0.9,
+            side: THREE.DoubleSide,
+            depthWrite: false,
+            depthTest: true,
+            blending: THREE.AdditiveBlending
+        });
+        const barGeo = new THREE.PlaneGeometry(0.76, 0.11);
+        const barA = new THREE.Mesh(barGeo, crossMat);
+        const barB = new THREE.Mesh(barGeo, crossMat.clone());
+        barA.rotation.z = Math.PI / 4;
+        barB.rotation.z = -Math.PI / 4;
+        cross.position.z = 0.034;
+        cross.add(barA, barB);
+        cross.visible = false;
+        cross.userData.hoverPart = 'cross';
+        group.add(cross);
+
+        group.userData = { plate, ring, inner, cross, baseScale: 1, pulseSeed: Math.random() * Math.PI * 2 };
+        this.scene.add(group);
+        this.hoverFeedbackGroup = group;
+        return group;
+    }
+
+    classifyBoardHoverFeedback(cellId) {
+        if (!this.game || this.game.gameState !== 'playing') return null;
+        if (cellId === null || cellId === undefined || !this.game.cells?.[cellId]) return null;
+        if (this.pointerDown?.longPressTwist || this.interactionMode === 'twist') return null;
+        if (cellId === this.game.playerPos) return null;
+
+        const step = this.game.tutorialActive
+            ? this.game.activeTutorialSteps?.[this.game.currentTutorialStepIndex]
+            : null;
+        const toolMode = this.game.toolMode || 'route';
+
+        if (toolMode === 'patch') {
+            const legal = this.game.isLegalPatchTarget?.(cellId);
+            const allowed = !step || step.type !== 'tool' || step.tool !== 'patch' || cellId === step.targetCellId;
+            return legal && allowed ? { kind: 'tool-patch' } : { kind: 'invalid' };
+        }
+        if (toolMode === 'beacon') {
+            const legal = this.game.isLegalBeaconTarget?.(cellId);
+            const allowed = !step || step.type !== 'tool' || step.tool !== 'beacon' || cellId === step.targetCellId;
+            return legal && allowed ? { kind: 'tool-beacon' } : { kind: 'invalid' };
+        }
+        if (toolMode === 'break') {
+            const legal = this.game.isLegalBreakTarget?.(cellId);
+            const allowed = !step || step.type !== 'tool' || step.tool !== 'break' || cellId === step.targetCellId;
+            return legal && allowed ? { kind: 'tool-break' } : { kind: 'invalid' };
+        }
+
+        if (step?.type === 'move' && Number.isInteger(step.targetCellId) && cellId !== step.targetCellId) {
+            return { kind: 'invalid-soft' };
+        }
+
+        const walkable = this.game.isWalkableForPlayer?.(cellId);
+        const directNeighbors = Object.values(this.game.cells?.[this.game.playerPos]?.neighbors || {})
+            .filter(id => id !== null && id !== undefined);
+        const adjacent = walkable && directNeighbors.includes(cellId);
+        const threatCells = this.game.getThreatCells?.();
+        const threatened = threatCells?.has?.(cellId);
+        if (adjacent) {
+            return threatened ? { kind: 'danger' } : { kind: 'move' };
+        }
+
+        return { kind: walkable ? 'invalid-soft' : 'invalid' };
+    }
+
+    getBoardHoverStyle(kind = 'move') {
+        const styles = {
+            move: {
+                color: 0xdffbff,
+                fill: 0x8bdcff,
+                plateOpacity: 0.18,
+                ringOpacity: 0.84,
+                innerOpacity: 0.42,
+                cross: false,
+                scale: 1
+            },
+            danger: {
+                color: 0xff4d7d,
+                fill: 0xff2d73,
+                plateOpacity: 0.14,
+                ringOpacity: 0.76,
+                innerOpacity: 0.18,
+                cross: true,
+                scale: 1.04
+            },
+            'tool-patch': {
+                color: 0xdffbff,
+                fill: 0x8bdcff,
+                plateOpacity: 0.2,
+                ringOpacity: 0.9,
+                innerOpacity: 0.44,
+                cross: false,
+                scale: 1.02
+            },
+            'tool-beacon': {
+                color: 0xfff36b,
+                fill: 0xffb700,
+                plateOpacity: 0.18,
+                ringOpacity: 0.86,
+                innerOpacity: 0.4,
+                cross: false,
+                scale: 1.02
+            },
+            'tool-break': {
+                color: 0x7dffd8,
+                fill: 0x00ff88,
+                plateOpacity: 0.16,
+                ringOpacity: 0.82,
+                innerOpacity: 0.36,
+                cross: false,
+                scale: 1.02
+            },
+            invalid: {
+                color: 0xff4d7d,
+                fill: 0xff2d73,
+                plateOpacity: 0.11,
+                ringOpacity: 0,
+                innerOpacity: 0,
+                cross: true,
+                scale: 0.98
+            },
+            'invalid-soft': {
+                color: 0xff5f87,
+                fill: 0xff2d73,
+                plateOpacity: 0.08,
+                ringOpacity: 0,
+                innerOpacity: 0,
+                cross: true,
+                scale: 0.94
+            }
+        };
+        return styles[kind] || styles.move;
+    }
+
+    updateBoardHoverFeedback(cellId) {
+        const feedback = this.classifyBoardHoverFeedback(cellId);
+        if (!feedback) {
+            this.clearBoardHoverFeedback();
+            return;
+        }
+        const group = this.ensureBoardHoverFeedback();
+        if (!group) return;
+
+        const normal = this.getCellNormalVector(cellId);
+        const pos = this.getCellWorldPosition(cellId, 'portal').clone().addScaledVector(normal, 0.045);
+        group.position.copy(pos);
+        group.quaternion.setFromUnitVectors(new THREE.Vector3(0, 0, 1), normal);
+        group.visible = true;
+
+        if (this.hoverFeedbackCellId !== cellId || this.hoverFeedbackKind !== feedback.kind) {
+            const style = this.getBoardHoverStyle(feedback.kind);
+            const { plate, ring, inner, cross } = group.userData;
+            plate.material.color.setHex(style.fill);
+            plate.material.opacity = style.plateOpacity;
+            ring.material.color.setHex(style.color);
+            ring.material.opacity = style.ringOpacity;
+            inner.material.color.setHex(style.color);
+            inner.material.opacity = style.innerOpacity;
+            cross.visible = Boolean(style.cross);
+            cross.children.forEach(mesh => {
+                mesh.material.color.setHex(style.color);
+                mesh.material.opacity = feedback.kind === 'invalid-soft' ? 0.68 : 0.9;
+            });
+            group.userData.baseScale = style.scale;
+            group.userData.kind = feedback.kind;
+            group.scale.setScalar(style.scale);
+            this.hoverFeedbackCellId = cellId;
+            this.hoverFeedbackKind = feedback.kind;
+        }
+    }
+
+    clearBoardHoverFeedback() {
+        if (this.hoverFeedbackGroup) this.hoverFeedbackGroup.visible = false;
+        this.hoverFeedbackCellId = null;
+        this.hoverFeedbackKind = null;
+    }
+
+    updateBoardHoverFeedbackAnimation() {
+        const group = this.hoverFeedbackGroup;
+        if (!group?.visible) return;
+        const time = Date.now() * 0.006 + (group.userData.pulseSeed || 0);
+        const pulse = Math.sin(time);
+        const baseScale = group.userData.baseScale || 1;
+        group.scale.setScalar(baseScale * (1 + pulse * 0.035));
+        if (group.userData.ring) {
+            group.userData.ring.rotation.z += 0.012;
+        }
+        if (group.userData.inner) {
+            group.userData.inner.rotation.z -= 0.018;
+        }
+    }
+
     pickBoardCell(event) {
         if (!this.raycaster || !this.pointer || !this.camera || !this.renderer) return null;
         const rect = this.renderer.domElement.getBoundingClientRect();
@@ -1013,6 +1287,9 @@ class RenderEngine {
         this.plannedLine = null;
         this.artGroup = null;
         this.targetIndicator = null;
+        this.hoverFeedbackGroup = null;
+        this.hoverFeedbackCellId = null;
+        this.hoverFeedbackKind = null;
         this.fallbackMessage = window.t?.('webgl.fallbackMessage') || 'Chrome WebGL 暂时不可用，已启用安全视图';
 
         if (!this.fallbackCanvas) {
@@ -1322,6 +1599,9 @@ class RenderEngine {
         this.plannedLine = null;
         this.artGroup = null;
         this.targetIndicator = null;
+        this.hoverFeedbackGroup = null;
+        this.hoverFeedbackCellId = null;
+        this.hoverFeedbackKind = null;
         this.bridgePortalMeshes = [];
         this.renderMode = 'webgl';
         this.isAnimating = false;
@@ -1542,6 +1822,7 @@ class RenderEngine {
         const cubletSize = this.getCubletSize(); // 子方块边长
         this.clearTwistControlRings();
         this.hideTutorialPointer();
+        this.clearBoardHoverFeedback();
         
         // 材质库 (黑色底座 + 半透霓虹贴面)
         const createFaceMaterial = (colorHex, faceId) => {
@@ -2278,29 +2559,6 @@ class RenderEngine {
             this.disposeObject(this.artGroup);
         }
         this.artGroup = new THREE.Group();
-
-        const grid = new THREE.GridHelper(15, 18, 0x00f0ff, 0x273247);
-        grid.position.y = -5.1;
-        grid.material.transparent = true;
-        grid.material.opacity = 0.16;
-        this.artGroup.add(grid);
-
-        const makeRing = (color, opacity, rotation) => {
-            const geo = new THREE.TorusGeometry(5.15, 0.012, 6, 128);
-            const mat = new THREE.MeshBasicMaterial({
-                color,
-                transparent: true,
-                opacity,
-                depthWrite: false
-            });
-            const ring = new THREE.Mesh(geo, mat);
-            ring.rotation.set(rotation.x, rotation.y, rotation.z);
-            return ring;
-        };
-
-        this.artGroup.add(makeRing(0x00f0ff, 0.2, { x: Math.PI / 2, y: 0, z: 0 }));
-        this.artGroup.add(makeRing(0xff0055, 0.12, { x: 0, y: Math.PI / 2, z: 0 }));
-        this.artGroup.add(makeRing(0x00ff88, 0.13, { x: 0, y: 0, z: 0 }));
 
         const particleCount = 220;
         const positions = new Float32Array(particleCount * 3);
@@ -4510,6 +4768,7 @@ class RenderEngine {
         }
 
         if (!pauseDecorativeMotion) this.updateCubeLaserEdges();
+        this.updateBoardHoverFeedbackAnimation();
         
         // 执行 WebGL 渲染
         if (this.renderer && this.scene && this.camera) {

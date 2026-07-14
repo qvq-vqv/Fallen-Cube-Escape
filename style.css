@@ -3187,6 +3187,7 @@ body.twist-interaction-active #canvas-container::after {
     height: 2.35rem;
     border-radius: 999px;
     font-size: 1.28rem;
+    opacity: 0.62;
 }
 
 .twist-cross-core {
@@ -3223,22 +3224,48 @@ body.twist-interaction-active #canvas-container::after {
     transform: translateY(-50%);
 }
 
-.twist-cross-hint.is-horizontal .twist-cross-left,
-.twist-cross-hint.is-horizontal .twist-cross-right,
-.twist-cross-hint.is-vertical .twist-cross-up,
-.twist-cross-hint.is-vertical .twist-cross-down {
+.twist-cross-hint.is-up .twist-cross-up,
+.twist-cross-hint.is-right .twist-cross-right,
+.twist-cross-hint.is-down .twist-cross-down,
+.twist-cross-hint.is-left .twist-cross-left {
     background:
         radial-gradient(circle at 34% 24%, rgba(255, 255, 255, 0.48), transparent 34%),
         #fff3a6;
+    opacity: 1;
     box-shadow:
         0 0 0 0.34rem rgba(255, 183, 0, 0.24),
         0 0 1.55rem rgba(255, 183, 0, 0.78),
         0 0 2.4rem rgba(255, 255, 255, 0.18);
 }
 
-.twist-cross-hint.is-blocked .twist-cross-arm {
+.twist-cross-hint.is-up .twist-cross-up {
+    transform: translateX(-50%) scale(1.12);
+}
+
+.twist-cross-hint.is-right .twist-cross-right {
+    transform: translateY(-50%) scale(1.12);
+}
+
+.twist-cross-hint.is-down .twist-cross-down {
+    transform: translateX(-50%) scale(1.12);
+}
+
+.twist-cross-hint.is-left .twist-cross-left {
+    transform: translateY(-50%) scale(1.12);
+}
+
+.twist-cross-hint.is-blocked.is-up .twist-cross-up,
+.twist-cross-hint.is-blocked.is-right .twist-cross-right,
+.twist-cross-hint.is-blocked.is-down .twist-cross-down,
+.twist-cross-hint.is-blocked.is-left .twist-cross-left {
     border-color: rgba(255, 90, 120, 0.78);
     background: rgba(80, 18, 28, 0.88);
+    color: #ffd6de;
+}
+
+.twist-cross-hint.is-blocked:not(.is-up):not(.is-right):not(.is-down):not(.is-left) .twist-cross-arm {
+    border-color: rgba(255, 90, 120, 0.62);
+    background: rgba(80, 18, 28, 0.72);
     color: #ffd6de;
 }
 
