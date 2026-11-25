@@ -3,6 +3,9 @@
  * 核心游戏逻辑、拓扑图计算、全局地图与点格交互
  */
 
+// Act 1 Keeper pacing switch: set to 2 to make the Keeper take two steps per action after the key is taken.
+const ACT1_KEEPER_POST_KEY_STEPS = 1;
+
 class GameEngine {
     constructor() {
         this.N = 3;
@@ -104,7 +107,14 @@ class GameEngine {
         this.currentLevelIndex = Math.max(0, Math.min(this.levels.length - 1, levelIndex));
         this.currentLevel = this.levels[this.currentLevelIndex];
         this.N = this.currentLevel.size || 3;
+        // Every (re)start gets a new session id so delayed callbacks from the
+        // previous run can detect they are stale and do nothing.
+        this.levelSession = (this.levelSession || 0) + 1;
         this.resetRuntimeState();
+        // Transient flags owned by delayed callbacks of the previous run; those callbacks
+        // now bail out on a stale session, so clear the flags here instead.
+        this.enemyTurnInProgress = false;
+        this.l03CutsceneActive = false;
         this.l03RollbackTriggered = false;
         this.buildTopology();
         this.precomputeRotations();
@@ -647,6 +657,16 @@ class GameEngine {
             !this.isReservedCell(cellId);
     }
 
+    // Say why a tile cannot be broken instead of a bare "no".
+    getBreakInvalidNote(cellId) {
+        if (cellId === this.playerPos) return this.t('note.breakOnDawn', 'Dawn 站在这格上。');
+        if (this.ais.some(ai => ai.pos === cellId)) return this.t('note.breakOnEnemy', '有敌人站在上面，拆不了。');
+        if (!this.hasKey && this.keyPos !== null && cellId === this.keyPos) return this.t('note.breakOnKey', '钥匙那格不能拆。');
+        if (cellId === this.exitPos) return this.t('note.breakOnExit', '出口不能拆。');
+        if (this.isVoidCell(cellId)) return this.t('note.breakOnVoid', '这格已经空了。');
+        return this.t('note.breakInvalid', '这格不能拆。');
+    }
+
     isLegalBreakTarget(cellId) {
         return this.breakCharges > 0 &&
             cellId !== null &&
@@ -782,6 +802,11 @@ class GameEngine {
 
             for (const neighborId of this.getNeighbors(curr, options)) {
                 if (!visited.has(neighborId)) {
+                    // Enemies may not stand on the exit or on an uncollected key.
+                    // Skipping those cells here keeps the planned first step legal;
+                    // otherwise an AI whose shortest route crosses them would take
+                    // that step, be refused by isForbiddenForAI and freeze for good.
+                    if (actor === 'ai' && !this.isPassableForAI(neighborId)) continue;
                     const newPath = [...path, neighborId];
                     if (neighborId === endId) return newPath;
                     visited.add(neighborId);
@@ -810,8 +835,26 @@ class GameEngine {
         }
     }
 
-    playFeel(soundName) {
-        if (window.audioFeedback) window.audioFeedback.play(soundName);
+    playFeel(soundName, detail) {
+        if (window.audioFeedback) window.audioFeedback.play(soundName, detail);
+    }
+
+    syncAudioScene() {
+        const playing = this.gameState === 'playing';
+        const dists = playing
+            ? this.ais.map(ai => this.distanceBetween(ai.pos, this.playerPos)).filter(d => d !== null)
+            : [];
+        window.audioFeedback?.setScene?.({
+            playing,
+            face: this.cells[this.playerPos]?.face ?? null,
+            near: dists.length ? Math.min(...dists) : null,
+            key: Boolean(this.hasKey)
+        });
+    }
+
+    stepSoundDetail(cellId) {
+        const { face, row, col } = this.cells[cellId];
+        return { face, row, col };
     }
 
     showFeel(text, tone = 'info', flash = false) {
@@ -897,7 +940,14 @@ class GameEngine {
         this.updateActionButtons();
     }
 
+    // Act 1 (L01-L12) is step-based: one player action, then one enemy step.
+    // There, undo goes back exactly one action instead of 3 seconds.
+    isActOneStepUndo() {
+        return this.realtimeMode && this.currentLevelIndex < 12;
+    }
+
     canUndo() {
+        if (this.isActOneStepUndo()) return this.historyStack.length > 0 && !this.enemyTurnInProgress;
         if (this.realtimeMode) return this.realtimeHistoryBuffer.length > 0;
         return this.historyStack.length > 0;
     }
@@ -907,12 +957,37 @@ class GameEngine {
         const prevUndoCount = this.levelUndoCount || 0;
         const newUndoCount = prevUndoCount + 1;
 
+        if (this.isActOneStepUndo()) {
+            const snapshot = this.historyStack.pop();
+            this.restoreSnapshot(snapshot);
+            const now = this.nowMs();
+            this.realtimeMode = true;
+            this.realtimePaused = false;
+            this.realtimeLastTick = now;
+            this.playerLastPos = this.playerPos;
+            this.ais = this.ais.map(ai => ({ ...ai, lastPos: ai.pos }));
+            this.playerCooldownRemaining = 0;
+            this.bufferedMoveCell = null;
+            this.realtimeEdges = { player: null, ai: {} };
+            this.realtimeHistoryBuffer = [];
+            this.recordRealtimeSnapshot(now, true);
+            this.levelUndoCount = newUndoCount;
+            if (this.trustEnabled && newUndoCount > 3) {
+                this.adjustTrust(-3, 'undoLoop');
+                this.showFeel(this.t('note.frequentUndo', 'Dawn：别老倒回去，我头晕。（信任 -3）'), 'warn', true);
+            }
+            this.playFeel('undo');
+            this.recordEvent('undoStep', {});
+            this.updateUI();
+            return true;
+        }
+
         if (this.realtimeMode) {
             const res = this.rollbackRealtime(3000);
             this.levelUndoCount = newUndoCount;
             if (this.trustEnabled && newUndoCount > 3) {
                 this.adjustTrust(-3, 'undoLoop');
-                this.showFeel(this.t('note.frequentUndo', '频繁回溯时间，Dawn 感到有些头晕和不安... 信任度-3'), 'warn', true);
+                this.showFeel(this.t('note.frequentUndo', 'Dawn：别老倒回去，我头晕。（信任 -3）'), 'warn', true);
             }
             return res;
         }
@@ -922,7 +997,7 @@ class GameEngine {
 
         if (this.trustEnabled && newUndoCount > 3) {
             this.adjustTrust(-3, 'undoLoop');
-            this.showFeel(this.t('note.frequentUndo', '频繁回溯时间，Dawn 感到有些头晕和不安... 信任度-3'), 'warn', true);
+            this.showFeel(this.t('note.frequentUndo', 'Dawn：别老倒回去，我头晕。（信任 -3）'), 'warn', true);
         }
         this.playFeel('undo');
         return true;
@@ -1007,7 +1082,7 @@ class GameEngine {
             caughtCell
         });
         this.playFeel('undo');
-        this.showFeel(this.t('note.signalReset', '信号时空重置成功'), 'info', true);
+        this.showFeel(this.t('note.signalReset', '重新开始'), 'info', true);
         if (typeof window !== 'undefined' && window.renderEngine) {
             window.renderEngine.spawnCellPulse(this.playerPos, '#8bdcff', 1.25);
             window.renderEngine.spawnEntities3D();
@@ -1032,11 +1107,23 @@ class GameEngine {
             return;
         }
         if (this.realtimeMode) {
+            if (this.currentLevelIndex < 12 && (this.enemyTurnInProgress || this.l03CutsceneActive)) {
+                this.playFeel('invalid');
+                this.showFeel(this.t('note.waitEnemies', '等它们走完这一步'), 'warn');
+                return;
+            }
+            if (this.currentLevelIndex < 12) this.pushHistory('wait');
             this.recordEvent('wait', { cooldown: this.playerCooldownRemaining });
+            // F2: a realtime wait is an action too.
+            this.turn += 1;
             this.playerCooldownRemaining = Math.max(this.playerCooldownRemaining, this.playerMoveCooldownMs * 0.45);
             this.bufferedMoveCell = null;
             this.playFeel('routeTick');
-            this.showFeel(this.t('note.waitRealtime', '原地稳住半拍'), 'info');
+            this.showFeel(this.currentLevelIndex < 12
+                ? this.t('note.waitStep', '原地等一步。')
+                : this.t('note.waitRealtime', '原地稳住半拍'), 'info');
+            // Act 1: waiting lets enemies take their one step, like a move does.
+            if (this.currentLevelIndex < 12) this.scheduleActOneEnemyStep();
             this.updateUI();
             return;
         }
@@ -1100,7 +1187,7 @@ class GameEngine {
                         beacon: this.t('tool.beaconTitle', '信标'),
                         break: this.t('tool.breakTitle', '碎解')
                     };
-                    this.showFeel(this.formatText('note.useTool', '当前步骤强引导中。请使用 [{tool}] 工具。', {
+                    this.showFeel(this.formatText('note.useTool', '这一步用{tool}。', {
                         tool: toolNames[step.tool] || step.tool
                     }), 'warn');
                     return;
@@ -1144,6 +1231,12 @@ class GameEngine {
         this.updateUI();
     }
 
+    getVoidBlockedNote() {
+        return this.patchCharges > 0
+            ? this.t('note.voidNeedsPatch', '这里是缺口，先铺补片')
+            : this.t('note.voidBlocked', '这里是缺口，Dawn 过不去。');
+    }
+
     isToolAvailableInLevel(mode = 'route') {
         if (mode === 'route') return true;
         const toolCharges = {
@@ -1156,6 +1249,12 @@ class GameEngine {
 
     placePatch(cellId) {
         if (this.gameState !== 'playing') return false;
+        if (this.patchCharges <= 0) {
+            if (this.toolMode === 'patch') this.setToolMode('route');
+            this.playFeel('invalid');
+            this.showFeel(this.t('note.noPatch', '没有可用补片'), 'warn');
+            return false;
+        }
         if (this.tutorialActive) {
             const step = this.activeTutorialSteps[this.currentTutorialStepIndex];
             if (step && step.type === 'tool' && step.tool === 'patch' && cellId === step.targetCellId) {
@@ -1173,6 +1272,8 @@ class GameEngine {
         }
 
         this.pushHistory('patch');
+        // F2: a successful tool placement counts as one turn.
+        if (this.realtimeMode) this.turn += 1;
         this.patchCharges -= 1;
         this.activePatchCells.add(cellId);
         this.recordEvent('patchPlaced', { at: cellId });
@@ -1194,6 +1295,12 @@ class GameEngine {
 
     placeBeacon(cellId) {
         if (this.gameState !== 'playing') return false;
+        if (this.beaconCharges <= 0) {
+            if (this.toolMode === 'beacon') this.setToolMode('route');
+            this.playFeel('invalid');
+            this.showFeel(this.t('note.noBeacon', '没有可用诱饵'), 'warn');
+            return false;
+        }
         if (this.tutorialActive) {
             const step = this.activeTutorialSteps[this.currentTutorialStepIndex];
             if (step && step.type === 'tool' && step.tool === 'beacon' && cellId === step.targetCellId) {
@@ -1211,6 +1318,8 @@ class GameEngine {
         }
 
         this.pushHistory('beacon');
+        // F2: a successful tool placement counts as one turn.
+        if (this.realtimeMode) this.turn += 1;
         this.beaconCharges -= 1;
         this.beaconCell = cellId;
         this.beaconTTL = Math.max(1, Number(this.currentLevel?.beaconDuration || 1));
@@ -1243,9 +1352,16 @@ class GameEngine {
                 return false;
             }
         }
+        if (this.breakCharges <= 0) {
+            this.toolMode = 'route';
+            this.playFeel('invalid');
+            this.showFeel(this.t('note.breakEmpty', '碎解次数已用完'), 'warn');
+            this.updateUI();
+            return false;
+        }
         if (!this.isLegalBreakTarget(cellId)) {
             this.playFeel('invalid');
-            this.showFeel(this.t('note.breakInvalid', '不能碎解关键物、敌人、传送门或已缺失格'), 'warn');
+            this.showFeel(this.getBreakInvalidNote(cellId), 'warn');
             return false;
         }
 
@@ -1255,11 +1371,14 @@ class GameEngine {
             this.setRealtimePaused(true);
         }
         this.pushHistory('break');
+        // F2: a successful tool placement counts as one turn.
+        if (this.realtimeMode) this.turn += 1;
         this.breakCharges -= 1;
+        if (this.breakCharges <= 0 && this.toolMode === 'break') this.toolMode = 'route';
         this.activePatchCells.delete(cellId);
         this.voidCells.add(cellId);
         this.recordEvent('breakPlaced', { at: cellId });
-        this.playFeel('patchBreak');
+        this.playFeel('tileBreak');
         this.showFeel(this.formatText('note.brokeCell', '已碎解 {cell}', { cell: this.describeCell(cellId) }), 'warn', true);
         if (window.renderEngine) {
             window.renderEngine.buildCube3D();
@@ -1274,7 +1393,9 @@ class GameEngine {
             }
         }
         if (resumeRealtime && typeof window !== 'undefined') {
+            const breakSession = this.levelSession;
             window.setTimeout(() => {
+                if (this.levelSession !== breakSession) return;
                 if (this.gameState === 'playing') this.setRealtimePaused(false);
             }, 420);
         } else if (resumeRealtime) {
@@ -1305,7 +1426,7 @@ class GameEngine {
                     return true;
                 } else {
                     this.playFeel?.('invalid');
-                    this.showFeel?.(this.t('note.guidedMoveOnly', '当前步骤强引导中。请按照指示移动！'), 'warn');
+                    this.showFeel?.(this.t('note.guidedMoveOnly', '先照提示走这一步。'), 'warn');
                     return false;
                 }
             }
@@ -1329,6 +1450,9 @@ class GameEngine {
     startRealtime() {
         if (!this.realtimeMode) this.setRealtimeMode(true);
         if (typeof window !== 'undefined') this.applyRealtimeTuning(window.dawnCubeSettings || {});
+        // F2: realtime scores one turn per successful player action, so the
+        // counter starts at 0 and the first action reports 1.
+        this.turn = 0;
         this.realtimePaused = false;
         this.realtimeLastTick = this.nowMs();
         this.primeRealtimeClocks();
@@ -1404,7 +1528,7 @@ class GameEngine {
                     return res;
                 } else {
                     this.playFeel?.('invalid');
-                    this.showFeel?.(this.t('note.guidedMoveOnly', '当前步骤强引导中。请按照指示移动！'), 'warn');
+                    this.showFeel?.(this.t('note.guidedMoveOnly', '先照提示走这一步。'), 'warn');
                     return false;
                 }
             } else {
@@ -1419,13 +1543,13 @@ class GameEngine {
             this.playFeel('invalid');
             const reason = this.vineCells.has(targetId)
                 ? this.t('note.vineBlocked', '数据藤蔓挡住了 Dawn')
-                : (this.isVoidCell(targetId) ? this.t('note.voidNeedsPatch', '这里是缺口，先铺补片') : this.t('note.cannotLand', '这格不能落脚'));
+                : (this.isVoidCell(targetId) ? this.getVoidBlockedNote() : this.t('note.cannotLand', '这格不能落脚'));
             this.showFeel(reason, 'warn');
             return false;
         }
         if (!this.isAdjacent(this.playerPos, targetId)) {
             this.playFeel('invalid');
-            this.showFeel(this.t('note.realtimeNeighborOnly', '实时模式只接相邻格。别隔空指挥，我会怀疑你也在掉帧。'), 'warn');
+            this.showFeel(this.t('note.realtimeNeighborOnly', '只能点我旁边的格子。'), 'warn');
             return false;
         }
         const threatCells = this.getThreatCells();
@@ -1468,7 +1592,7 @@ class GameEngine {
                 this.bufferedMoveCell = null;
                 return true;
             } else {
-                this.showFeel(this.t('note.trustRisk', '我相信你... 但千万别让我送死啊！'), 'info', true);
+                this.showFeel(this.t('note.trustRisk', '它离我好近……'), 'info', true);
             }
         }
         if (this.maybeRefuseRoute({ realtime: true })) {
@@ -1499,6 +1623,10 @@ class GameEngine {
         const fromCell = this.playerPos;
         if (!this.isAdjacent(fromCell, targetId) || !this.isWalkableForPlayer(targetId)) return false;
         this.pushHistory('realtimeMove');
+        // F2: one completed move = one turn (snapshot above keeps the old value
+        // so undo/rollback restores the previous count). The L03 cutscene walks
+        // Dawn on its own and is rolled back, so those steps are not counted.
+        if (this.realtimeMode && !this.l03CutsceneActive) this.turn += 1;
         this.tutorialInputDismissed = true;
         this.playerLastPos = fromCell;
         this.playerPos = targetId;
@@ -1518,7 +1646,7 @@ class GameEngine {
             usedBridge: this.isBridgeStep(fromCell, targetId)
         });
         const usedBridge = this.isBridgeStep(fromCell, targetId);
-        this.playFeel(usedBridge ? 'bridgeStep' : 'playerStep');
+        this.playFeel(usedBridge ? 'bridgeStep' : 'playerStep', this.stepSoundDetail(targetId));
         this.consumePatchBehind(fromCell, targetId);
         this.checkKeyCollection();
         this.advanceVinesAfterPlayerAction('realtimeMove');
@@ -1543,11 +1671,12 @@ class GameEngine {
     scheduleActOneEnemyStep(delayMs = 900) {
         if (this.l03CutsceneActive) return;
         if (this.enemyTurnInProgress || this.gameState !== 'playing') return;
-        const scheduledLevel = this.currentLevelIndex;
+        const scheduledSession = this.levelSession;
         this.enemyTurnInProgress = true;
         this.updateUI();
         setTimeout(() => {
-            if (this.gameState !== 'playing' || this.currentLevelIndex !== scheduledLevel) {
+            if (this.levelSession !== scheduledSession) return;
+            if (this.gameState !== 'playing') {
                 this.enemyTurnInProgress = false;
                 this.updateUI();
                 return;
@@ -1555,9 +1684,29 @@ class GameEngine {
             this.ais.forEach(ai => {
                 this.moveAIRealtime(ai);
             });
-            this.enemyTurnInProgress = false;
             this.checkCollisions();
+            const keeperSecondStep = ACT1_KEEPER_POST_KEY_STEPS >= 2
+                && Boolean(this.hasKey)
+                && this.gameState === 'playing'
+                && this.ais.some(ai => ai.type === 'guardian');
+            if (!keeperSecondStep) {
+                this.enemyTurnInProgress = false;
+                this.updateUI();
+                return;
+            }
+            // Keeper takes a second step once the key is taken.
             this.updateUI();
+            setTimeout(() => {
+                if (this.levelSession !== scheduledSession) return;
+                if (this.gameState === 'playing') {
+                    this.ais.forEach(ai => {
+                        if (ai.type === 'guardian') this.moveAIRealtime(ai);
+                    });
+                    this.checkCollisions();
+                }
+                this.enemyTurnInProgress = false;
+                this.updateUI();
+            }, 240);
         }, delayMs);
     }
 
@@ -1651,7 +1800,7 @@ class GameEngine {
         this.realtimeEdges = { player: null, ai: {} };
         this.recordRealtimeSnapshot(now, true);
         this.playFeel('undo');
-        this.showFeel(this.t('note.realtimeUndoDawn', '倒回 3 秒。Dawn：又格式化？脑子会痛的。'), 'info', true);
+        this.showFeel(this.t('note.realtimeUndoDawn', '倒回 3 秒。Dawn：又来？头好晕。'), 'info', true);
         this.recordEvent('rollback', { seconds: 3, target: target.realtimeTimestamp });
         this.updateUI();
         return true;
@@ -1720,7 +1869,7 @@ class GameEngine {
             distanceAfter: this.distanceBetween(nextCell, this.playerPos),
             target: this.getAIPreviewTarget({ ...ai })
         });
-        this.playFeel(ai.type === 'guardian' && ai.state === 'rage' ? 'guardianRage' : 'enemyStep');
+        this.playFeel(ai.type === 'guardian' && ai.state === 'rage' ? 'guardianRage' : 'enemyStep', { kind: ai.type });
         if (typeof window !== 'undefined' && window.renderEngine) {
             if (this.isBridgeStep(fromCell, nextCell) && window.renderEngine.animateBridgeTransit) {
                 window.renderEngine.animateBridgeTransit('ai', ai.id, fromCell, nextCell);
@@ -1827,7 +1976,7 @@ class GameEngine {
             if (step && step.type === 'move') {
                 if (targetId !== step.targetCellId) {
                     this.playFeel?.('invalid');
-                    this.showFeel?.(this.t('note.guidedMoveOnly', '当前步骤强引导中。请按照指示移动！'), 'warn');
+                    this.showFeel?.(this.t('note.guidedMoveOnly', '先照提示走这一步。'), 'warn');
                     return;
                 }
             }
@@ -1842,7 +1991,7 @@ class GameEngine {
             this.playFeel('invalid');
             const reason = this.vineCells.has(targetId)
                 ? this.t('note.vineBlocked', '数据藤蔓挡住了 Dawn')
-                : (this.isVoidCell(targetId) ? this.t('note.voidNeedsPatch', '这里是缺口，先铺补片') : this.t('note.cannotWalk', '这个格子不能走'));
+                : (this.isVoidCell(targetId) ? this.getVoidBlockedNote() : this.t('note.cannotWalk', '这个格子不能走'));
             this.showFeel(reason, 'warn');
             return;
         }
@@ -1945,8 +2094,10 @@ class GameEngine {
         this.updateActionButtons();
 
         let delay = 0;
+        const pathSession = this.levelSession;
         pathToExecute.forEach(cellId => {
             setTimeout(() => {
+                if (this.levelSession !== pathSession || this.gameState !== 'playing') return;
                 const fromCell = this.playerPos;
                 this.playerLastPos = this.playerPos;
                 this.playerPos = cellId;
@@ -1967,7 +2118,7 @@ class GameEngine {
                     remainingAP: this.playerAP,
                     usedBridge
                 });
-                this.playFeel(usedBridge ? 'bridgeStep' : 'playerStep');
+                this.playFeel(usedBridge ? 'bridgeStep' : 'playerStep', this.stepSoundDetail(cellId));
                 this.checkKeyCollection();
                 this.checkCollisions();
 
@@ -1981,6 +2132,7 @@ class GameEngine {
         });
 
         setTimeout(() => {
+            if (this.levelSession !== pathSession) return;
             if (this.gameState === 'playing') {
                 this.advanceVinesAfterPlayerAction('move');
             }
@@ -2122,6 +2274,7 @@ class GameEngine {
         const perm = this.rotationPermutations[axis][layerIdx][direction];
         let rotationSettled = false;
         let rotationFallbackTimer = null;
+        const rotationSession = this.levelSession;
         const settle = () => {
             if (rotationSettled) return;
             rotationSettled = true;
@@ -2129,6 +2282,11 @@ class GameEngine {
                 clearTimeout(rotationFallbackTimer);
                 rotationFallbackTimer = null;
             }
+            // Level was restarted/left mid-animation: never apply this
+            // permutation to the new board.
+            if (this.levelSession !== rotationSession) return;
+            // F2: a rotation counts when it settles, not when the animation starts.
+            if (this.realtimeMode) this.turn += 1;
             this.applyPermutation(perm);
             const prunedByRotation = this.pruneDisconnectedVines();
             const rotateEvent = this.eventLog[this.eventLog.length - 1];
@@ -2144,7 +2302,7 @@ class GameEngine {
             this.checkCollisions();
             this.updateUI();
             this.playFeel('rotateLock');
-            this.showFeel(this.t('note.spatialLocked', '空间已锁定'), 'info');
+            this.showFeel(this.t('note.spatialLocked', '拧好了'), 'info');
             if (window.renderEngine) {
                 window.renderEngine.spawnEntities3D();
             }
@@ -2176,7 +2334,7 @@ class GameEngine {
             rotationFallbackTimer = setTimeout(() => {
                 if (rotationSettled) return;
                 window.renderEngine.isAnimating = false;
-                this.showFeel(this.t('note.spatialCalibrated', '空间校准完成'), 'info');
+                this.showFeel(this.t('note.spatialCalibrated', '拧好了'), 'info');
                 settle();
             }, 1100);
             window.renderEngine.playRotateAnimation(axis, layerIdx, direction, settle);
@@ -2227,6 +2385,7 @@ class GameEngine {
         }
 
         let aiPromise = Promise.resolve();
+        const turnSession = this.levelSession;
 
         this.ais.forEach(ai => {
             aiPromise = aiPromise.then(() => new Promise(resolve => {
@@ -2235,7 +2394,7 @@ class GameEngine {
                 let stepIndex = 0;
 
                 const takeSingleStep = () => {
-                    if (steps <= 0 || this.gameState !== 'playing') {
+                    if (steps <= 0 || this.gameState !== 'playing' || this.levelSession !== turnSession) {
                         resolve();
                         return;
                     }
@@ -2263,7 +2422,7 @@ class GameEngine {
                         } else if (ai.type === 'guardian' && ai.state === 'lure') {
                             this.playFeel('guardianLure');
                         } else {
-                            this.playFeel('enemyStep');
+                            this.playFeel('enemyStep', { kind: ai.type });
                         }
                         if (window.renderEngine) {
                             window.renderEngine.moveAI(ai.id, nextCell);
@@ -2291,6 +2450,7 @@ class GameEngine {
         });
 
         aiPromise.then(() => {
+            if (this.levelSession !== turnSession) return;
             if (this.gameState === 'playing') {
                 if (this.beaconCell !== null && this.beaconTTL > 0) {
                     this.beaconTTL -= 1;
@@ -2338,7 +2498,27 @@ class GameEngine {
         }
 
         if (mutateState) ai.state = 'gate';
-        return this.exitPos ?? this.playerPos;
+        return this.exitPos !== null && this.exitPos !== undefined
+            ? this.getGuardianDoorCell(ai)
+            : this.playerPos;
+    }
+
+    // Enemies may not stand on the exit, so "guard the door" means: go to the open tile next to
+    // the exit that is closest to the keeper. (Targeting the exit itself found no path and froze it.)
+    getGuardianDoorCell(ai) {
+        const options = this.getNeighbors(this.exitPos, { actor: 'ai' })
+            .filter(cellId => this.isPassableForAI(cellId));
+        if (options.includes(ai.pos)) return ai.pos;
+        let best = null;
+        let bestLength = Infinity;
+        options.forEach(cellId => {
+            const path = this.findPath(ai.pos, cellId, { actor: 'ai' });
+            if (path && path.length < bestLength) {
+                best = cellId;
+                bestLength = path.length;
+            }
+        });
+        return best ?? ai.pos;
     }
 
     getAITarget(ai) {
@@ -2387,11 +2567,18 @@ class GameEngine {
     }
 
     isForbiddenForAI(ai, cellId) {
-        if (cellId === null || cellId === undefined) return true;
-        if (!this.isWalkableForAI(cellId)) return true;
-        if (!this.hasKey && this.keyPos !== null && cellId === this.keyPos) return true;
-        if (this.exitPos !== null && cellId === this.exitPos) return true;
-        return false;
+        return !this.isPassableForAI(cellId);
+    }
+
+    // Cells an enemy is allowed to stand on. The exit and the key (until it is
+    // collected) are walkable terrain but off-limits for enemies, so both
+    // movement and pathfinding have to agree on this list.
+    isPassableForAI(cellId) {
+        if (cellId === null || cellId === undefined) return false;
+        if (!this.isWalkableForAI(cellId)) return false;
+        if (!this.hasKey && this.keyPos !== null && cellId === this.keyPos) return false;
+        if (this.exitPos !== null && cellId === this.exitPos) return false;
+        return true;
     }
 
     previewAIMovement(ai, steps = null) {
@@ -2434,11 +2621,50 @@ class GameEngine {
     }
 
     getThreatCells() {
+        if (this.isActOneStepUndo()) return this.getActOneDangerCells();
         const threatCells = new Set();
         this.ais.forEach(ai => {
             this.previewAIMovement(ai).forEach(cellId => threatCells.add(cellId));
         });
         return threatCells;
+    }
+
+    // Act 1 is turn-based: after Dawn acts, every enemy takes one step toward where Dawn now stands.
+    // A cell is dangerous if Dawn standing there would let an enemy step onto it next turn.
+    // We test every cell next to an enemy with Dawn placed there, so the red tiles match real catches.
+    getActOneDangerCells() {
+        const cacheKey = [
+            this.playerPos, this.hasKey ? 1 : 0, this.keyPos, this.beaconCell, this.beaconTTL,
+            this.eventLog.length, this.ais.map(ai => `${ai.id}:${ai.pos}`).join(',')
+        ].join('|');
+        if (this.actOneDangerCache?.key === cacheKey) return this.actOneDangerCache.cells;
+
+        const danger = new Set();
+        const savedPlayerPos = this.playerPos;
+        const savedHasKey = this.hasKey;
+        const candidates = new Set();
+        this.ais.forEach(ai => {
+            this.getNeighbors(ai.pos, { actor: 'ai' }).forEach(cellId => {
+                if (this.isWalkableForPlayer(cellId)) candidates.add(cellId);
+            });
+        });
+        try {
+            candidates.forEach(cellId => {
+                if (this.ais.some(ai => ai.pos === cellId)) return;
+                this.playerPos = cellId;
+                this.hasKey = savedHasKey || (this.keyPos !== null && cellId === this.keyPos);
+                const caught = this.ais.some(ai => {
+                    const steps = (ai.type === 'guardian' && this.hasKey && ACT1_KEEPER_POST_KEY_STEPS >= 2) ? 2 : 1;
+                    return this.previewAIMovement(ai, steps).includes(cellId);
+                });
+                if (caught) danger.add(cellId);
+            });
+        } finally {
+            this.playerPos = savedPlayerPos;
+            this.hasKey = savedHasKey;
+        }
+        this.actOneDangerCache = { key: cacheKey, cells: danger };
+        return danger;
     }
 
     getRouteOrigin() {
@@ -2522,10 +2748,10 @@ class GameEngine {
                 points.push(this.formatText('failure.pointGuardianPressure', '钥匙拿到时，守钥者在 {cell}，离你 {distance} 格；拿钥匙后它每次能走 {budget} 格。', {
                     cell: this.describeCell(guardianInfo.pos),
                     distance: guardianInfo.distance,
-                    budget: guardianInfo.afterBudget
+                    budget: (this.realtimeMode && this.currentLevelIndex < 12) ? ACT1_KEEPER_POST_KEY_STEPS : guardianInfo.afterBudget
                 }));
             } else {
-                points.push(this.t('failure.pointGuardianRage', '钥匙拿到后，守钥者进入狂暴追击，每次行动会变成 2 格。'));
+                points.push(this.t('failure.pointGuardianRage', '钥匙一被拿走，守钥者就不再守着钥匙，转头追 Dawn。'));
             }
         }
 
@@ -2572,20 +2798,20 @@ class GameEngine {
         let cuteNote = this.t('failure.cuteDefaultNote', '悔一步吧，这局还能抢救一下。');
 
         if (lastAIMove) {
-            coachHeadline = this.formatText('failure.coachMoveHeadline', '{name}不是突然出现的，它这一轮从 {from} 贴到了 {to}。', {
+            coachHeadline = this.formatText('failure.coachMoveHeadline', '{name}这一步从 {from} 走到了 {to}。', {
                 name: caughtName,
                 from: this.describeCell(lastAIMove.from),
                 to: this.describeCell(lastAIMove.to)
             });
-            coachNote = this.t('failure.coachMoveNote', '下次看红色预告时，重点看“它这一轮会走几格”，不要只看自己能不能拿到目标。');
-            cuteHeadline = this.formatText('failure.cuteMoveHeadline', '不是你手慢，是 {name} 这步贴得太近了。', { name: caughtName });
+            coachNote = this.t('failure.coachMoveNote', '走之前先看红格。');
+            cuteHeadline = this.formatText('failure.cuteMoveHeadline', '{name}这步离太近了。', { name: caughtName });
             cuteNote = this.t('failure.cuteMoveNote', '先把距离留出来，再去拿钥匙或冲门，会稳很多。');
         }
 
         if (lastKey && caughtBy?.type === 'guardian') {
             coachHeadline = this.t('failure.coachGuardianHeadline', '钥匙拿到了，但守钥者离你太近了。');
             coachNote = this.t('failure.coachGuardianNote', '这类局面要先把守钥者拉远，或者先旋转拆位，再吃钥匙撤。');
-            cuteHeadline = this.t('failure.cuteGuardianHeadline', '钥匙是香的，但守钥者也醒了。');
+            cuteHeadline = this.t('failure.cuteGuardianHeadline', '拿钥匙的时候，守钥者离太近了。');
             cuteNote = this.t('failure.cuteGuardianNote', '下次先遛它一下，再回头拿钥匙。');
         }
 
@@ -2615,7 +2841,7 @@ class GameEngine {
 
     t(key, fallback = key) {
         return typeof window !== 'undefined' && window.t
-            ? window.t(key)
+            ? window.t(key, fallback)
             : fallback;
     }
 
@@ -2659,7 +2885,7 @@ class GameEngine {
             window.renderEngine.spawnCellPulse(this.playerPos, '#ff0055', 1.4);
         }
         const caughtName = caughtBy
-            ? `AI #${caughtBy.id + 1} [${this.getAIName(caughtBy.type)}]`
+            ? this.getAIName(caughtBy.type)
             : this.t('failure.unknownThreat', '未知威胁源');
         const caughtState = caughtBy
             ? this.getAIStateLabel(caughtBy.state)
@@ -2685,7 +2911,7 @@ class GameEngine {
         document.getElementById('failure-summary').innerHTML = `
             <div><span>${this.escapeHtml(this.t('failure.turns', '生存回合'))}:</span><span class="s-val">${this.turn}</span></div>
             <div><span>${this.escapeHtml(this.t('failure.keyStatus', '钥匙状态'))}:</span><span class="s-val">${this.escapeHtml(this.hasKey ? this.t('failure.keyHeld', '已取得') : this.t('failure.keyMissing', '未取得'))}</span></div>
-            <div><span>${this.escapeHtml(this.t('failure.caughtBy', '捕获者'))}:</span><span class="s-val">${this.escapeHtml(caughtName)}</span></div>
+            <div><span>${this.escapeHtml(this.t('failure.caughtBy', '被谁抓住'))}:</span><span class="s-val">${this.escapeHtml(caughtName)}</span></div>
             <div><span>${this.escapeHtml(this.t('failure.caughtCell', '捕获位置'))}:</span><span class="s-val">${this.escapeHtml(caughtCell)}</span></div>
             <div><span>${this.escapeHtml(this.t('failure.enemyStatus', '敌人状态'))}:</span><span class="s-val">${this.escapeHtml(caughtState)}</span></div>
         `;
@@ -2740,18 +2966,18 @@ class GameEngine {
         if (victoryMessage) {
             victoryMessage.innerText = isActFinale
                 ? this.t('victory.actFinaleMessage', '门开了。坏消息：外面还有一个更大的立方体。')
-                : this.t('victory.message', '钥匙已取得，逃生门已开启，Dawn 暂时安全。');
+                : this.t('victory.message', 'Dawn 出门了，暂时安全。');
         }
         document.getElementById('act-ending-comic')?.classList.toggle('is-hidden', !isActFinale);
         const victoryButton = document.querySelector('#victory-overlay .btn-restart');
         if (victoryButton) {
-            victoryButton.innerText = isActFinale ? this.t('victory.actTwoButton', '进入第二幕') : this.t('victory.next', '再接再厉');
+            victoryButton.innerText = isActFinale ? this.t('victory.actTwoButton', '进入第二幕') : this.t('victory.next', '下一关');
         }
         const billingTitle = typeof window !== 'undefined' && window.t ? window.t('console.billing') : '📊 [神经连接评估账单]';
         const labelSurvival = typeof window !== 'undefined' && window.t ? window.t('console.survival_status') : '· 观察对象 (Dawn) 体征';
-        const valSurvival = typeof window !== 'undefined' && window.t ? window.t('console.intact') : '安然无恙 (100%)';
+        const valSurvival = typeof window !== 'undefined' && window.t ? window.t('console.intact') : '没受伤';
         const labelTurn = typeof window !== 'undefined' && window.t ? window.t('console.turn') : '· 通关消耗回合';
-        const labelTwist = typeof window !== 'undefined' && window.t ? window.t('console.twist_count') : '· 空间重构次数';
+        const labelTwist = typeof window !== 'undefined' && window.t ? window.t('console.twist_count') : '· 拧层次数';
 
         document.getElementById('victory-summary').innerHTML = `
             <div style="font-weight:bold;margin-bottom:6px;color:#a8ffb2;">${billingTitle}</div>
@@ -2759,7 +2985,11 @@ class GameEngine {
             <div><span>${labelTurn}:</span><span class="s-val">${this.turn} ${this.escapeHtml(this.t('unit.turns', '回合'))}</span></div>
             <div><span>${labelTwist}:</span><span class="s-val">${this.rotationsUsed} ${this.escapeHtml(this.t('unit.times', '次'))}</span></div>
         `;
-        const showVictoryOverlay = () => document.getElementById('victory-overlay')?.classList.add('active');
+        const victorySession = this.levelSession;
+        const showVictoryOverlay = () => {
+            if (this.levelSession !== victorySession || this.gameState !== 'win') return;
+            document.getElementById('victory-overlay')?.classList.add('active');
+        };
         if (isActFinale) {
             setTimeout(showVictoryOverlay, 1500);
         } else {
@@ -2791,32 +3021,32 @@ class GameEngine {
             status = this.t('dawn.statusWin', '门已开启');
             bubble = this.currentLevel?.actFinale ? this.t('dawn.bubbleWinFinale', '出口还带下一层，挺礼貌。') : this.t('dawn.bubbleWin', '这次算你带路成功。');
             liveLine = this.currentLevel?.actFinale
-                ? this.t('dawn.liveWinFinale', '出口的意思原来是下一层入口。行，挺有礼貌。')
+                ? this.t('dawn.liveWinFinale', '出口……是下一层的入口？')
                 : this.t('dawn.liveWin', '门开了。我承认，这一步还行。');
         } else if (this.toolMode === 'patch') {
             status = this.t('dawn.statusPatch', '补片待铺');
             bubble = this.t('dawn.bubblePatch', '可以补洞，但别让我停在上面。');
-            liveLine = this.t('dawn.livePatch', '可以补洞，但别让我停在上面。我对试用版地板没有信仰。');
+            liveLine = this.t('dawn.livePatch', '可以补洞，但别让我停在上面。');
         } else if (this.toolMode === 'beacon') {
             status = this.t('dawn.statusBeacon', '诱饵待投');
             bubble = this.t('dawn.bubbleBeacon', '骗谁？这题我喜欢。');
-            liveLine = this.t('dawn.liveBeacon', '骗谁？这题我喜欢。先声明，我没有说自己很坏。');
+            liveLine = this.t('dawn.liveBeacon', '骗谁？这题我喜欢。');
         } else if (this.plannedPath.length > 0) {
             status = this.t('dawn.statusPath', '指令待定');
             bubble = this.t('dawn.bubblePath', '你选好了？我先不发表意见。');
-            liveLine = this.t('dawn.livePath', '你选好了？我先不发表意见，免得显得我很急。');
+            liveLine = this.t('dawn.livePath', '你选好了？');
         } else if (this.hasKey) {
             status = this.t('dawn.statusKey', '钥匙在手');
             bubble = this.t('dawn.bubbleKey', '钥匙有了。现在可以稍微慌一下。');
-            liveLine = this.t('dawn.liveKey', '钥匙有了。现在可以稍微慌一下，但只准稍微。');
+            liveLine = this.t('dawn.liveKey', '钥匙有了。快走。');
         } else if (this.ais.some(ai => ai.state === 'rage')) {
             status = this.t('dawn.statusRage', '对面急了');
             bubble = this.t('dawn.bubbleRage', '它急了。不是我说的。');
-            liveLine = this.t('dawn.liveRage', '它急了。不是我说的，是它自己跑两格的。');
+            liveLine = this.t('dawn.liveRage', '它急了。钥匙一拿走，它就追过来了。');
         } else if (this.ais.length > 0) {
             status = this.t('dawn.statusThreat', '有人在追');
             bubble = this.t('dawn.bubbleThreat', '先看红格，别看我。');
-            liveLine = this.t('dawn.liveThreat', '先看红格，别看我。我现在也不太想被看见。');
+            liveLine = this.t('dawn.liveThreat', '先看红格，别看我。');
         } else if (this.turn === 0) {
             status = this.t('dawn.statusWaiting', '等待指令');
             bubble = this.t('dawn.bubbleWaiting', '盯——');
@@ -2852,16 +3082,40 @@ class GameEngine {
                 { zh: '红色威胁格代表下一轮会被贴近，别把 Dawn 送进去。', en: 'Red threat tiles show where danger can reach next. Do not send Dawn there.' }
             ],
             L04: [
-                { zh: '空间折叠', en: 'Spatial folding' },
-                { zh: '按 Shift 进入折叠模式，拖一层魔方，让目标换到能走的位置。', en: 'Hold Shift to enter folding mode. Drag a layer to bring the target into reach.' }
+                { zh: '拧层', en: 'Twist' },
+                { zh: '长按格子，出现十字箭头后拖动。键盘可以按住 Shift 拖。', en: 'Long-press a tile and drag when the cross arrows show. Or hold Shift and drag.' }
             ],
             L05: [
                 { zh: '钥匙也会动', en: 'The key moves too' },
-                { zh: '钥匙会跟着层旋转。先拧局，再点格。', en: 'The key rotates with its layer. Twist the board, then move.' }
+                { zh: '层上的东西都跟着转：钥匙、追击者，还有 Dawn。', en: 'Everything on a layer turns with it: the key, chasers, and Dawn.' }
+            ],
+            L06: [
+                { zh: '守钥者', en: 'The Keeper' },
+                { zh: 'Dawn 不上钥匙那一面，它就不动。', en: 'It stays put until Dawn steps onto the key\'s face.' }
             ],
             L07: [
                 { zh: '主动碎解', en: 'Manual break' },
                 { zh: '碎解敌人的必经格，切断追捕路线。不要拆自己的脚下。', en: 'Break the enemy route to cut pursuit. Do not break the tile under Dawn.' }
+            ],
+            L08: [
+                { zh: '拿了就跑', en: 'Grab and run' },
+                { zh: '钥匙一到手，它就会一直追 Dawn。', en: 'Once Dawn has the key, it never stops chasing.' }
+            ],
+            L09: [
+                { zh: '正式开跑', en: 'The real run' },
+                { zh: '两个追击者。拿钥匙，进门。', en: 'Two chasers. Get the key, get out.' }
+            ],
+            L10: [
+                { zh: '隐藏考', en: 'Hidden trial' },
+                { zh: '碎解只有一次。', en: 'One Break only.' }
+            ],
+            L11: [
+                { zh: '堵门', en: 'Door block' },
+                { zh: '钥匙一到手，它就去门口。离它太近，它会直接扑过来。', en: 'Once you have the key, it heads for the door. Get too close and it lunges at Dawn.' }
+            ],
+            L12: [
+                { zh: '出口？', en: 'Exit?' },
+                { zh: '这次不拧不行。', en: 'You will have to twist this time.' }
             ],
             L13: [
                 { zh: '更大的外壳', en: 'A larger shell' },
@@ -3080,6 +3334,7 @@ class GameEngine {
             window.audioFeedback.setTension(this.gameState === 'playing'
                 ? (hasRage ? 'rage' : (hasThreat ? 'danger' : 'calm'))
                 : 'calm');
+            this.syncAudioScene();
         }
         this.ais.forEach(ai => {
             const row = document.createElement('div');
@@ -3146,7 +3401,7 @@ class GameEngine {
             return this.t('routeTip.beacon', '点任意空地放诱饵。敌人会按正常路线被吸引过去。');
         }
         if (this.toolMode === 'break') {
-            return this.t('routeTip.break', '点非关键格碎解。它会立刻变成缺口，阻断追击路线。');
+            return this.t('routeTip.break', '点一个格子拆掉，谁都过不去。');
         }
         if (this.trackerMode) {
             return this.t('routeTip.tracker', '标记模式：点一格标记。蓝圈仍是下一步可走格。');
@@ -3177,7 +3432,7 @@ class GameEngine {
     getAIStateLabel(state) {
         if (state === 'guard') return this.t('ai.state.guard', '守路');
         if (state === 'lure') return this.t('ai.state.lure', '引诱追击');
-        if (state === 'rage') return this.t('ai.state.rage', '狂暴追击');
+        if (state === 'rage') return this.t('ai.state.rage', '追击');
         if (state === 'gate') return this.t('ai.state.gate', '守门');
         if (state === 'seekKey') return this.t('ai.state.seekKey', '找钥匙');
         if (state === 'bait') return this.t('ai.state.bait', '被诱导');
@@ -3849,7 +4104,8 @@ class GameEngine {
     }
 
     drawThreatPreviewPath(ctx, ai, cellSize, offsetX, offsetY, label = '!') {
-        const preview = this.previewAIMovement(ai);
+        // Act 1 enemies take one step per turn, so only preview that step.
+        const preview = this.previewAIMovement(ai, this.isActOneStepUndo() ? 1 : null);
         if (!preview.length) {
             this.drawMapSticker(ctx, ai.pos, label, ai.color || '#ff0055', cellSize, offsetX, offsetY);
             return;

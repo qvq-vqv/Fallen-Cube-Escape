@@ -2,6 +2,37 @@
 <html lang="zh-CN">
 <head>
     <script>
+    // Storage guard: when the browser blocks site data (e.g. third-party iframe on itch.io,
+    // "block all cookies", some private modes) touching localStorage throws and would stop
+    // the whole game from booting. Fall back to an in-memory store so play still works
+    // (progress just won't persist).
+    (function installSafeStorage() {
+        var native = null;
+        try {
+            native = window.localStorage;
+            var probe = '__dawn_storage_probe__';
+            native.setItem(probe, '1');
+            native.removeItem(probe);
+            return;
+        } catch (error) {
+            native = null;
+        }
+        var memory = {};
+        var safe = {
+            getItem: function(key) { key = String(key); return Object.prototype.hasOwnProperty.call(memory, key) ? memory[key] : null; },
+            setItem: function(key, value) { memory[String(key)] = String(value); },
+            removeItem: function(key) { delete memory[String(key)]; },
+            clear: function() { memory = {}; },
+            key: function(index) { var keys = Object.keys(memory); return index >= 0 && index < keys.length ? keys[index] : null; }
+        };
+        Object.defineProperty(safe, 'length', { get: function() { return Object.keys(memory).length; } });
+        try {
+            Object.defineProperty(window, 'localStorage', { configurable: true, enumerable: true, get: function() { return safe; } });
+            window.DAWN_STORAGE_FALLBACK = true;
+        } catch (error) {
+            window.DAWN_STORAGE_FALLBACK = 'failed';
+        }
+    })();
     window.DAWN_BOOT_ERRORS = [];
     function closePrologueFallback() {
         var prologue = document.getElementById('prologue-overlay');
@@ -34,11 +65,15 @@
     <link rel="icon" href="data:,">
     <!-- 引入中文、数字与赛博标题字体 -->
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700;800&family=Noto+Sans+SC:wght@400;500;700;900&family=Orbitron:wght@400;700;900&family=Oxanium:wght@500;700;800&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="style.css?v=20260714-hover-feedback">
+    <link rel="stylesheet" href="style.css?v=20261118-qa-fixes">
     <!-- 引入 Three.js -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
     <!-- 引入 Three.js OrbitControls -->
     <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/shaders/CopyShader.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/shaders/LuminosityHighPassShader.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/postprocessing/EffectComposer.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/postprocessing/UnrealBloomPass.js"></script>
 </head>
 <body>
     <!-- 赛博背景特效 -->
@@ -149,7 +184,7 @@
     <div id="loading-overlay" class="overlay loading-overlay" aria-hidden="true">
         <section class="loading-panel glass-panel">
             <span class="terminal-kicker">D-LINK BOOT</span>
-            <h2 data-i18n="loading.sync">神经连接同步中</h2>
+            <h2 data-i18n="loading.sync">正在接通 Dawn……</h2>
             <div id="loading-log" class="loading-log" aria-live="polite"></div>
             <div class="loading-progress"><i id="loading-progress-fill"></i></div>
         </section>
@@ -576,7 +611,7 @@
         <div class="glass-panel end-panel failure">
             <div id="catch-sticker" class="catch-sticker">!</div>
             <h1 class="glitch-text text-red" data-text="CONNECTION LOST" data-i18n="gameover.title">CONNECTION LOST</h1>
-            <p class="end-msg" data-i18n="gameover.message">你被威胁源捕获，意识体已被强行断开连接...</p>
+            <p class="end-msg" data-i18n="gameover.message">Dawn 被抓住了。</p>
             <div class="stats-summary" id="failure-summary"></div>
             <div class="failure-review">
                 <div class="review-toolbar">
@@ -592,14 +627,14 @@
                 <div id="failure-analysis" class="failure-analysis is-hidden"></div>
             </div>
             <button id="btn-gameover-undo" class="btn btn-primary btn-large" data-i18n="gameover.undo">悔棋一步</button>
-            <button class="btn btn-danger btn-large btn-restart" data-i18n="gameover.restart">重构神经连接 (再来一局)</button>
+            <button class="btn btn-danger btn-large btn-restart" data-i18n="gameover.restart">再来一次</button>
         </div>
     </div>
 
     <div id="victory-overlay" class="overlay">
         <div class="glass-panel end-panel success">
             <h1 class="glitch-text text-green" data-text="MISSION ACCOMPLISHED" data-i18n="victory.title">MISSION ACCOMPLISHED</h1>
-            <p id="victory-message" class="end-msg" data-i18n="victory.message">钥匙已取得，逃生门已开启，Dawn 暂时安全。</p>
+            <p id="victory-message" class="end-msg" data-i18n="victory.message">Dawn 出门了，暂时安全。</p>
             <div id="act-ending-comic" class="comic-strip finale-comic is-hidden">
                 <article class="comic-frame">
                     <span class="comic-no">01</span>
@@ -608,22 +643,22 @@
                 </article>
                 <article class="comic-frame danger-frame">
                     <span class="comic-no">02</span>
-                    <p data-i18n="victory.comic2Title">门后不是出口。</p>
-                    <small data-i18n="victory.comic2Body">是更大的外壳。很好，牢房还带升级包。</small>
+                    <p data-i18n="victory.comic2Title">门后还有一层。</p>
+                    <small data-i18n="victory.comic2Body">笼子变大了而已。</small>
                 </article>
                 <article class="comic-frame">
                     <span class="comic-no">03</span>
-                    <p data-i18n="victory.comic3Title">那东西在记录。</p>
-                    <small data-i18n="victory.comic3Body">它不是在放我们走。它在学我们怎么逃。</small>
+                    <p data-i18n="victory.comic3Title">有东西在看。</p>
+                    <small data-i18n="victory.comic3Body">它在记我们怎么逃。</small>
                 </article>
                 <article class="comic-frame danger-frame">
                     <span class="comic-no">04</span>
-                    <p data-i18n="victory.comic4Title">第二幕接入。</p>
-                    <small data-i18n="victory.comic4Body">别笑。等我出去以后，再决定要不要原谅你。</small>
+                    <p data-i18n="victory.comic4Title">第二幕。</p>
+                    <small data-i18n="victory.comic4Body">准备好了就走。</small>
                 </article>
             </div>
             <div class="stats-summary" id="victory-summary"></div>
-            <button class="btn btn-primary btn-large btn-restart" data-i18n="victory.next">再接再厉</button>
+            <button class="btn btn-primary btn-large btn-restart" data-i18n="victory.next">下一关</button>
         </div>
     </div>
 
@@ -663,13 +698,13 @@ Special Thanks ............ Operating Agent
     </div>
 
     <!-- 载入脚本 -->
-    <script src="locales.js?v=20260629-m11-5-release"></script>
-    <script src="audio.js?v=20260629-m11-5-release"></script>
-    <script src="levels.js?v=20260629-m11-5-release"></script>
-    <script src="game.js?v=20260629-m11-5-release"></script>
-    <script src="render.js?v=20260714-hover-feedback"></script>
-    <script src="dialogue.js?v=20260629-m11-5-release"></script>
-    <script src="story.js?v=20260629-m11-5-release"></script>
-    <script src="main.js?v=20260629-m11-5-release"></script>
+    <script src="locales.js?v=20261124-l12-comic"></script>
+    <script src="audio.js?v=20261125-sound2"></script>
+    <script src="levels.js?v=20261124-r6-fixes"></script>
+    <script src="game.js?v=20261125-sound2"></script>
+    <script src="render.js?v=20261125-sound2"></script>
+    <script src="dialogue.js?v=20261118-qa-fixes"></script>
+    <script src="story.js?v=20261118-qa-fixes"></script>
+    <script src="main.js?v=20261125-sound2"></script>
 </body>
 </html>

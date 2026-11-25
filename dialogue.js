@@ -212,13 +212,13 @@
                 ]
             },
             l03Chaser: {
-                title: { zh: 'L03 / 红色鬼东西', en: 'L03 / Red Thing' },
-                status: { zh: '威胁接近', en: 'Threat closing' },
-                bubble: { zh: '那红色的鬼东西过来了！', en: 'That red thing is coming!' },
+                title: { zh: 'L03 / 那边有个会动的', en: 'L03 / Something Moving' },
+                status: { zh: '发现其他生物', en: 'Another creature' },
+                bubble: { zh: '那边有个会动的！我想过去看看。', en: 'Something is moving over there! I want to go look.' },
                 lines: [
-                    { zh: '等等！前面那几格地板怎么开始闪着红光了？', en: 'Wait! Why are those tiles ahead glowing red?' },
-                    { zh: '还有那个飘在空中的红色影子……它为什么一直在转动？好像发现我了！', en: 'And that red shadow floating in the air... why is it rotating? It seems to have spotted me!' },
-                    { zh: '千万别让我靠近它，这东西看起来太诡异了……我不敢过去……', en: 'Never let me get close to it, it looks too creepy... I dare not go over...' }
+                    { zh: '等等，那边是不是有个东西在动？', en: 'Wait, is something moving over there?' },
+                    { zh: '终于有别的活的了！它说不定知道怎么出去。', en: 'Finally, something else alive! Maybe it knows the way out.' },
+                    { zh: '我过去看看。你别拦我。', en: 'I am going to look. Do not stop me.' }
                 ],
                 replies: [
                     commonReplies.steady,
@@ -254,11 +254,11 @@
             l05MovingKey: {
                 title: { zh: 'L05 / 旋转钥匙', en: 'L05 / Rotating the Key' },
                 status: { zh: '空间拼图', en: 'Space puzzle' },
-                bubble: { zh: '钥匙也跟着转走了？', en: 'Did the key rotate with it?' },
+                bubble: { zh: '钥匙也会跟着转？', en: 'The key turns with the floor?' },
                 lines: [
-                    { zh: '等等，我刚才看错了吗？你转动那一层的时候，那把钥匙也跟着转走了？！', en: 'Wait, did I see that wrong? When you rotated that layer, the key rotated with it too?!' },
-                    { zh: '原来这个世界的东西会跟着地板一起旋转的吗？那我是不是也只是一个可以被你拧来拧去的积木……', en: 'So things in this world rotate with the floor? Am I just a toy block you can twist around...' },
-                    { zh: '好奇怪的物理规则……我们动作快点好不好，我真的好想回家躺在我自己的床上。', en: 'Such strange physical rules... can we move faster, I really want to go home and lie in my own bed.' }
+                    { zh: '上一关你拧地板的时候，钥匙好像也跟着转了一下。我没看错吧？', en: 'Last time you twisted the floor, the key turned with it. I didn\'t imagine that, right?' },
+                    { zh: '那这次钥匙跑哪去了……我连它在哪一面都看不到。', en: 'So where did it go this time... I can\'t even see which side it\'s on.' },
+                    { zh: '什么破物理……快点吧，我想回家睡觉。', en: 'What kind of physics is this... hurry up, I want to go home and sleep.' }
                 ],
                 replies: [
                     {
@@ -271,7 +271,7 @@
                         face: K.steady,
                         aria: { zh: '认真', en: 'Locked in' },
                         tone: 'steady',
-                        response: { zh: '感觉你在像拧魔方一样拧我所在的维度。但好歹前面的路通了。', en: 'Feels like you\'re twisting the dimension I\'m in like a Rubik\'s cube. But hey, the path connected.' }
+                        response: { zh: '你就把我这儿当魔方拧吧。拧准一点就行。', en: 'Go ahead, twist my whole world like a puzzle cube. Just get it right.' }
                     },
                     {
                         face: K.tease,
@@ -282,13 +282,13 @@
                 ]
             },
             l06Guardian: {
-                title: { zh: 'L06 / 黄色守卫', en: 'L06 / Yellow Guard' },
+                title: { zh: 'L06 / 守钥者', en: 'L06 / The Keeper' },
                 status: { zh: '守卫识别', en: 'Keeper identified' },
-                bubble: { zh: '那大家伙盯着门……', en: 'That big guy is staring at the door...' },
+                bubble: { zh: '那个黄色的一直守着钥匙……', en: 'That yellow thing won\'t leave the key...' },
                 lines: [
-                    { zh: '那个黄色的铁壳怪是什么？它一直绕着钥匙和门走来走去……', en: 'What is that yellow iron monster? It keeps walking around the key and door...' },
-                    { zh: '它看起来像是一个保安，但是它身上的灯突然变红了！它发现我了！', en: 'It looks like a guard, but the light on its body suddenly turned red! It spotted me!' },
-                    { zh: '它正在朝我挪过来……它要过来了，我该往哪躲？要退回去吗？你快指路啊，它要过来了！', en: 'It\'s moving towards me... it\'s coming, where do I hide? Should I back up? Guide me quickly, it\'s coming!' }
+                    { zh: '那个黄色铁壳是什么？一直杵在钥匙旁边，动都不动。', en: 'What is that yellow tin can? It just sits by the key. Not moving at all.' },
+                    { zh: '看着像保安。我要是走到那一面，它肯定就盯上我了吧？', en: 'Looks like a security guard. If I walk onto that side, it\'s going to notice me, right?' },
+                    { zh: '你可别让我直接冲过去……想想办法。', en: 'Don\'t just send me straight at it... think of something.' }
                 ],
                 replies: [
                     commonReplies.steady,
@@ -328,11 +328,11 @@
             l08Rage: {
                 title: { zh: 'L08 / 钥匙警报', en: 'L08 / Key Alarm' },
                 status: { zh: '追击升级', en: 'Threat escalated' },
-                bubble: { zh: '钥匙一拿，它急了！', en: 'Grab the key, it panics!' },
+                bubble: { zh: '拿了钥匙就跑，对吧？', en: 'Grab the key and run, right?' },
                 lines: [
-                    { zh: '它……它刚才是不是尖叫了一声？', en: 'Did... did it just scream?' },
-                    { zh: '我拿到钥匙之后，它的眼睛突然变红了，而且飘得比刚才快了一倍！', en: 'The moment I grabbed the key, its eyes turned red and it started floating twice as fast!' },
-                    { zh: '快带我跑！它疯了一样追过来了！！这把钥匙根本就是个警报器！', en: 'Lead me away! It\'s chasing me like crazy!! This key is literally just an alarm!' }
+                    { zh: '上次我一拿钥匙，那个黄色的就疯了一样追我。', en: 'Last time I grabbed the key, the yellow one came after me like crazy.' },
+                    { zh: '这次我可不想拿着钥匙到处乱跑。拿之前，你先把去门的路看好。', en: 'I\'m not running around with the key this time. Before I grab it, figure out the way to the door.' },
+                    { zh: '这把钥匙根本就是个警报器吧！', en: 'This key is basically an alarm!' }
                 ],
                 replies: [
                     commonReplies.steady,
@@ -363,11 +363,11 @@
             l10BendRoom: {
                 title: { zh: 'L10 / 夹缝突围', en: 'L10 / Pincer Breakout' },
                 status: { zh: '隐藏信道', en: 'Hidden channel' },
-                bubble: { zh: '两个怪……它们包抄我了！', en: 'Two monsters... they\'re pincering me!' },
+                bubble: { zh: '三个……它们要包抄我！', en: 'Three of them... they\'re closing in!' },
                 lines: [
                     { zh: '我的终端又收到一个未公开的隐藏测试信号。', en: 'My terminal received another hidden test signal.' },
-                    { zh: '两只红色追击者把我夹在中间，而且黄色守卫一开始就往门口靠？', en: 'Two red chasers are pinching me in the middle, and the yellow guard is moving to block the exit?' },
-                    { zh: '冷静点，手别抖！找个最致命的关隘把它砸断，不然死定了！', en: 'Stay calm, don\'t let your hand shake! Find the most critical path and smash it, or we\'re dead!' }
+                    { zh: '三只红的围过来，黄色那个还守着钥匙。我一拿钥匙，它肯定去堵门。', en: 'Three red ones closing in, and the yellow one\'s on the key. Once I grab it, it\'s going to block the door.' },
+                    { zh: '碎解只有一次。手别抖，砸对地方。', en: 'We\'ve got one Break. Steady hands. Hit the right tile.' }
                 ],
                 replies: [
                     {
@@ -391,9 +391,9 @@
                 ]
             },
             l11LureLock: {
-                title: { zh: 'L11 / 预判守门', en: 'L11 / Gate Block Predict' },
+                title: { zh: 'L11 / 堵门', en: 'L11 / Door Block' },
                 status: { zh: '门线危险', en: 'Door lane danger' },
-                bubble: { zh: '那家伙居然守在门口！', en: 'That guy is guarding the exit!' },
+                bubble: { zh: '它好像知道门在哪……', en: 'It seems to know where the door is...' },
                 lines: [
                     { zh: '那黄色怪物居然不仅盯着钥匙，它好像知道门在哪里！', en: 'That yellow monster isn\'t just staring at the key, it seems to know where the door is!' },
                     { zh: '这地表能转，能不能想办法在它彻底把门口堵死之前，把它拧到别的面去？', en: 'The floor is rotatable. Can we twist it to another face before it chokes the exit?' },
@@ -408,9 +408,9 @@
             l12FinalePrep: {
                 title: { zh: 'L12 / 最后的门？', en: 'L12 / The Final Door?' },
                 status: { zh: '第一幕终局', en: 'Act I Finale' },
-                bubble: { zh: '终于……门开了！', en: 'Finally... the door opened!' },
+                bubble: { zh: '那扇门……安静得可疑。', en: 'That door is... suspiciously quiet.' },
                 lines: [
-                    { zh: '这扇门后面看起来一片安静。安静得很可疑。', en: 'It looks quiet behind this door. Suspicously quiet.' },
+                    { zh: '这扇门后面看起来一片安静。安静得很可疑。', en: 'It looks quiet behind this door. Suspiciously quiet.' },
                     { zh: '不管怎么说，我们要离开这一层了。', en: 'Regardless, we\'re leaving this layer.' },
                     { zh: '如果这扇门后面不是出口……你绝对不许笑！', en: 'If the door doesn\'t lead outside... you are absolutely not allowed to laugh!' }
                 ],

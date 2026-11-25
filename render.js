@@ -3,6 +3,15 @@
  * WebGL 3D 渲染与物理动画引擎
  */
 
+// Neon glow (bloom). Turned off automatically in low-power mode.
+// Selective glow: only objects on `layer` feed the bloom pass (cube borders/edges, rings, key, exit, portals, beacon).
+// Cublet glass fills and dark interior panels swap to black-backed unlit materials in the bloom pass so they add no haze.
+// Full-res target and only the three finest blur levels: coarser levels smear blocky blotches over the faces.
+const BLOOM_SETTINGS = { enabled: true, layer: 1, strength: 0.85, radius: 0, threshold: 0.3, resolutionScale: 1, mipFactors: [1, 0.6, 0.2, 0, 0] };
+
+// Act 1 danger tiles: a clear red (enemy colours are pink/magenta, which read as "not red").
+const ACT1_DANGER_COLOR = '#ff2a2a';
+
 class RenderEngine {
     constructor() {
         this.container = null;
@@ -56,6 +65,8 @@ class RenderEngine {
         this.plannedLine = null;
         this.artGroup = null;
         this.faceTextureCache = {};
+        this.bloomFaceTextureCache = {};
+        this.bloomFaceMaterialCache = {};
         this.badgeTextureCache = {};
         this.animationFrameId = null;
         this.boundAnimate = this.animate.bind(this);
@@ -66,7 +77,7 @@ class RenderEngine {
         this.lastRenderFrameAt = 0;
         this.visibleFrameIntervalMs = 1000 / 45;
         this.lowPowerFrameIntervalMs = 1000 / 24;
-        this.standardMaxPixelRatio = 1.25;
+        this.standardMaxPixelRatio = 2;
         this.lowPowerMaxPixelRatio = 0.85;
         this.lowPowerMode = false;
         this.targetIndicator = null;
@@ -109,11 +120,9 @@ class RenderEngine {
         this.isOrbitActive = false;
         this.tutorialZoomBaseline = null;
         this.tutorialZoomLastDistance = null;
-        this.tutorialZoomAccumulated = 0;
         this.tutorialZoomDistanceAccumulated = 0;
         this.tutorialZoomCompleted = false;
         this.tutorialZoomWheelOut = false;
-        this.tutorialZoomLastTickTime = null;
         this.tutorialControlLockUntil = 0;
     }
 
@@ -256,6 +265,15 @@ class RenderEngine {
         const rimLight = new THREE.PointLight(0xffb700, 0.55, 15);
         rimLight.position.set(-4, 3, 5);
         this.scene.add(rimLight);
+        this.lights = { ambientLight, hemisphereLight, dirLight1, dirLight2, fillLight, rimLight };
+        Object.values(this.lights).forEach(light => this.markBloomLight(light));
+    }
+
+    getMaxAnisotropy() {
+        if (this.maxAnisotropy) return this.maxAnisotropy;
+        const value = this.renderer?.capabilities?.getMaxAnisotropy?.() || 4;
+        if (this.renderer) this.maxAnisotropy = value;
+        return value;
     }
 
     getTargetPixelRatio() {
@@ -374,6 +392,7 @@ class RenderEngine {
     }
 
     hideTwistCrossHint() {
+        window.audioFeedback?.setMuffled?.(false);
         if (!this.twistCrossHint) return;
         this.twistCrossHint.classList.add('is-hidden');
         this.twistCrossHint.classList.remove('is-horizontal', 'is-vertical', 'is-up', 'is-right', 'is-down', 'is-left', 'is-blocked', 'is-disabled');
@@ -418,6 +437,8 @@ class RenderEngine {
         this.showTwistCrossHint(down.x, down.y, candidates);
         const layer = this.getActiveTutorialTwistLayer() || this.getPrimaryTwistCandidate(candidates);
         if (layer) this.highlightLayer(layer.axis, layer.layer);
+        window.audioFeedback?.play('twistArm');
+        window.audioFeedback?.setMuffled?.(true);
     }
 
     cancelLongPressTwist() {
@@ -736,8 +757,8 @@ class RenderEngine {
     showTwistViewWarning() {
         const lang = typeof window !== 'undefined' && window.currentLang === 'en' ? 'en' : 'zh';
         const text = lang === 'en'
-            ? 'View angle is too steep. Rotate the camera, then drag the row or column again.'
-            : '当前视角太斜，无法判断合理旋转方向。先转一下镜头，再横拖或竖拖。';
+            ? 'The view is too tilted. Turn the camera a bit, then drag again.'
+            : '镜头太斜了。先把视角转正一点，再拖。';
         this.game?.showFeel?.(text, 'warn');
     }
 
@@ -867,6 +888,7 @@ class RenderEngine {
                     color: config.color
                 };
                 visible.userData.twistRingHost = group;
+                this.markBloom(visible);
                 hitbox.userData.twistRingHost = group;
                 this.scene.add(group);
                 this.twistRingMeshes.push(group);
@@ -1339,7 +1361,7 @@ class RenderEngine {
 
         const width = this.container.clientWidth || 1;
         const height = this.container.clientHeight || 1;
-        const ratio = Math.min(window.devicePixelRatio || 1, 1.25);
+        const ratio = Math.min(window.devicePixelRatio || 1, this.lowPowerMode ? this.lowPowerMaxPixelRatio : this.standardMaxPixelRatio);
         const targetWidth = Math.max(1, Math.floor(width * ratio));
         const targetHeight = Math.max(1, Math.floor(height * ratio));
         if (this.fallbackCanvas.width !== targetWidth || this.fallbackCanvas.height !== targetHeight) {
@@ -1567,9 +1589,23 @@ class RenderEngine {
         }
 
         Object.values(this.faceTextureCache).forEach(texture => texture.dispose?.());
+        Object.values(this.bloomFaceMaterialCache || {}).forEach(mat => mat.dispose?.());
+        Object.values(this.bloomFaceTextureCache || {}).forEach(texture => texture.dispose?.());
         Object.values(this.badgeTextureCache).forEach(texture => texture.dispose?.());
         this.faceTextureCache = {};
+        this.bloomFaceTextureCache = {};
+        this.bloomFaceMaterialCache = {};
         this.badgeTextureCache = {};
+        this.bloomBlackMaterial?.dispose?.();
+        this.bloomBlackMaterial = null;
+        this.bloomCubeBlackMaterial?.dispose?.();
+        this.bloomCubeBlackMaterial = null;
+        if (this.bloom) {
+            this.bloom.target?.dispose?.();
+            this.bloom.pass?.dispose?.();
+            this.bloom = null;
+        }
+        this.bloomOccluders = null;
         this.cleanupFallback();
 
         if (this.renderer) {
@@ -1619,6 +1655,30 @@ class RenderEngine {
         return 18.5;
     }
 
+    // 3/4 view of a cube face: mostly along the face normal, tilted toward two neighbouring
+    // faces so three faces are visible (designer choice 2026-11-19: no flat face-on start view).
+    getThreeQuarterDirection(vec) {
+        const v = vec.clone();
+        const ax = Math.abs(v.x), ay = Math.abs(v.y), az = Math.abs(v.z);
+        const n = new THREE.Vector3();
+        if (ay >= ax && ay >= az) n.set(0, Math.sign(v.y) || 1, 0);
+        else if (ax >= az) n.set(Math.sign(v.x) || 1, 0, 0);
+        else n.set(0, 0, Math.sign(v.z) || 1);
+        const dir = n.clone();
+        if (n.y !== 0) {
+            dir.add(new THREE.Vector3(0.5, 0, 0.62));
+        } else {
+            dir.add(new THREE.Vector3(0, 0.62, 0));
+            if (n.x !== 0) dir.z += 0.5; else dir.x += 0.5;
+        }
+        return dir.normalize();
+    }
+
+    getGameCameraPosition(playerPosition) {
+        const length = Math.hypot(this.getCameraDistance(), 9.5);
+        return this.getThreeQuarterDirection(playerPosition).multiplyScalar(length);
+    }
+
     resetCamera() {
         if (!this.camera || !this.controls) return;
         
@@ -1627,10 +1687,8 @@ class RenderEngine {
         
         if (this.playerMesh) {
             const pPos = this.playerMesh.position.clone();
-            const dir = pPos.clone().normalize();
             if (pPos.length() > 0.1) {
-                targetPosition.copy(dir).multiplyScalar(this.getCameraDistance());
-                targetPosition.y += 9.5;
+                targetPosition.copy(this.getGameCameraPosition(pPos));
                 targetLookAt.copy(this.getGameplayOrbitPivot(pPos));
             }
         }
@@ -1725,10 +1783,8 @@ class RenderEngine {
         let targetPosition = new THREE.Vector3(10.8, 10.0, 15.9);
         if (this.playerMesh) {
             const pPos = this.playerMesh.position.clone();
-            const dir = pPos.clone().normalize();
             if (pPos.length() > 0.1) {
-                targetPosition.copy(dir).multiplyScalar(this.getCameraDistance());
-                targetPosition.y += 9.5;
+                targetPosition.copy(this.getGameCameraPosition(pPos));
             }
         }
         
@@ -1778,6 +1834,7 @@ class RenderEngine {
     isCachedTexture(value) {
         if (!value || typeof value !== 'object') return false;
         return Object.values(this.faceTextureCache || {}).includes(value)
+            || Object.values(this.bloomFaceTextureCache || {}).includes(value)
             || Object.values(this.badgeTextureCache || {}).includes(value);
     }
 
@@ -1892,14 +1949,15 @@ class RenderEngine {
                     
                     // 确定每个子立方体 6 个面的材质
                     const materials = Array(6).fill(darkMaterial);
+                    const bloomMaterials = Array(6).fill(this.getBloomCubeBlackMaterial());
                     
                     // 检查子方块是否暴露在外面，如果是，赋予对应的霓虹材质
-                    if (x === N - 1 && !this.isVoidCellId(faceCellIds[0])) materials[0] = createFaceMaterial(faceColors[3], 3); // R (+X)
-                    if (x === 0 && !this.isVoidCellId(faceCellIds[1]))     materials[1] = createFaceMaterial(faceColors[2], 2); // L (-X)
-                    if (y === N - 1 && !this.isVoidCellId(faceCellIds[2])) materials[2] = createFaceMaterial(faceColors[0], 0); // U (+Y)
-                    if (y === 0 && !this.isVoidCellId(faceCellIds[3]))     materials[3] = createFaceMaterial(faceColors[1], 1); // D (-Y)
-                    if (z === 0 && !this.isVoidCellId(faceCellIds[4]))     materials[4] = createFaceMaterial(faceColors[4], 4); // F (+Z)
-                    if (z === N - 1 && !this.isVoidCellId(faceCellIds[5])) materials[5] = createFaceMaterial(faceColors[5], 5); // B (-Z)
+                    if (x === N - 1 && !this.isVoidCellId(faceCellIds[0])) { materials[0] = createFaceMaterial(faceColors[3], 3); bloomMaterials[0] = this.getBloomFaceMaterial(faceColors[3]); } // R (+X)
+                    if (x === 0 && !this.isVoidCellId(faceCellIds[1]))     { materials[1] = createFaceMaterial(faceColors[2], 2); bloomMaterials[1] = this.getBloomFaceMaterial(faceColors[2]); } // L (-X)
+                    if (y === N - 1 && !this.isVoidCellId(faceCellIds[2])) { materials[2] = createFaceMaterial(faceColors[0], 0); bloomMaterials[2] = this.getBloomFaceMaterial(faceColors[0]); } // U (+Y)
+                    if (y === 0 && !this.isVoidCellId(faceCellIds[3]))     { materials[3] = createFaceMaterial(faceColors[1], 1); bloomMaterials[3] = this.getBloomFaceMaterial(faceColors[1]); } // D (-Y)
+                    if (z === 0 && !this.isVoidCellId(faceCellIds[4]))     { materials[4] = createFaceMaterial(faceColors[4], 4); bloomMaterials[4] = this.getBloomFaceMaterial(faceColors[4]); } // F (+Z)
+                    if (z === N - 1 && !this.isVoidCellId(faceCellIds[5])) { materials[5] = createFaceMaterial(faceColors[5], 5); bloomMaterials[5] = this.getBloomFaceMaterial(faceColors[5]); } // B (-Z)
                     
                     const geometry = new THREE.BoxGeometry(cubletSize, cubletSize, cubletSize);
                     this.removeVoidFaceGroups(geometry, faceCellIds);
@@ -1923,9 +1981,11 @@ class RenderEngine {
                         isLayerHighlight: false
                     };
                     mesh.add(line);
+                    this.markBloom(mesh);
+                    this.markBloom(line);
                     
                     // 挂载局部网格索引以便旋转计算
-                    mesh.userData = { gridX: x, gridY: y, gridZ: z };
+                    mesh.userData = { gridX: x, gridY: y, gridZ: z, normalMaterials: materials, bloomMaterials };
                     
                     this.scene.add(mesh);
                     this.cublets.push(mesh);
@@ -1964,9 +2024,11 @@ class RenderEngine {
         if (this.faceTextureCache[textureKey]) return this.faceTextureCache[textureKey];
 
         const canvas = document.createElement('canvas');
-        canvas.width = 128;
-        canvas.height = 128;
+        // Draw at 128-unit coordinates, rasterise at 4x so tiles stay sharp at 1080p+.
+        canvas.width = 512;
+        canvas.height = 512;
         const ctx = canvas.getContext('2d');
+        ctx.scale(4, 4);
 
         ctx.clearRect(0, 0, 128, 128);
         ctx.fillStyle = 'rgba(255,255,255,0.025)';
@@ -2022,7 +2084,7 @@ class RenderEngine {
         this.drawFaceIdentityTexture(ctx, faceId, rgba);
 
         const texture = new THREE.CanvasTexture(canvas);
-        texture.anisotropy = 4;
+        texture.anisotropy = this.getMaxAnisotropy();
         this.faceTextureCache[textureKey] = texture;
         return texture;
     }
@@ -2146,6 +2208,7 @@ class RenderEngine {
         );
         rim.rotation.x = Math.PI / 2;
         rim.position.y = 0.1;
+        this.markBloom(rim);
         group.add(rim);
 
         const stem = new THREE.Mesh(
@@ -2180,9 +2243,10 @@ class RenderEngine {
         if (this.badgeTextureCache[key]) return this.badgeTextureCache[key];
 
         const canvas = document.createElement('canvas');
-        canvas.width = 128;
-        canvas.height = 128;
+        canvas.width = 256;
+        canvas.height = 256;
         const ctx = canvas.getContext('2d');
+        ctx.scale(2, 2);
         const rgb = this.hexToRgb(new THREE.Color(color).getHex());
         const accent = `rgba(${rgb.r}, ${rgb.g}, ${rgb.b}, 0.96)`;
         const softAccent = `rgba(${rgb.r}, ${rgb.g}, ${rgb.b}, 0.28)`;
@@ -2190,7 +2254,7 @@ class RenderEngine {
         ctx.clearRect(0, 0, 128, 128);
         ctx.save();
         ctx.shadowColor = accent;
-        ctx.shadowBlur = 18;
+        ctx.shadowBlur = 36;
         ctx.fillStyle = 'rgba(5, 8, 14, 0.92)';
         ctx.strokeStyle = accent;
         ctx.lineWidth = 5;
@@ -2275,7 +2339,7 @@ class RenderEngine {
         }
 
         const texture = new THREE.CanvasTexture(canvas);
-        texture.anisotropy = 4;
+        texture.anisotropy = this.getMaxAnisotropy();
         this.badgeTextureCache[key] = texture;
         return texture;
     }
@@ -2286,9 +2350,10 @@ class RenderEngine {
         if (this.badgeTextureCache[key]) return this.badgeTextureCache[key];
 
         const canvas = document.createElement('canvas');
-        canvas.width = 128;
-        canvas.height = 128;
+        canvas.width = 256;
+        canvas.height = 256;
         const ctx = canvas.getContext('2d');
+        ctx.scale(2, 2);
         const rgb = this.hexToRgb(tokenColor.getHex());
         const accent = `rgba(${rgb.r}, ${rgb.g}, ${rgb.b}, 0.96)`;
         const softAccent = `rgba(${rgb.r}, ${rgb.g}, ${rgb.b}, 0.26)`;
@@ -2296,7 +2361,7 @@ class RenderEngine {
         ctx.clearRect(0, 0, 128, 128);
         ctx.save();
         ctx.shadowColor = accent;
-        ctx.shadowBlur = 16;
+        ctx.shadowBlur = 32;
         ctx.fillStyle = 'rgba(5, 8, 14, 0.88)';
         ctx.strokeStyle = accent;
         ctx.lineWidth = 5;
@@ -2358,7 +2423,7 @@ class RenderEngine {
         }
 
         const texture = new THREE.CanvasTexture(canvas);
-        texture.anisotropy = 4;
+        texture.anisotropy = this.getMaxAnisotropy();
         this.badgeTextureCache[key] = texture;
         return texture;
     }
@@ -2659,7 +2724,7 @@ class RenderEngine {
         this.orientTokenToCell(this.playerMesh, this.game.playerPos);
         
         // 玩家光晕
-        const playerLight = new THREE.PointLight(0x00ff88, 1, 3);
+        const playerLight = this.markBloomLight(new THREE.PointLight(0x00ff88, 1, 3));
         this.playerMesh.add(playerLight);
         this.attachRealtimeTimerVisual(this.playerMesh, '#8bdcff', 'GO', 'player', { showLabel: false });
         if (this.lastSpeechBubbleText) {
@@ -2691,6 +2756,7 @@ class RenderEngine {
                 })
             );
             ring.rotation.x = Math.PI / 2;
+            this.markBloom(ring);
             mesh.add(body);
             mesh.add(ring);
             
@@ -2699,13 +2765,14 @@ class RenderEngine {
             this.orientTokenToCell(mesh, ai.pos);
             
             // AI 光晕
-            const aiLight = new THREE.PointLight(ai.color, 0.8, 2.5);
+            const aiLight = this.markBloomLight(new THREE.PointLight(ai.color, 0.8, 2.5));
             mesh.add(aiLight);
             this.attachRealtimeTimerVisual(mesh, ai.color || '#ff0055', '...', 'ai', { showLabel: false });
             
             this.scene.add(mesh);
             this.aiMeshes[ai.id] = mesh;
         });
+        this.collectBloomOccluders();
         
         // 3. 钥匙：直接做成可识别的钥匙轮廓
         if (!this.game.hasKey && this.game.keyPos !== null) {
@@ -2723,6 +2790,7 @@ class RenderEngine {
 
             const keyLight = new THREE.PointLight(0xffb700, 0.8, 2.4);
             this.keyMesh.add(keyLight);
+            this.markBloomTree(this.keyMesh);
             this.scene.add(this.keyMesh);
         }
 
@@ -2743,7 +2811,7 @@ class RenderEngine {
         });
 
         if (this.game.beaconCell !== null && this.game.beaconCell !== undefined) {
-            this.beaconMesh = this.createBeaconProp(this.game.beaconCell);
+            this.beaconMesh = this.markBloomTree(this.createBeaconProp(this.game.beaconCell));
             this.scene.add(this.beaconMesh);
         }
 
@@ -2812,7 +2880,7 @@ class RenderEngine {
             );
             core.position.z = 0.02;
             group.add(core);
-            const light = new THREE.PointLight(color, 0.5, 1.6);
+            const light = this.markBloomLight(new THREE.PointLight(color, 0.5, 1.6));
             light.position.z = 0.15;
             group.add(light);
         }
@@ -2928,7 +2996,7 @@ class RenderEngine {
         rim.position.z = 0.015;
         group.add(rim);
 
-        const light = new THREE.PointLight(0x8bdcff, 0.45, 2.2);
+        const light = this.markBloomLight(new THREE.PointLight(0x8bdcff, 0.45, 2.2));
         light.position.z = 0.12;
         group.add(light);
         return group;
@@ -3058,6 +3126,7 @@ class RenderEngine {
         this.exitMesh.userData.stateInitialized = false;
         this.exitMesh.userData.iconMaterial = signMat;
         this.exitMesh.userData.detailMaterials = [portalMat, outerRing.material];
+        this.markBloomTree(this.exitMesh);
         this.scene.add(this.exitMesh);
     }
 
@@ -3080,6 +3149,7 @@ class RenderEngine {
                 portal.userData.cellId = config.cellId;
                 portal.userData.bridgeIndex = index;
                 portal.userData.spinTarget = portal.userData.spinTarget || portal;
+                this.markBloomTree(portal);
                 this.scene.add(portal);
                 this.bridgePortalMeshes.push(portal);
             });
@@ -3214,7 +3284,7 @@ class RenderEngine {
         ctx.fillText(label, 48, 51);
 
         const texture = new THREE.CanvasTexture(canvas);
-        texture.anisotropy = 4;
+        texture.anisotropy = this.getMaxAnisotropy();
         const sprite = new THREE.Sprite(new THREE.SpriteMaterial({
             map: texture,
             transparent: true,
@@ -3482,6 +3552,7 @@ class RenderEngine {
         );
         ring.rotation.x = Math.PI / 2;
         ring.position.y = kind === 'player' ? 0.02 : 0.04;
+        this.markBloom(ring);
         group.add(ring);
         const labelSprite = showLabel ? this.createTimerLabelSprite(label, color) : null;
         if (labelSprite) {
@@ -3571,7 +3642,29 @@ class RenderEngine {
         state.ais.forEach(aiState => {
             this.applyTimerState(this.aiMeshes[aiState.id], aiState, aiState.color || '#ff0055');
         });
-        this.updateThreatPreviewMeshes(state.ais);
+        this.updateThreatPreviewMeshes(this.getThreatMarkerEntries(state.ais));
+    }
+
+    // Act 1: one red marker on every tile where Dawn would be caught next turn.
+    // Act 2 (real-time clocks): one marker per enemy on the tile it is about to enter.
+    getThreatMarkerEntries(aiStates) {
+        if (this.game?.isActOneStepUndo?.()) {
+            return [...this.game.getActOneDangerCells()].map(cellId => ({
+                key: `cell-${cellId}`,
+                cellId,
+                color: ACT1_DANGER_COLOR,
+                progress: 0.6,
+                solid: true
+            }));
+        }
+        return aiStates
+            .filter(aiState => aiState.nextCell !== null && aiState.nextCell !== undefined)
+            .map(aiState => ({
+                key: String(aiState.id),
+                cellId: aiState.nextCell,
+                color: aiState.color || '#ff0055',
+                progress: aiState.progress
+            }));
     }
 
     applyTimerState(mesh, state, color) {
@@ -3595,26 +3688,25 @@ class RenderEngine {
         );
     }
 
-    updateThreatPreviewMeshes(aiStates) {
+    updateThreatPreviewMeshes(entries) {
         if (window.dawnCubeSettings?.threatPreviewEnabled === false) {
             this.clearThreatPreviewMeshes();
             return;
         }
         const active = new Set();
-        aiStates.forEach(aiState => {
-            if (aiState.nextCell === null || aiState.nextCell === undefined) return;
-            const key = String(aiState.id);
+        entries.forEach(entry => {
+            const key = entry.key;
             active.add(key);
             if (!this.threatPreviewMeshes[key]) {
-                const mesh = this.createThreatPreviewMesh(aiState.nextCell, aiState.color || '#ff0055');
+                const mesh = this.createThreatPreviewMesh(entry.cellId, entry.color, { solid: entry.solid });
                 this.threatPreviewMeshes[key] = mesh;
                 this.scene.add(mesh);
             }
             const mesh = this.threatPreviewMeshes[key];
-            const normal = this.getCellNormalVector(this.game.cells[aiState.nextCell]);
-            mesh.position.copy(this.getCellWorldPosition(aiState.nextCell, 'pulse').clone().addScaledVector(normal, 0.045));
+            const normal = this.getCellNormalVector(this.game.cells[entry.cellId]);
+            mesh.position.copy(this.getCellWorldPosition(entry.cellId, 'pulse').clone().addScaledVector(normal, 0.045));
             mesh.quaternion.setFromUnitVectors(new THREE.Vector3(0, 0, 1), normal);
-            const urgency = Math.max(0, Math.min(1, aiState.progress));
+            const urgency = Math.max(0, Math.min(1, entry.progress));
             if (mesh.userData?.fillMaterial) {
                 mesh.userData.fillMaterial.opacity = 0.52 + urgency * 0.32;
             }
@@ -3647,11 +3739,13 @@ class RenderEngine {
         this.threatPreviewMeshes = {};
     }
 
-    createThreatPreviewMesh(cellId, color) {
+    // solid: normal blending so the marker stays red on bright glass (additive turns it pale pink).
+    createThreatPreviewMesh(cellId, color, { solid = false } = {}) {
         const normal = this.getCellNormalVector(this.game.cells[cellId]);
         const markerColor = new THREE.Color(color || '#ff0055');
-        const warningColor = markerColor.clone().lerp(new THREE.Color(0xffffff), 0.08);
-        const dangerFill = markerColor.clone().lerp(new THREE.Color(0x050814), 0.22);
+        const warningColor = markerColor.clone().lerp(new THREE.Color(0xffffff), solid ? 0 : 0.08);
+        const dangerFill = markerColor.clone().lerp(new THREE.Color(0x050814), solid ? 0.38 : 0.22);
+        const markerBlending = solid ? THREE.NormalBlending : THREE.AdditiveBlending;
         const slashColor = markerColor.clone().lerp(new THREE.Color(0xffffff), 0.34);
         const group = new THREE.Group();
         const fillMaterial = new THREE.MeshBasicMaterial({
@@ -3660,7 +3754,8 @@ class RenderEngine {
             opacity: 0.58,
             side: THREE.DoubleSide,
             depthWrite: false,
-            blending: THREE.AdditiveBlending
+            blending: markerBlending,
+            toneMapped: !solid
         });
         const outerMaterial = new THREE.MeshBasicMaterial({
             color: warningColor,
@@ -3668,7 +3763,8 @@ class RenderEngine {
             opacity: 0.9,
             side: THREE.DoubleSide,
             depthWrite: false,
-            blending: THREE.AdditiveBlending
+            blending: markerBlending,
+            toneMapped: !solid
         });
         const innerMaterial = new THREE.MeshBasicMaterial({
             color: 0xffffff,
@@ -3756,12 +3852,13 @@ class RenderEngine {
 
     createTutorialArrowTexture() {
         const canvas = document.createElement('canvas');
-        canvas.width = 128;
-        canvas.height = 128;
+        canvas.width = 256;
+        canvas.height = 256;
         const ctx = canvas.getContext('2d');
+        ctx.scale(2, 2);
         ctx.clearRect(0, 0, 128, 128);
         ctx.shadowColor = '#00ff88';
-        ctx.shadowBlur = 12;
+        ctx.shadowBlur = 24;
         ctx.fillStyle = '#00ff88';
         ctx.beginPath();
         ctx.moveTo(64, 16);
@@ -3964,10 +4061,22 @@ class RenderEngine {
         const normal = this.getCellNormalVector(cellId);
         
         // Dynamic camera focal distance: keep target clear
-        const position = target.clone()
-            .addScaledVector(normal, 6.8)
-            .add(new THREE.Vector3(3.2, 2.5, 3.2));
+        // Same view direction as before, but ended at the normal play distance so the whole cube face stays in view.
+        const flyDir = this.getThreeQuarterDirection(normal);
+        const minD = Number.isFinite(this.controls.minDistance) ? this.controls.minDistance : 6.8;
+        const maxD = Number.isFinite(this.controls.maxDistance) ? this.controls.maxDistance : 28;
+        const flyDistance = Math.min(maxD, Math.max(minD, Math.hypot(this.getCameraDistance(), 9.5)));
+        const position = target.clone().addScaledVector(flyDir, flyDistance);
         
+        // Remember the pre-tutorial camera once per level so it can be restored when the tutorial ends.
+        if (!this.tutorialCameraMemo) {
+            const fl = this.cameraFlight;
+            this.tutorialCameraMemo = {
+                position: (fl ? fl.targetPosition : this.camera.position).clone(),
+                target: (fl ? fl.targetLookAt : this.controls.target).clone()
+            };
+        }
+
         const startPosition = this.camera.position.clone();
         const startTime = performance.now();
         
@@ -3986,6 +4095,37 @@ class RenderEngine {
             targetPosition: position,
             targetLookAt: target,
             startTime,
+            duration,
+            resolve: () => {
+                if (this.controls) {
+                    this.controls.target.copy(target);
+                    this.controls.enabled = performance.now() >= this.tutorialControlLockUntil;
+                    this.controls.update();
+                }
+            }
+        };
+    }
+
+    clearTutorialCameraMemo() {
+        this.tutorialCameraMemo = null;
+    }
+
+    // Fly back to the camera state saved before the first tutorial fly (once), then forget it.
+    restoreTutorialCamera(duration = 850) {
+        const memo = this.tutorialCameraMemo;
+        this.tutorialCameraMemo = null;
+        if (this.tutorialFocusTimer) { clearTimeout(this.tutorialFocusTimer); this.tutorialFocusTimer = null; }
+        if (this.tutorialFocusRetryTimer) { clearTimeout(this.tutorialFocusRetryTimer); this.tutorialFocusRetryTimer = null; }
+        if (!memo || !this.camera || !this.controls) return;
+        const target = memo.target.clone();
+        this.presentationMode = 'game';
+        this.tutorialControlLockUntil = Math.max(this.tutorialControlLockUntil || 0, performance.now() + duration);
+        this.controls.enabled = false;
+        this.cameraFlight = {
+            startPosition: this.camera.position.clone(),
+            targetPosition: memo.position.clone(),
+            targetLookAt: target,
+            startTime: performance.now(),
             duration,
             resolve: () => {
                 if (this.controls) {
@@ -4114,7 +4254,6 @@ class RenderEngine {
         const step = this.game.activeTutorialSteps?.[this.game.currentTutorialStepIndex];
         if (step?.type !== 'look') return;
         if (!this.isOrbitActive || this.cameraFlight) {
-            this.lastLookTickTime = null;
             this.tutorialLookLastAngles = null;
             return;
         }
@@ -4122,31 +4261,28 @@ class RenderEngine {
         if (!current) return;
         if (!this.tutorialLookLastAngles) {
             this.tutorialLookLastAngles = current;
-            this.lastLookTickTime = Date.now();
             return;
         }
-        const deltaTheta = Math.abs(current.theta - this.tutorialLookLastAngles.theta);
+        let deltaTheta = Math.abs(current.theta - this.tutorialLookLastAngles.theta) % (Math.PI * 2);
+        if (deltaTheta > Math.PI) deltaTheta = Math.PI * 2 - deltaTheta;
         const deltaPhi = Math.abs(current.phi - this.tutorialLookLastAngles.phi);
         this.tutorialLookLastAngles = current;
 
-        const now = Date.now();
-        const elapsedSec = (now - this.lastLookTickTime) / 1000;
-        this.lastLookTickTime = now;
+        // Accumulate rotated angle (radians) rather than held time: a normal drag
+        // sweeps well past the threshold in under a second.
+        const angleDelta = deltaTheta + deltaPhi;
+        if (angleDelta < 0.0005) return;
 
-        // Only accumulate time if the camera is actively rotating this frame
-        if (deltaTheta + deltaPhi > 0.001) {
-            const threshold = Number(step.threshold || 3.0);
-            this.tutorialLookAccumulated += elapsedSec;
-            if (typeof window !== 'undefined') {
-                window.updateTutorialLookProgress?.(this.tutorialLookAccumulated / threshold);
-            }
-            if (this.tutorialLookAccumulated >= threshold) {
-                this.lastLookTickTime = null;
-                this.tutorialLookLastAngles = null;
-                this.tutorialLookAccumulated = 0;
-                if (typeof window !== 'undefined' && window.advanceTutorialStep) {
-                    window.advanceTutorialStep();
-                }
+        const threshold = Number(step.angleThreshold || 1.2);
+        this.tutorialLookAccumulated = (this.tutorialLookAccumulated || 0) + angleDelta;
+        if (typeof window !== 'undefined') {
+            window.updateTutorialLookProgress?.(this.tutorialLookAccumulated / threshold);
+        }
+        if (this.tutorialLookAccumulated >= threshold) {
+            this.tutorialLookLastAngles = null;
+            this.tutorialLookAccumulated = 0;
+            if (typeof window !== 'undefined' && window.advanceTutorialStep) {
+                window.advanceTutorialStep();
             }
         }
     }
@@ -4157,51 +4293,44 @@ class RenderEngine {
         if (step?.type !== 'zoom') {
             this.tutorialZoomBaseline = null;
             this.tutorialZoomLastDistance = null;
-            this.tutorialZoomAccumulated = 0;
             this.tutorialZoomDistanceAccumulated = 0;
             this.tutorialZoomCompleted = false;
             this.tutorialZoomWheelOut = false;
-            this.tutorialZoomLastTickTime = null;
             return;
         }
         if (this.tutorialZoomCompleted) return;
         if (this.cameraFlight) {
             this.tutorialZoomBaseline = null;
             this.tutorialZoomLastDistance = null;
-            this.tutorialZoomAccumulated = 0;
             this.tutorialZoomDistanceAccumulated = 0;
-            this.tutorialZoomLastTickTime = null;
             return;
         }
-        const now = performance.now();
         const currentDistance = this.camera.position.distanceTo(this.controls.target);
         if (this.tutorialZoomBaseline === null || this.tutorialZoomBaseline === undefined) {
             this.tutorialZoomBaseline = currentDistance;
             this.tutorialZoomLastDistance = currentDistance;
-            this.tutorialZoomAccumulated = 0;
             this.tutorialZoomDistanceAccumulated = 0;
             this.tutorialZoomWheelOut = false;
-            this.tutorialZoomLastTickTime = now;
             return;
         }
-        const distanceDelta = Math.abs(currentDistance - (this.tutorialZoomLastDistance ?? currentDistance));
-        const elapsed = Math.min(0.08, Math.max(0, (now - (this.tutorialZoomLastTickTime ?? now)) / 1000));
-        if (distanceDelta > 0.006 || this.tutorialZoomWheelOut) {
-            this.tutorialZoomAccumulated = (this.tutorialZoomAccumulated || 0) + elapsed;
+        // Only count outward movement: the step asks the player to zoom out.
+        const zoomOutDelta = currentDistance - (this.tutorialZoomLastDistance ?? currentDistance);
+        if (zoomOutDelta > 0.006) {
+            this.tutorialZoomDistanceAccumulated = (this.tutorialZoomDistanceAccumulated || 0) + zoomOutDelta;
         }
-        if (distanceDelta > 0.006) {
-            this.tutorialZoomDistanceAccumulated = (this.tutorialZoomDistanceAccumulated || 0) + distanceDelta;
-        }
-        this.tutorialZoomWheelOut = false;
-        this.tutorialZoomLastTickTime = now;
         this.tutorialZoomLastDistance = currentDistance;
-        const durationTarget = Number(step.wheelThreshold || step.threshold || 2.0);
+
         const distanceTarget = Number(step.distanceThreshold || 1.5);
-        const progress = Math.min(
-            (this.tutorialZoomAccumulated || 0) / durationTarget,
-            (this.tutorialZoomDistanceAccumulated || 0) / distanceTarget
-        );
-        
+        const maxDistance = Number(this.controls.maxDistance);
+        // tutorialZoomWheelOut is a latch set by the wheel handler and cleared when
+        // the step changes/completes: it means the player actually scrolled out.
+        const reachedMaxDistance = this.tutorialZoomWheelOut === true
+            && Number.isFinite(maxDistance)
+            && maxDistance - currentDistance <= 0.3;
+        const progress = reachedMaxDistance
+            ? 1
+            : Math.min(1, (this.tutorialZoomDistanceAccumulated || 0) / distanceTarget);
+
         if (typeof window !== 'undefined' && window.updateTutorialLookProgress) {
             window.updateTutorialLookProgress(Math.min(1, progress));
         }
@@ -4209,10 +4338,8 @@ class RenderEngine {
             this.tutorialZoomCompleted = true;
             this.tutorialZoomBaseline = null;
             this.tutorialZoomLastDistance = null;
-            this.tutorialZoomAccumulated = 0;
             this.tutorialZoomDistanceAccumulated = 0;
             this.tutorialZoomWheelOut = false;
-            this.tutorialZoomLastTickTime = null;
             if (typeof window !== 'undefined' && window.advanceTutorialStep) {
                 window.advanceTutorialStep();
             }
@@ -4595,6 +4722,233 @@ class RenderEngine {
         this.camera.updateProjectionMatrix();
         
         this.renderer.setSize(width, height);
+        this.resizeBloom();
+    }
+
+    // Neon glow: the scene is still drawn to screen untouched (keeps MSAA and colour);
+    // a second copy feeds UnrealBloomPass and only its glow is added on top.
+    // Put a mesh/line on the glow layer (it stays on layer 0 for the normal render).
+    markBloom(object) {
+        if (object && (object.isMesh || object.isLine)) object.layers.enable(BLOOM_SETTINGS.layer);
+        return object;
+    }
+
+    // Mark every mesh/line under a prop. Sprites and flat sign planes (badge-like icons) are skipped.
+    markBloomTree(root) {
+        if (!root) return root;
+        root.traverse(child => {
+            if (child.isLight) child.layers.enable(BLOOM_SETTINGS.layer);
+            if (child.isSprite || child.geometry?.type === 'PlaneGeometry') return;
+            this.markBloom(child);
+        });
+        return root;
+    }
+
+    // Lights must be visible to the glow camera too, or lit faces lose their texture in the glow pass.
+    markBloomLight(light) {
+        if (light) light.layers.enable(BLOOM_SETTINGS.layer);
+        return light;
+    }
+
+    // Cublet faces swap to cached unlit materials during the glow pass: pure black everywhere except the
+    // saturated neon tile border, with polygonOffset so edge LineSegments never z-fight while back-faces stay occluded.
+    getBloomCubeBlackMaterial() {
+        if (!this.bloomCubeBlackMaterial) {
+            this.bloomCubeBlackMaterial = new THREE.MeshBasicMaterial({
+                color: 0x000000,
+                polygonOffset: true,
+                polygonOffsetFactor: 1,
+                polygonOffsetUnits: 1
+            });
+        }
+        return this.bloomCubeBlackMaterial;
+    }
+
+    getBloomFaceTexture(colorHex) {
+        const key = String(colorHex);
+        if (this.bloomFaceTextureCache[key]) return this.bloomFaceTextureCache[key];
+
+        const canvas = document.createElement('canvas');
+        canvas.width = 512;
+        canvas.height = 512;
+        const ctx = canvas.getContext('2d');
+        ctx.scale(4, 4);
+
+        ctx.fillStyle = '#000000';
+        ctx.fillRect(0, 0, 128, 128);
+
+        const rgba = this.hexToRgb(colorHex);
+        ctx.strokeStyle = `rgb(${rgba.r}, ${rgba.g}, ${rgba.b})`;
+        ctx.lineWidth = 5;
+        ctx.strokeRect(8, 8, 112, 112);
+
+        const texture = new THREE.CanvasTexture(canvas);
+        texture.anisotropy = this.getMaxAnisotropy();
+        this.bloomFaceTextureCache[key] = texture;
+        return texture;
+    }
+
+    getBloomFaceMaterial(colorHex) {
+        const key = String(colorHex);
+        if (this.bloomFaceMaterialCache[key]) return this.bloomFaceMaterialCache[key];
+
+        const material = new THREE.MeshBasicMaterial({
+            map: this.getBloomFaceTexture(colorHex),
+            polygonOffset: true,
+            polygonOffsetFactor: 1,
+            polygonOffsetUnits: 1
+        });
+        this.bloomFaceMaterialCache[key] = material;
+        return material;
+    }
+
+    swapBloomCublets(on) {
+        const cublets = this.cublets;
+        if (!cublets?.length) return;
+        for (let i = 0; i < cublets.length; i++) {
+            const cublet = cublets[i];
+            const next = on ? cublet.userData?.bloomMaterials : cublet.userData?.normalMaterials;
+            if (next) cublet.material = next;
+        }
+    }
+
+    // Character bodies are off the glow layer, so they would not block glow from tiles behind them.
+    // During the glow pass they are drawn in flat black instead (official selective-bloom approach).
+    collectBloomOccluders() {
+        const layer = BLOOM_SETTINGS.layer;
+        const list = [];
+        [this.playerMesh, ...Object.values(this.aiMeshes || {})].forEach(root => {
+            root?.traverse(child => {
+                if (!child.isMesh || child.isSprite) return;
+                if ((child.layers.mask & (1 << layer)) !== 0) return;
+                list.push(child);
+            });
+        });
+        this.bloomOccluders = list;
+    }
+
+    swapBloomOccluders(on) {
+        const list = this.bloomOccluders;
+        if (!list?.length) return;
+        const layer = BLOOM_SETTINGS.layer;
+        if (!this.bloomBlackMaterial) this.bloomBlackMaterial = new THREE.MeshBasicMaterial({ color: 0x000000 });
+        for (let i = 0; i < list.length; i++) {
+            const mesh = list[i];
+            if (on) {
+                mesh.userData.bloomSavedMaterial = mesh.material;
+                mesh.material = this.bloomBlackMaterial;
+                mesh.layers.enable(layer);
+            } else if (mesh.userData.bloomSavedMaterial) {
+                mesh.material = mesh.userData.bloomSavedMaterial;
+                mesh.userData.bloomSavedMaterial = null;
+                mesh.layers.disable(layer);
+            }
+        }
+    }
+
+    setupBloom() {
+        if (this.bloom || !this.renderer || !THREE.UnrealBloomPass || !THREE.WebGLRenderTarget) return;
+        try {
+            const size = this.getBloomSize();
+            const target = new THREE.WebGLRenderTarget(size.x, size.y, {
+                minFilter: THREE.LinearFilter,
+                magFilter: THREE.LinearFilter,
+                format: THREE.RGBAFormat
+            });
+            const pass = new THREE.UnrealBloomPass(size.clone(), BLOOM_SETTINGS.strength, BLOOM_SETTINGS.radius, BLOOM_SETTINGS.threshold);
+            pass.compositeMaterial.uniforms.bloomFactors.value = BLOOM_SETTINGS.mipFactors.slice();
+            const overlayScene = new THREE.Scene();
+            const overlayCamera = new THREE.OrthographicCamera(-1, 1, 1, -1, 0, 1);
+            // Direct shader copy avoids renderer.outputEncoding (LinearTosRGB) lifting tiny blur tails into grey haze.
+            const overlayMaterial = new THREE.ShaderMaterial({
+                uniforms: { tBloom: { value: pass.renderTargetsHorizontal[0].texture } },
+                vertexShader: `
+                    varying vec2 vUv;
+                    void main() {
+                        vUv = uv;
+                        gl_Position = vec4(position.xy, 0.0, 1.0);
+                    }
+                `,
+                fragmentShader: `
+                    uniform sampler2D tBloom;
+                    varying vec2 vUv;
+                    void main() {
+                        gl_FragColor = vec4(texture2D(tBloom, vUv).rgb, 1.0);
+                    }
+                `,
+                // Add glow to colour only; keep the canvas alpha so the page background still shows.
+                blending: THREE.CustomBlending,
+                blendEquation: THREE.AddEquation,
+                blendSrc: THREE.OneFactor,
+                blendDst: THREE.OneFactor,
+                blendEquationAlpha: THREE.AddEquation,
+                blendSrcAlpha: THREE.ZeroFactor,
+                blendDstAlpha: THREE.OneFactor,
+                transparent: true,
+                depthTest: false,
+                depthWrite: false,
+                toneMapped: false
+            });
+            overlayScene.add(new THREE.Mesh(new THREE.PlaneGeometry(2, 2), overlayMaterial));
+            this.bloom = { target, pass, overlayScene, overlayCamera, clearColor: new THREE.Color() };
+        } catch (error) {
+            console.warn('Bloom disabled:', error);
+            this.bloom = null;
+            this.bloomFailed = true;
+        }
+    }
+
+    getBloomSize() {
+        const buffer = this.renderer.getDrawingBufferSize(new THREE.Vector2());
+        const scale = BLOOM_SETTINGS.resolutionScale;
+        return new THREE.Vector2(Math.max(1, Math.floor(buffer.x * scale)), Math.max(1, Math.floor(buffer.y * scale)));
+    }
+
+    resizeBloom() {
+        if (!this.bloom) return;
+        const size = this.getBloomSize();
+        this.bloom.target.setSize(size.x, size.y);
+        this.bloom.pass.setSize(size.x, size.y);
+    }
+
+    isBloomActive() {
+        return BLOOM_SETTINGS.enabled && !this.lowPowerMode && !this.bloomFailed;
+    }
+
+    renderBloomOverlay() {
+        if (!this.bloom) this.setupBloom();
+        if (!this.bloom) return;
+        const renderer = this.renderer;
+        const { target, pass, overlayScene, overlayCamera, clearColor } = this.bloom;
+        const background = this.scene.background;
+        const fog = this.scene.fog;
+        renderer.getClearColor(clearColor);
+        const clearAlpha = renderer.getClearAlpha();
+        try {
+            this.swapBloomCublets(true);
+            this.swapBloomOccluders(true);
+            this.camera.layers.set(BLOOM_SETTINGS.layer);
+            this.scene.background = null;
+            this.scene.fog = null;
+            renderer.setClearColor(0x000000, 0);
+            renderer.setRenderTarget(target);
+            renderer.clear();
+            renderer.render(this.scene, this.camera);
+        } finally {
+            this.swapBloomOccluders(false);
+            this.swapBloomCublets(false);
+            this.camera.layers.set(0);
+            this.scene.background = background;
+            this.scene.fog = fog;
+            renderer.setClearColor(clearColor, clearAlpha);
+            renderer.setRenderTarget(null);
+        }
+        pass.render(renderer, null, target, 0, false);
+        renderer.setRenderTarget(null);
+        const autoClear = renderer.autoClear;
+        renderer.autoClear = false;
+        renderer.render(overlayScene, overlayCamera);
+        renderer.autoClear = autoClear;
     }
 
     // 渲染主循环
@@ -4773,6 +5127,7 @@ class RenderEngine {
         // 执行 WebGL 渲染
         if (this.renderer && this.scene && this.camera) {
             this.renderer.render(this.scene, this.camera);
+            if (this.isBloomActive()) this.renderBloomOverlay();
         }
     }
 

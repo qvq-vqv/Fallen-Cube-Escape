@@ -77,10 +77,10 @@
             {
                 type: 'look',
                 text: {
-                    zh: '系统提示：先拖动视角，看清 Dawn 所在的魔方表面。',
-                    en: 'System: drag the view first and read the cube surface around Dawn.'
+                    zh: '按住画面拖动，转一转魔方。',
+                    en: 'Drag to turn the cube.'
                 },
-                threshold: 3.0,
+                angleThreshold: 1.2,
                 focusCell: { face: 1, row: 1, col: 1 },
                 focus: { x: 50, y: 46 },
                 tone: 'steady'
@@ -88,8 +88,8 @@
             {
                 type: 'dialog',
                 text: {
-                    zh: '系统提示：这是逃生出口。记住绿色门框，带 Dawn 走到这里才算脱离本层。',
-                    en: 'System: this is the exit. Remember the green frame; guide Dawn here to leave this layer.'
+                    zh: '这是出口。把 Dawn 带到这里。',
+                    en: 'That\'s the exit. Get Dawn here.'
                 },
                 focusCell: { face: 0, row: 2, col: 1 },
                 highlightTarget: 'exit',
@@ -100,11 +100,10 @@
             {
                 type: 'zoom',
                 text: {
-                    zh: '系统提示：滚轮或捏合拉远，看完整魔方。',
-                    en: 'System: scroll or pinch out to see the full cube.'
+                    zh: '滚轮或双指捏合，拉远看全貌。',
+                    en: 'Scroll or pinch out to see the whole cube.'
                 },
-                threshold: 2.0,
-                wheelThreshold: 2.0,
+                distanceThreshold: 1.5,
                 focusCell: { face: 1, row: 1, col: 1 },
                 focus: { x: 50, y: 46 },
                 tone: 'system',
@@ -113,21 +112,48 @@
             {
                 type: 'move',
                 text: {
-                    zh: '系统提示：点击 Dawn 相邻的高亮格，她会移动过去。',
-                    en: 'System: click the highlighted neighboring tile and Dawn will move there.'
+                    zh: '点 Dawn 旁边发亮的格子，她就走过去。',
+                    en: 'Tap a glowing tile next to Dawn to walk there.'
                 },
                 targetCell: { face: 1, row: 0, col: 1 },
                 focusCell: { face: 1, row: 0, col: 1 },
                 focus: { x: 50, y: 43 },
                 tone: 'steady'
+            },
+            {
+                type: 'dialog',
+                text: {
+                    zh: '棱不是墙。走到边上，接着点隔壁那一面。',
+                    en: 'Edges aren\'t walls. Keep going onto the next face.'
+                },
+                tone: 'system',
+                speaker: '系统广播'
+            },
+            {
+                type: 'esc',
+                text: {
+                    zh: '按 Esc 或左上角 ☰，可以暂停、重来、回菜单。',
+                    en: 'Press Esc or ☰ (top-left) to pause, restart, or go back to the menu.'
+                },
+                tone: 'system',
+                speaker: '系统广播'
+            },
+            {
+                type: 'closeEsc',
+                text: {
+                    zh: '再按一次 Esc，或点「继续游戏」。',
+                    en: 'Press Esc again, or tap "Resume".'
+                },
+                tone: 'system',
+                speaker: '系统广播'
             }
         ],
         L02: [
             {
                 type: 'dialog',
                 text: {
-                    zh: '系统提示：钥匙和出口同时出现。先看钥匙位置，再看出口路线。',
-                    en: 'System: key and exit are both visible. Check the key first, then the exit route.'
+                    zh: '这是钥匙。',
+                    en: 'That\'s the key.'
                 },
                 openComms: true,
                 focusCell: { face: 4, row: 1, col: 0 },
@@ -139,29 +165,11 @@
             {
                 type: 'dialog',
                 text: {
-                    zh: '系统提示：再看绿色出口。钥匙点亮出口，先钥匙，后门。',
-                    en: 'System: now check the green exit. The key powers it: key first, door second.'
+                    zh: '没拿钥匙，门不会开。',
+                    en: 'No key, no door.'
                 },
                 focusCell: { face: 1, row: 1, col: 1 },
                 highlightTarget: 'exit',
-                tone: 'system',
-                speaker: '系统广播'
-            },
-            {
-                type: 'esc',
-                text: {
-                    zh: '系统提示：按 ESC 或左上角菜单，可暂停、重开、回选关。',
-                    en: 'System: press ESC or the top-left menu to pause, restart, or return.'
-                },
-                tone: 'system',
-                speaker: '系统广播'
-            },
-            {
-                type: 'closeEsc',
-                text: {
-                    zh: '系统提示：现在关闭暂停面板，继续拿钥匙。',
-                    en: 'System: close the pause panel and continue toward the key.'
-                },
                 tone: 'system',
                 speaker: '系统广播'
             }
@@ -170,8 +178,8 @@
             {
                 type: 'dialog',
                 text: {
-                    zh: '系统提示：红色追击者会根据 Dawn 的最新位置重新判断路线。红色危险格只是当前局面的预测。',
-                    en: 'System: the red chaser recalculates from Dawn\'s latest position. Red danger tiles are a live prediction, not a fixed path.'
+                    zh: '你走一步，它走一步。',
+                    en: 'You move, it moves.'
                 },
                 focusCell: { face: 0, row: 0, col: 1 },
                 focus: { x: 52, y: 40 },
@@ -182,8 +190,17 @@
             {
                 type: 'dialog',
                 text: {
-                    zh: '系统提示：每次行动前先看红格。你移动后，红格会跟着刷新。',
-                    en: 'System: read red before every move. After you move, the red prediction updates.'
+                    zh: '红格是它下一步能踩到的地方。',
+                    en: 'Red tiles are where it can step next.'
+                },
+                tone: 'system',
+                speaker: '系统广播'
+            },
+            {
+                type: 'dialog',
+                text: {
+                    zh: '走错了？点左上角 ↶ 退一步。',
+                    en: 'Wrong move? Tap ↶ (top-left) to go back one.'
                 },
                 tone: 'system',
                 speaker: '系统广播'
@@ -193,32 +210,32 @@
             {
                 type: 'dialog',
                 text: {
-                    zh: '“刚才地面动了？我差点栽下去。”',
-                    en: '"Did the floor just move? I nearly fell off."'
+                    zh: '“这地板怎么一直在晃……”',
+                    en: '"Why does this floor keep wobbling..."'
                 },
                 tone: 'worry'
             },
             {
                 type: 'dialog',
                 text: {
-                    zh: '“你能拧这个空间。很好，离谱但有用。”',
-                    en: '"You can twist this space. Great. Absurd, but useful."'
+                    zh: '“……等等，这一层是不是能转？”',
+                    en: '"...Wait. Does this layer turn?"'
                 },
                 tone: 'steady'
             },
             {
                 type: 'dialog',
                 text: {
-                    zh: '“钥匙在孤岛上。别让我跳，把路拧过来。”',
-                    en: '"The key is stranded. Do not make me jump. Twist the road here."'
+                    zh: '“钥匙在那边一块孤零零的地上，我过不去。”',
+                    en: '"The key\'s on a patch of floor I can\'t reach."'
                 },
                 tone: 'steady'
             },
             {
                 type: 'dialog',
                 text: {
-                    zh: '系统提示：长按魔方上的一个格子，等十字箭头出现后拖动方向，就能拧动对应层。',
-                    en: 'System: long-press a cube tile, wait for the cross arrows, then drag a direction to twist that layer.'
+                    zh: '长按一个格子，出现十字箭头后拖动，那一层就会转。（键盘：按住 Shift 拖）',
+                    en: 'Long-press a tile. When the cross arrows show, drag to turn that layer. (Keyboard: hold Shift and drag.)'
                 },
                 tone: 'system',
                 speaker: '系统广播'
@@ -226,8 +243,8 @@
             {
                 type: 'twist',
                 text: {
-                    zh: '系统提示：长按 Dawn 附近的格子，出现十字箭头后拖动，把路拧到钥匙旁。',
-                    en: 'System: long-press a tile near Dawn. When the cross arrows appear, drag to bring the road beside the key.'
+                    zh: '试试看。',
+                    en: 'Give it a try.'
                 },
                 allowAnyTwist: true,
                 focusCell: { face: 4, row: 1, col: 1 },
@@ -242,11 +259,20 @@
             {
                 type: 'dialog',
                 text: {
-                    zh: '系统提示：黄色守卫会堵住关键路线。先看清它的位置，不要硬闯。',
-                    en: 'System: the yellow keeper blocks key routes. Locate it first; do not charge in.'
+                    zh: '黄色的是守钥者。Dawn 不上钥匙那一面，它就不动。',
+                    en: 'The yellow one is the Keeper. It stays put until Dawn steps onto the key\'s face.'
                 },
                 focusCell: { face: 4, row: 1, col: 2 },
                 focus: { x: 50, y: 40 },
+                tone: 'system',
+                speaker: '系统广播'
+            },
+            {
+                type: 'dialog',
+                text: {
+                    zh: 'Dawn 一上那一面，它就跟过来。钥匙被拿走后，它会一直追。',
+                    en: 'Once Dawn is on that face, it follows. After the key is taken, it never stops chasing.'
+                },
                 tone: 'system',
                 speaker: '系统广播'
             }
@@ -264,8 +290,8 @@
             {
                 type: 'dialog',
                 text: {
-                    zh: '系统提示：碎解会移除指定地块。工具箱会保持展开；点绿色工具箱球收回，并回到移动。',
-                    en: 'System: Break removes a target tile. The toolbox stays open; tap the green toolbox bubble to close it and return to moving.'
+                    zh: '碎解能拆掉一个格子，拆掉后谁都过不去。拆格时敌人不会动。',
+                    en: 'Break removes a tile; nobody can cross it after. Enemies don\'t move while you break.'
                 },
                 tone: 'system',
                 speaker: '系统广播'
@@ -275,8 +301,8 @@
                 tool: 'break',
                 targetCell: { face: 4, row: 0, col: 1 },
                 text: {
-                    zh: '系统提示：选『碎解』，先拆守钥者左侧亮格。我们走另一条线。',
-                    en: 'System: choose Break and remove the highlighted tile left of the keeper. We will route around.'
+                    zh: '选碎解（键 4），拆掉发亮的格子。',
+                    en: 'Pick Break (key 4) and remove the glowing tile.'
                 },
                 speaker: '系统广播',
                 openTools: true,
@@ -287,8 +313,8 @@
                 tool: 'break',
                 targetCell: { face: 0, row: 2, col: 2 },
                 text: {
-                    zh: '系统提示：再拆它上缘那格，切掉第二条追路。',
-                    en: 'System: remove the upper edge tile and cut the second chase lane.'
+                    zh: '再拆一个。',
+                    en: 'One more.'
                 },
                 speaker: '系统广播',
                 openTools: true,
@@ -299,8 +325,8 @@
                 tool: 'break',
                 targetCell: { face: 3, row: 0, col: 0 },
                 text: {
-                    zh: '系统提示：最后拆右侧折角。三处断点连起来，守钥者才真的绕不过来。',
-                    en: 'System: break the right corner last. Three cuts together seal the keeper route.'
+                    zh: '最后一个。',
+                    en: 'Last one.'
                 },
                 speaker: '系统广播',
                 openTools: true,
@@ -310,7 +336,7 @@
                 type: 'dialog',
                 text: {
                     zh: '“现在它真被堵住了。绕过去，拿钥匙，跑路。”',
-                    en: '"Now it is actually blocked. Loop around, take the key, run."'
+                    en: '"Now it\'s actually stuck. Go around, grab the key, run."'
                 },
                 tone: 'steady'
             }
@@ -427,7 +453,7 @@
                 {
                     title: { zh: 'L01 逃生线', en: 'L01 Escape Line' },
                     chapter: { zh: '读图与点格', en: 'Reading the Board' },
-                    concept: { zh: '通信链路已建立。Dawn 手里已经有钥匙了——点击她旁边的格子，引导她走到逃生门。', en: 'Uplink established. Dawn has the key — click neighboring cells to walk her to the exit.' },
+                    concept: { zh: 'Dawn 手里已经有钥匙了。点她旁边的格子，带她走到门口。', en: 'Dawn already has the key. Tap the tiles next to her and walk her to the door.' },
                     tutorial: {
                         icon: '➜',
                         cue: { zh: '点到门', en: 'Click to exit' },
@@ -448,7 +474,7 @@
                 {
                     title: { zh: 'L02 钥匙在前', en: 'L02 Key First' },
                     chapter: { zh: '钥匙与门', en: 'Key, Then Door' },
-                    concept: { zh: '先钥匙，后门。没有敌人，只有一个很朴素的问题：这破地方到底认不认钥匙。', en: 'Key first, door second. No monsters yet, just prove the cube is not smarter than us.' },
+                    concept: { zh: '先钥匙，后门。没有敌人，只有一个很朴素的问题：这破地方到底认不认钥匙。', en: 'Key first, then the door. No monsters yet. Just one question: does this place even care about keys?' },
                     tutorial: {
                         icon: '◇',
                         cue: { zh: '钥匙→出口', en: 'Key -> Exit' },
@@ -492,9 +518,9 @@
                     ais: [{ type: 'chaser', pos: at(0, 0, 0) }]
                 },
                 {
-                    title: { zh: 'L04 夹击拧门', en: 'L04 Twist the Door' },
+                    title: { zh: 'L04 拧路取钥', en: 'L04 Twist the Road' },
                     chapter: { zh: '旋转目标', en: 'Moving Targets' },
-                    concept: { zh: '钥匙被孤岛卡住了。别让 Dawn 跳，她不是弹簧人；拧一层，把路转过来。', en: 'The key is stranded. Twist the layer and bring the platform to Dawn instead of pretending she can jump through physics.' },
+                    concept: { zh: '钥匙卡在孤岛上。拧一层，把路转过来。', en: 'The key is stuck on an island. Twist a layer to bring the road over.' },
                     tutorial: {
                         icon: '⟳',
                         cue: { zh: '旋转孤岛', en: 'Twist island' },
@@ -544,19 +570,18 @@
                     ],
                     validation: { solvable: true, mustUseRotation: true, rotatesKey: true, hasThreats: true },
                     ais: [
-                        { type: 'chaser', pos: at(2, 1, 1) },
-                        { type: 'chaser', pos: at(2, 2, 2) }
+                        { type: 'chaser', pos: at(2, 1, 1) }
                     ]
                 },
                 {
                     title: { zh: 'L06 守钥者', en: 'L06 Key Keeper' },
                     chapter: { zh: '守路不堵门', en: 'Guard, Not Wall' },
-                    concept: { zh: '踩进钥匙那一面，守钥者会跟一格。把它骗偏，拿钥匙，别站着发表获奖感言。', en: 'Step onto the key face and the keeper follows by one cell. Bait it, grab the key, leave before it gets opinions.' },
+                    concept: { zh: '踩进钥匙那一面，守钥者就会跟过来。', en: 'Step onto the key\'s face and the Keeper comes after you.' },
                     tutorial: {
                         icon: '!',
                         cue: { zh: '把它引走', en: 'Bait it away' },
                         goal: { zh: '进钥匙面，引开守钥者。', en: 'Enter the key face and pull the keeper off-line.' },
-                        tip: { zh: '守钥者会追你 1 格', en: 'Keeper moves 1' },
+                        tip: { zh: '它只守钥匙那一面', en: 'It only guards the key\'s face' },
                         visual: 'guardianLure'
                     },
                     bestTurns: 4,
@@ -585,7 +610,7 @@
                 {
                     title: { zh: 'L07 碎解阻断', en: 'L07 Break the Chase' },
                     chapter: { zh: '主动拆路', en: 'Break the Road' },
-                    concept: { zh: '守钥者要从中路压回来。先把它必经的格子碎掉，再拿钥匙跑路。', en: 'The keeper wants the center lane. Break the cell it needs, then take the key while it recalculates its bad life choices.' },
+                    concept: { zh: '守钥者要从中路压回来。先把它必经的格子碎掉，再拿钥匙跑路。', en: 'The Keeper wants to come back through the middle. Break the tiles it needs, then grab the key and run.' },
                     tutorial: {
                         icon: '✕',
                         cue: { zh: '拆掉追路', en: 'Break chase lane' },
@@ -625,12 +650,12 @@
                 {
                     title: { zh: 'L08 取钥即逃', en: 'L08 Grab and Run' },
                     chapter: { zh: '撤离压力', en: 'Exit Pressure' },
-                    concept: { zh: '钥匙到手后，守钥者会连走两格。Dawn 可以嘴硬，但腿最好诚实一点。', en: 'Once Dawn takes the key, the keeper moves two cells. Do not celebrate on the board. Run.' },
+                    concept: { zh: '钥匙一离开原位，守钥者就不守了，改成追 Dawn。伸手之前，先想好去门的路。', en: 'Once the key leaves its spot, the keeper stops guarding and goes after Dawn. Know your way to the door before you grab it.' },
                     tutorial: {
                         icon: '2',
-                        cue: { zh: '拿钥匙后 2 格', en: 'Two after key' },
+                        cue: { zh: '拿了就跑', en: 'Grab and run' },
                         goal: { zh: '拿钥匙后立刻撤。', en: 'Leave right after the key.' },
-                        tip: { zh: '守钥者会走 2 格', en: 'Keeper moves 2' },
+                        tip: { zh: '先看好去门的路', en: 'Find the door route first' },
                         visual: 'guardianRage'
                     },
                     bestTurns: 4,
@@ -657,12 +682,12 @@
                 {
                     title: { zh: 'L09 正式开跑', en: 'L09 Real Run' },
                     chapter: { zh: '第一幕实战', en: 'Act I Trial' },
-                    concept: { zh: '教学关到此结束。接下来怎么走完全看你了。', en: 'Tutorial phase ends here. From now on, the board does not hold your hand.' },
+                    concept: { zh: '这关没人提醒你了。', en: 'No more reminders from here.' },
                     tutorial: {
                         icon: '✓',
                         cue: { zh: '真题开始', en: 'Real test' },
                         goal: { zh: '拿钥匙，避追击，进门。', en: 'Get key, dodge pressure, exit.' },
-                        tip: { zh: '别直冲，先看红格', en: 'Do not autopilot' },
+                        tip: { zh: '别直冲，先看红格', en: 'Don\'t rush. Check the red tiles.' },
                         visual: 'threat'
                     },
                     bestTurns: 4,
@@ -686,12 +711,12 @@
                 {
                     title: { zh: 'L10 隐藏考：碎解突围', en: 'L10 Hidden: Breakout' },
                     chapter: { zh: '隐藏疯狂关', en: 'Hidden Trial' },
-                    concept: { zh: '双追击夹击，守钥者还会守门。碎掉关键格，让它们的计划现场丢人。', en: 'Two chasers squeeze the board and the keeper guards the exit after key pickup. Break one cell to make their plan less smug.' },
+                    concept: { zh: '三个追击者，一个守钥者，拿钥后它会去守门。碎解只有一次。', en: 'Three chasers and a keeper that guards the door once the key is gone. One Break only.' },
                     tutorial: {
                         icon: '✕',
                         cue: { zh: '疯狂小考', en: 'Hidden heat' },
-                        goal: { zh: '碎解关键格，别让三方围住你。', en: 'Break the key cell in their chase net.' },
-                        tip: { zh: '这是隐藏题，别硬冲', en: 'Hidden means rude' },
+                        goal: { zh: '用一次碎解，从包围里撕开一条路。', en: 'Use your one Break to cut a way out.' },
+                        tip: { zh: '这是隐藏题，别硬冲', en: 'Hidden level. Don\'t charge in.' },
                         visual: 'break'
                     },
                     hiddenUntilActOneClear: true,
@@ -722,14 +747,14 @@
                     ]
                 },
                 {
-                    title: { zh: 'L11 守门预演', en: 'L11 Door Block Preview' },
+                    title: { zh: 'L11 堵门', en: 'L11 Door Block' },
                     chapter: { zh: '第一幕实战', en: 'Act I Trial' },
-                    concept: { zh: '这次守钥者不只追人。钥匙一拿，它就去堵门，所以撤离线要先想好。', en: 'This keeper does not just chase. After the key, it moves to choke the exit, because apparently doors needed a bodyguard.' },
+                    concept: { zh: '钥匙一拿，守钥者就去堵门。先想好怎么跑。', en: 'Take the key and the Keeper heads for the door. Plan your run first.' },
                     tutorial: {
                         icon: '▣',
                         cue: { zh: '拿钥匙后守门', en: 'Guards exit' },
-                        goal: { zh: '拿钥匙前先想好撤离门线。', en: 'Plan the exit line before grabbing the key.' },
-                        tip: { zh: '它会去堵门', en: 'It blocks the door' },
+                        goal: { zh: '拿钥匙之前，先想好怎么跑到门。', en: 'Before taking the key, plan how to reach the door.' },
+                        tip: { zh: '钥匙一拿，守钥者去堵门', en: 'Key taken: the Keeper blocks the door' },
                         visual: 'guardianLure'
                     },
                     bestTurns: 5,
@@ -758,12 +783,12 @@
                 {
                     title: { zh: 'L12 出口？', en: 'L12 Exit?' },
                     chapter: { zh: '第一幕毕业考', en: 'Act I Exam' },
-                    concept: { zh: '它看起来像出口。太安静了，反而很可疑。先拧开局面，再冲门。', en: 'It looks like an exit, which is exactly why Dawn does not trust it. Twist, bait, take the key, then run anyway.' },
+                    concept: { zh: '它看起来像出口。太安静了，反而很可疑。先拧开局面，再冲门。', en: 'It looks like an exit. Too quiet, which is suspicious. Twist things open first, then go for the door.' },
                     tutorial: {
                         icon: '★',
                         cue: { zh: '出口？', en: 'Exit?' },
                         goal: { zh: '旋转、引诱、取钥、撤离。', en: 'Twist, bait, key, exit.' },
-                        tip: { zh: '如果这真是出口就好了', en: 'If only it were that easy' },
+                        tip: { zh: '如果这真是出口就好了', en: 'If only this were really the exit' },
                         visual: 'guardianSplit'
                     },
                     bestTurns: 5,

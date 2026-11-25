@@ -18,26 +18,30 @@
         quiet: '(。_。)'
     };
 
+    // Dawn starts talking back at L03 (0-based index 2), when she meets another creature.
+    const JOKES_FROM_LEVEL_INDEX = 2;
+    const AWAY_GREETING_MS = 24 * 60 * 60 * 1000;
+    // UI syncs redraw the bubble right after a reaction; hold key lines so they can be read.
+    const HOLD_MS = 6000;
+
     const protagonist = {
         currentName: 'Dawn',
         nameStatus: '她记得自己叫 Dawn，也记得自己想回家；E-7 是折叠机给她贴的编号。',
-        role: '从床上坠入魔方牢笼的人类女孩；玩家是手机另一端的陌生引导者。',
+        role: '18 岁的女学生，住宿舍。床塌了，她一直往下掉，落在魔方上；玩家是手机另一端的陌生人。',
         voicePillars: [
-            '害怕但强撑：恐惧真实存在，嘴硬只是防御。',
-            '毒舌调侃：用挖苦掩饰不安，但危险太近时会短句失控。',
-            '黑色幽默：把危险说得很轻，反而显出害怕。',
-            '反工具人：她不是棋子，会质疑玩家、手机信号和所有可疑指令。',
-            '聪明但不全知：她能观察脚下，但需要玩家的全局视角。'
+            'L01、L02 懵、慌、会哭；从 L03 起会顶嘴、玩梗。',
+            '短句口语：像发微信，先回应对方刚说的话。',
+            '视野很小：只看得到脚下几格和近处，旋转对她是地震，碎解是地面塌了。',
+            '信任低时嘴硬，信任高时会软下来；口吻以 docs/03_design/story/2026-11-24_dawn-voice-samples.md 为准。',
+            '会怕也会想：到 L06 以后开始观察怪物，说自己的想法。'
         ],
         hardRules: [
-            '不把玩家夸成神。玩家帮到了她，她会承认，但嘴上不服。',
-            '先像一个突然掉进怪地方的人，再像游戏角色，最后才像教程。',
-            '开场必须先防备、质疑、试探；不能无条件跟着未知引导走。',
-            '少解释规则，多用反应暴露规则；她不能替系统念说明书。',
-            '危险时优先短句；安全时才聊身世、折叠机和关系。',
-            '主角不知道玩家知道什么，早期会误解玩家、怀疑手机信号、害怕但嘴硬。',
-            '回家无需动机。需要的是家的质感：床、灯、手机、房门、没说完的话。',
-            '不要卖惨。她可以害怕，但不能只靠可怜吸引玩家。'
+            'L03 第一次被抓之前以为它是好的；之后不主动走向怪物。',
+            '不讲规则，不替系统念说明书，不说“展开图”“回合”“AP”。',
+            '不哄玩家，不说道理，不总结玩家的心情。',
+            '少哭少求饶：只留给断线、被抓、门后还是魔方这几处。',
+            '她不知道这是魔方、有几个面，也不知道玩家是谁。',
+            '家里有小花园和很多小动物，信任高才说；其他家人与往事不代编。'
         ],
         longArc: [
             '第一幕：从“你是谁”到“你暂时还算可靠”。',
@@ -66,7 +70,7 @@
             lines: [
                 { zh: '钥匙拿到了……', en: 'We got the key...' },
                 { zh: '等一下，那个大块头怪物怎么没来追我？它……它直接往门口去了！', en: 'Wait. Why is that huge thing not chasing me? It... it went straight to the exit!' },
-                { zh: '它好像知道门在哪里，直接堵在门口了……呜呜，它好聪明，我们是不是出不去了……', en: 'It knows where the door is. It is blocking it... It is too smart. Are we trapped?' }
+                { zh: '它好像知道门在哪里，直接堵在门口了……我们还出得去吗？', en: 'It knows where the door is. It is standing right on it... Can we still get out?' }
             ],
             replies: [
                 {
@@ -96,7 +100,7 @@
             lines: [
                 { zh: '钥匙拿到啦！', en: 'I got the key!' },
                 { zh: '不过前面还有怪物在守着，传送门虽然能省路，但我还是很害怕……', en: 'There is still a monster ahead. The portal saves distance, but I am still scared...' },
-                { zh: '你指引路线的时候一定要看准，拜托你一定要带我安全过去！', en: 'Please aim carefully when you guide me. Get me through safely.' }
+                { zh: '你看清楚再指。我跟着你走。', en: 'Look carefully before you point. I will follow.' }
             ],
             replies: [
                 {
@@ -172,7 +176,7 @@
             { zh: '呼，踩稳了。', en: 'Whew. Stable tile.' },
             { zh: '这格暂时还安全。呼……', en: 'This tile is safe for now. Whew...' },
             { zh: '我到了，下一步往哪走？', en: 'I am here. Where next?' },
-            { zh: '千万别让我停在红格子旁边，求你了。', en: 'Please do not leave me next to a red tile.' }
+            { zh: '别让我停在红格子旁边。', en: 'Do not leave me next to a red tile.' }
         ],
         playerMoveBridge: [
             { zh: '穿过传送门了……肚子感觉晃得好难受，我想吐……', en: 'Went through the portal... My stomach hates that.' },
@@ -185,9 +189,9 @@
             { zh: '它亮了，门应该可以开了对不对？', en: 'It lit up. The door should open now, right?' }
         ],
         rotate: [
-            { zh: '天旋地转的……下次拧之前能不能说一声啊，呜呜。', en: 'Everything spun... Warn me before twisting next time.' },
+            { zh: '天旋地转的……下次拧之前，先说一声。', en: 'Everything spun... Tell me first next time.' },
             { zh: '整个格子都转了……重力一下子变了，好难受……', en: 'The whole tile moved... Gravity feels wrong.' },
-            { zh: '路对齐了吗？拜托快带我离开这里。', en: 'Is the route aligned? Please get me out.' }
+            { zh: '停了吗？我能站起来了吗？', en: 'Did it stop? Can I stand up?' }
         ],
         patchPlaced: [
             { zh: '你要我踩这个？它牢固吗……', en: 'You want me to step on that? Is it solid?' },
@@ -217,7 +221,7 @@
         aiNear: [
             { zh: '它贴过来了……！', en: 'It is getting close...!' },
             { zh: '太近了……我能闻到一股金属锈掉的味道，我好害怕！', en: 'Too close... It smells like rust. I am scared!' },
-            { zh: '别让它再靠近了，求求你！', en: 'Do not let it get closer. Please!' }
+            { zh: '它再走一步就到我这了！', en: 'One more step and it reaches me!' }
         ],
         aiMove: [
             { zh: '它动了……！', en: 'It moved...!' },
@@ -239,10 +243,16 @@
             { zh: '不是吧……为什么还有一个更大的魔方？！', en: 'No way... Why is there a bigger cube?' },
             { zh: '我就知道……呜呜，我们是不是永远出不去了……', en: 'I knew it... Are we never getting out?' }
         ],
+        rotateUnannounced: [
+            { zh: '你怎么又拧之前不说啊，真的很恐怖！我刚刚差点惊声尖叫', en: 'You twisted without warning me again! That is terrifying, I almost screamed' }
+        ],
+        gameOverRepeat: [
+            { zh: '大哥你会不会玩啊！要不你下来我上去吧！', en: 'Do you even know how to play?! Come down here and I will go up there!' }
+        ],
         gameOver: [
             { zh: '……我刚才是不是没了？', en: '...Did I just disappear?' },
-            { zh: '等下。刚才好疼……那这倒带算谁的？', en: 'Wait. That hurt... Who pays for the rewind?' },
-            { zh: '求求你认真点，我不想再被那些铁壳怪物抓到了。', en: 'Please take this seriously. I do not want those metal things catching me again.' }
+            { zh: '好疼...虽然能重生，但痛感还是很真实的啊', en: 'Ow... I come back, sure, but the pain is very real' },
+            { zh: '我不想再被那些铁壳怪物抓到了。', en: 'I do not want those metal things catching me again.' }
         ]
     };
 
@@ -342,15 +352,25 @@
 
     function getAmbientBubble({ scene, state, game }) {
         if (!scene || !game?.currentLevel) return null;
+        if (state.heldLine && Date.now() < state.heldLine.until
+            && state.heldLine.whilePlaying === (game.gameState === 'playing')) return state.heldLine.line;
         if (game.gameState !== 'playing') return scene.bubble || null;
 
         const bi = (zh, en) => ({ zh, en });
         const levelIndex = game.currentLevelIndex || 0;
         const pool = [];
 
+        if (levelIndex >= JOKES_FROM_LEVEL_INDEX && state.awayGreeting) {
+            return bi('你居然还知道回来啊，也是辛苦你记住了。', 'Oh, you remembered to come back. That must have been hard for you.');
+        }
+        // Before the first contact in L03 she thinks the creature is friendly.
+        if (levelIndex === 2 && !game.l03RollbackTriggered && !game.hasKey) {
+            return bi('那边有个会动的！我想过去看看。', 'Something is moving over there! I want to go look.');
+        }
+
         // 1. L03 追击者首次登场：Dawn 只表达真实恐惧，不讲规则。
         if (levelIndex === 2) {
-            pool.push(bi('那个红色的怪物一直在跟着我！它越来越近了，呜呜……', 'That red thing keeps following me! It is getting closer...'));
+            pool.push(bi('那个红色的怪物一直在跟着我！它越来越近了……', 'That red thing keeps following me! It is getting closer...'));
             pool.push(bi('救命啊，别让那个红色大家伙抓到我！', 'Help. Do not let the red giant catch me!'));
             pool.push(bi('我听见后面的脚步声了，心快跳出来了！', 'I can hear its steps behind me. My heart is going crazy!'));
             pool.push(bi('快指路！我不想被它碰到。', 'Point the way. I do not want it touching me.'));
@@ -360,11 +380,11 @@
             if (levelIndex >= 12) {
                 pool.push(bi('外壳比刚才大。别让它显得比我们聪明。', 'This shell is bigger. Do not let it look smarter than us.'));
                 pool.push(bi('整个 4x4 的大方块转起来重力好奇怪，有点头晕。', 'This 4x4 cube makes gravity feel wrong when it turns.'));
-                pool.push(bi('四阶空间很宽，追击者也不是来散步的。', 'The 4x4 space is wide, and the chaser is not here for a stroll.'));
+                pool.push(bi('这里好宽。我一转头就找不到它了。', 'It is so wide here. I look away and lose track of it.'));
                 pool.push(bi('我感觉那台折叠机在暗中看着我们……', 'I feel like the folding machine is watching us...'));
             } else {
                 pool.push(bi('这地板冰凉冰凉的，而且连个坐的地方都没有……我想回家了。', 'The floor is freezing, and there is nowhere to sit... I want to go home.'));
-                if (!game.hasKey) {
+                if (!game.hasKey && levelIndex >= JOKES_FROM_LEVEL_INDEX) {
                     pool.push(bi('（拍屏幕的动态气泡）喂——你还在听吗？我快要无聊死啦。', '(taps screen) Hey, are you still listening? I am dying of boredom.'));
                     pool.push(bi('喂，你是不是在屏幕那一端吃着零食指挥我跑路啊？', 'Hey, are you eating snacks while telling me where to run?'));
                 }
@@ -393,11 +413,11 @@
 
         // 5. 情感基调追加
         const tone = getDominantTone(state);
-        if (tone === 'tease') {
+        if (tone === 'tease' && levelIndex >= JOKES_FROM_LEVEL_INDEX) {
             pool.push(bi('别笑太早。你笑早了我会听见。', 'Do not laugh too early. I can hear it.'));
             pool.push(bi('哼，我就知道你会选这格。咱们还算有点默契。', 'Hmph. I knew you would pick that tile. We are almost in sync.'));
         } else if (tone === 'warm') {
-            pool.push(bi('我知道你在担心我……你一定要看清格子啊，求求你啦。', 'I know you are worried about me... Please read the tiles carefully.'));
+            pool.push(bi('我知道你在担心我……你看清楚再指，我不急。', 'I know you are worried about me... Look carefully first. I can wait.'));
             pool.push(bi('谢谢你一直陪着我说话。有你在，我没那么害怕了。', 'Thanks for staying on the line. I am a little less scared.'));
         }
 
@@ -414,6 +434,11 @@
         if (state) {
             state.bubbleMemory = [...recent, line].slice(-5);
         }
+        return line;
+    }
+
+    function holdLine(state, line, whilePlaying = true) {
+        if (state && line) state.heldLine = { line, whilePlaying, until: Date.now() + HOLD_MS };
         return line;
     }
 
@@ -434,6 +459,12 @@
             return pickReaction(state, microReactions.keyCollected, turnSeed);
         }
         if (detail.type === 'rotate') {
+            const index = game.currentLevelIndex;
+            if (index >= JOKES_FROM_LEVEL_INDEX && state && state.unannouncedLevel !== index
+                && (state.journal?.rotations(index) || 0) >= 2) {
+                state.unannouncedLevel = index;
+                return holdLine(state, microReactions.rotateUnannounced[0]);
+            }
             return pickReaction(state, microReactions.rotate, turnSeed + (detail.layer || 0));
         }
         if (detail.type === 'patchPlaced') {
@@ -464,7 +495,11 @@
             return pickReaction(state, detail.actFinale ? microReactions.actFinale : microReactions.victory, turnSeed);
         }
         if (detail.type === 'gameOver') {
-            return pickReaction(state, microReactions.gameOver, turnSeed);
+            if (game.currentLevelIndex >= JOKES_FROM_LEVEL_INDEX
+                && (state?.journal?.timesCaught(game.currentLevelIndex) || 0) === 3) {
+                return holdLine(state, microReactions.gameOverRepeat[0], false);
+            }
+            return holdLine(state, pickReaction(state, microReactions.gameOver, turnSeed), false);
         }
         return null;
     }
@@ -490,11 +525,107 @@
         return `${detail.type}-${game.currentLevelIndex}-${sceneId || 'scene'}`;
     }
 
+    // Dawn's journal: what happened to her, kept apart from game.eventLog
+    // (capped at 32 and rolled back by undo). Facts only, no chat text.
+    const JOURNAL_KEY = 'dawnCubeJournal';
+
+    function emptyJournal() {
+        return { version: 1, firstSeenAt: 0, lastSeenAt: 0, levels: {} };
+    }
+
+    function readJournal() {
+        try {
+            const raw = JSON.parse(localStorage.getItem(JOURNAL_KEY) || 'null');
+            if (!raw || raw.version !== 1 || !raw.levels || typeof raw.levels !== 'object') return emptyJournal();
+            return { ...emptyJournal(), ...raw };
+        } catch (err) {
+            return emptyJournal();
+        }
+    }
+
+    function createJournal() {
+        let data = readJournal();
+        // Time since the previous visit, fixed at load so it survives later saves.
+        let awayMs = data.lastSeenAt ? Math.max(0, Date.now() - data.lastSeenAt) : 0;
+
+        function save() {
+            try {
+                localStorage.setItem(JOURNAL_KEY, JSON.stringify(data));
+            } catch (err) {
+                // Storage can be blocked or full; Dawn just forgets on reload.
+            }
+        }
+
+        function levelEntry(levelIndex) {
+            const key = String(levelIndex);
+            if (!data.levels[key]) data.levels[key] = { caught: {}, rotations: 0, wins: 0 };
+            return data.levels[key];
+        }
+
+        return {
+            record(detail, game) {
+                if (!detail || !game?.currentLevel) return;
+                const now = Date.now();
+                if (detail.type === 'gameOver') {
+                    const cell = detail.caughtCell;
+                    const ais = game.ais || [];
+                    const edges = game.realtimeEdges?.ai || {};
+                    // Mid-step catches: the catcher may not stand on the tile yet.
+                    const catcher = ais.find(ai => ai.pos === cell)
+                        || ais.find(ai => edges[ai.id]?.to === cell || edges[ai.id]?.from === cell)
+                        || (ais.length === 1 ? ais[0] : null);
+                    const type = catcher?.type || 'unknown';
+                    const caught = levelEntry(game.currentLevelIndex).caught;
+                    caught[type] = (caught[type] || 0) + 1;
+                } else if (detail.type === 'rotate') {
+                    levelEntry(game.currentLevelIndex).rotations += 1;
+                } else if (detail.type === 'victory') {
+                    levelEntry(game.currentLevelIndex).wins += 1;
+                } else {
+                    return;
+                }
+                if (!data.firstSeenAt) data.firstSeenAt = now;
+                data.lastSeenAt = now;
+                save();
+            },
+            touch() {
+                if (!data.firstSeenAt) return;
+                data.lastSeenAt = Date.now();
+                save();
+            },
+            timesCaught(levelIndex, type) {
+                const caught = data.levels[String(levelIndex)]?.caught || {};
+                if (type) return caught[type] || 0;
+                return Object.values(caught).reduce((sum, n) => sum + n, 0);
+            },
+            rotations(levelIndex) {
+                return data.levels[String(levelIndex)]?.rotations || 0;
+            },
+            getAwayMs() {
+                return awayMs;
+            },
+            snapshot() {
+                return JSON.parse(JSON.stringify(data));
+            },
+            clear() {
+                data = emptyJournal();
+                awayMs = 0;
+                try {
+                    localStorage.removeItem(JOURNAL_KEY);
+                } catch (err) {
+                    // Nothing stored, nothing to remove.
+                }
+            }
+        };
+    }
+
     const storyModule = {
         protagonist,
         chapterBeats,
         extraScenes,
         createState,
+        createJournal,
+        AWAY_GREETING_MS,
         applyReply,
         getBondLabel,
         getContextLine,

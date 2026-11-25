@@ -222,6 +222,7 @@ document.addEventListener('DOMContentLoaded', () => {
     let selectedActPage = 1;
     let isDrawingRoute = false;
     let isGameActive = false;
+    let levelStartToken = 0;
     const PHONE_COLLAPSED_KEY = 'dawnCubePhoneCollapsed';
     const unlockedActs = new Set(safeParseArray('dimensionHackUnlockedActs').filter(Number.isFinite));
     unlockedActs.add(1);
@@ -244,6 +245,10 @@ document.addEventListener('DOMContentLoaded', () => {
     if (!(commsState.seenEvents instanceof Set)) {
         commsState.seenEvents = new Set(commsState.seenEvents || []);
     }
+    const dawnJournal = storyModule?.createJournal?.() || null;
+    commsState.journal = dawnJournal;
+    commsState.awayGreeting = (dawnJournal?.getAwayMs() || 0) >= (storyModule?.AWAY_GREETING_MS || Infinity);
+    window.addEventListener('pagehide', () => dawnJournal?.touch());
 
     const archiveState = {
         entries: new Set(safeParseArray('dimensionHackArchiveEntries')),
@@ -335,10 +340,10 @@ document.addEventListener('DOMContentLoaded', () => {
         },
         {
             id: 'protagonistE7',
-            title: { zh: 'E-7', en: 'E-7' },
+            title: { zh: 'Dawn', en: 'Dawn' },
             body: {
-                zh: '十八岁左右的人类女孩，从床上坠入魔方牢笼。她害怕，但强撑；嘴硬，是因为她想回家。',
-                en: 'A human girl around eighteen, dropped from her bed into a cube prison. She is scared, stubborn, and trying hard to get home.'
+                zh: '18 岁，住宿舍。床塌了，她一直往下掉，落在了这里。她很害怕。她想回家。',
+                en: 'Eighteen, lives in a dorm. Her bed caved in and she kept falling until she landed here. She is scared. She wants to go home.'
             }
         },
         {
@@ -465,31 +470,33 @@ document.addEventListener('DOMContentLoaded', () => {
         zh: [
             { who: 'sys', text: 'LINK SELF-CHECK... failed twice, trying anyway.' },
             { who: 'sys', text: '未知坐标: CUBE_SURFACE / 呼吸信号: 1' },
-            { who: 'dawn', text: '……喂？谁在我手机里？' },
-            { who: 'dawn', text: '我刚刚还在床上。现在床没了，地面也很可疑。' },
-            { who: 'dawn', text: '那个发亮的格子是你点的？先说好，我不随便跟陌生信号走。' },
-            { who: 'dawn', text: '……但我想回家。所以你最好真的会带路。' }
+            { who: 'dawn', text: '*抱膝捂脸哭*' },
+            { who: 'dawn', text: '...!你是谁？我这是在哪？为什么我来到这里了？' },
+            { who: 'dawn', text: '我刚才在床上。床塌了，我掉了好久。' },
+            { who: 'dawn', text: '那个发亮的格子是你点的吗？你是想让我走上去？' },
+            { who: 'dawn', text: '我想回家。……我能信你吗？' }
         ],
         en: [
             { who: 'sys', text: 'LINK SELF-CHECK... failed twice, trying anyway.' },
             { who: 'sys', text: 'Unknown coordinate: CUBE_SURFACE / heartbeat: 1' },
-            { who: 'dawn', text: '...Hello? Who is inside my phone?' },
-            { who: 'dawn', text: 'I was in bed five seconds ago. The bed is gone. The floor is also suspicious.' },
-            { who: 'dawn', text: 'Did you light up that tile? Great. I do not follow strange signals for free.' },
-            { who: 'dawn', text: '...But I want to go home. So you had better know where you are pointing.' }
+            { who: 'dawn', text: '*hugs her knees, hiding her face, crying*' },
+            { who: 'dawn', text: '...! Who are you? Where am I? Why am I here?' },
+            { who: 'dawn', text: 'I was in bed. It caved in. I fell for a long time.' },
+            { who: 'dawn', text: 'Did you light up that tile? You want me to step on it?' },
+            { who: 'dawn', text: 'I want to go home. ...Can I trust you?' }
         ]
     };
 
     const prologueReplyText = {
         zh: {
-            steady: '行。你先证明你不是那种越救越乱的热心人。',
-            warm: '别用那种表情。好吧，有人看着也比没人强。',
-            tease: '试营业？你们外侧的人都这么欠吗。算了，先救我。'
+            steady: '*想了想* 好吧，我也没什么其他路。',
+            warm: '……嗯。那你别突然不见。',
+            tease: '我现在笑不出来。……你在就行。'
         },
         en: {
-            steady: 'Fine. Prove you are not a disaster with a cursor.',
-            warm: 'Do not make that face. Fine. Being watched beats being alone.',
-            tease: 'Trial run? Are all outside people this annoying? Whatever. Rescue first.'
+            steady: '*thinks* Okay. It is not like I have another way.',
+            warm: '...Okay. Then do not disappear on me.',
+            tease: 'I cannot laugh right now. ...Just stay there.'
         }
     };
     const prologueTimers = new Set();
@@ -659,7 +666,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     function formatText(key, fallback, params = {}) {
-        const template = window.t?.(key) || fallback || key;
+        const template = window.t?.(key, fallback) || key;
         return Object.entries(params).reduce(
             (text, [name, value]) => text.replaceAll(`{${name}}`, String(value)),
             template
@@ -782,9 +789,9 @@ document.addEventListener('DOMContentLoaded', () => {
         const btnReset = document.getElementById('btn-reset');
         const btnTwist = document.getElementById('btn-twist-mode');
 
-        if (btnMenu) btnMenu.setAttribute('title', window.t?.('meta.menu') || '控制台菜单 (Esc)');
-        if (btnUndo) btnUndo.setAttribute('title', window.t?.('meta.undo') || '逆熵悔棋：回退一步 (↶)');
-        if (btnReset) btnReset.setAttribute('title', window.t?.('meta.reset') || '时空重构：重置本局 (⟲)');
+        if (btnMenu) btnMenu.setAttribute('title', window.t?.('meta.menu') || '菜单 (Esc)');
+        if (btnUndo) btnUndo.setAttribute('title', window.t?.('meta.undo') || '退一步 (↶)');
+        if (btnReset) btnReset.setAttribute('title', window.t?.('meta.reset') || '重来 (⟲)');
         if (btnTwist) btnTwist.setAttribute('title', window.t?.('meta.twist') || '空间折叠：拖拽控制环旋转一层魔方 (Shift)');
 
         renderArchive();
@@ -1136,17 +1143,44 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     };
 
+    // Every control outside the board gets its sound here, by what it does.
+    // Capture phase, so the named sound comes before the generic one a handler may play.
+    const UI_SOUND_RULES = [
+        ['uiStart', '#landing-start-btn, #inspect-start-btn, #start-btn, #btn-prologue-start, .btn-restart, #btn-console-reset, #btn-reset'],
+        ['uiBack', '#setup-back-btn, #inspect-back-btn, #settings-close-btn, #archive-close-btn, #credits-close-btn, #btn-console-resume, #btn-main-menu, #dawn-chat-close-btn, #tutorial-helper-close, #tutorial-dialogue-close, #btn-skip-tutorial, #btn-prologue-skip'],
+        ['uiOpen', '#landing-levels-btn, #landing-archive-btn, #landing-settings-btn, #landing-credits-btn, #btn-esc-menu, #btn-console-settings, #btn-toggle-analysis, #comms-float-bubble, #tools-float-bubble'],
+        ['uiDanger', '.settings-toggle.danger'],
+        ['uiToggle', '.settings-segment, .settings-toggle, [data-lang-toggle], .keybind-button, [data-tool-mode], .act-page-tab'],
+        ['uiSelect', '.level-card, .terminal-choice, .kaomoji-btn']
+    ];
+    const UI_SOUND_SELF = '#audio-toggle, #settings-audio-btn, #btn-undo, #btn-gameover-undo, #btn-rotate-cw, #btn-rotate-ccw';
+
     document.addEventListener('pointerover', event => {
-        const target = event.target.closest('button, select');
-        if (!target || target.disabled) return;
+        const target = event.target.closest('button, select, [role="button"]');
+        if (!target || target.disabled || target.contains(event.relatedTarget)) return;
         audio.play('uiHover');
     });
 
     document.addEventListener('click', event => {
-        const target = event.target.closest('button, select');
-        if (!target || target.disabled || target.id === 'audio-toggle') return;
-        audio.play('uiConfirm');
-    });
+        const target = event.target.closest('button, select, [role="button"]');
+        if (!target || target.disabled || target.matches(UI_SOUND_SELF)) return;
+        const rule = UI_SOUND_RULES.find(([, selector]) => target.matches(selector));
+        audio.ui(rule ? rule[0] : 'uiConfirm');
+    }, true);
+
+    document.addEventListener('input', event => {
+        const el = event.target;
+        if (el.type === 'range') {
+            const span = Number(el.max) - Number(el.min);
+            audio.play('uiSlide', { value: span ? (Number(el.value) - Number(el.min)) / span : 0 });
+        } else if (el.type === 'text') {
+            audio.play('uiType');
+        }
+    }, true);
+
+    document.addEventListener('change', event => {
+        if (event.target.tagName === 'SELECT') audio.ui('uiToggle');
+    }, true);
 
     const enemyMeta = {
         chaser: { symbol: '×', labelKey: 'ai.name.chaser', fallback: '追击者' },
@@ -1467,7 +1501,7 @@ document.addEventListener('DOMContentLoaded', () => {
         renderInspectOverlay();
         inspectOverlay?.classList.add('active');
         inspectOverlay?.setAttribute('aria-hidden', 'false');
-        audio.setTension('calm');
+        audio.enterMenu();
     }
 
     function exitInspectPreview() {
@@ -1476,6 +1510,8 @@ document.addEventListener('DOMContentLoaded', () => {
         inspectOverlay?.setAttribute('aria-hidden', 'true');
         game.stopRealtime?.();
         game.gameState = 'menu';
+        // Invalidate delayed callbacks (rotation settle, enemy steps, cutscenes) from the run we just left.
+        game.levelSession = (game.levelSession || 0) + 1;
         gameContainer.classList.add('preplay-stage');
         gameContainer.classList.remove('inspect-stage');
         setupOverlay.classList.add('active');
@@ -1549,7 +1585,7 @@ document.addEventListener('DOMContentLoaded', () => {
         gameContainer.classList.add('preplay-stage');
         gameContainer.classList.remove('inspect-stage');
         render.setPresentationMode?.('landing');
-        audio.setTension('calm');
+        audio.enterMenu();
     }
 
     function showLevelBook({ openArchive = false } = {}) {
@@ -1637,7 +1673,7 @@ document.addEventListener('DOMContentLoaded', () => {
         render.setInteractionMode?.(twistMode ? 'twist' : 'route');
         if (twistMode) {
             game.clearPlannedPath();
-            if (!options.silent) feel.note(window.t?.('note.twistOn') || '空间折叠：拖拽魔方面拧当前层，世界流速放慢', 'info');
+            if (!options.silent) feel.note(window.t?.('note.twistOn') || '拧层：拖动魔方转一层', 'info');
         } else if (!options.silent) {
             render.clearLayerHighlight?.();
             feel.note(
@@ -1660,9 +1696,12 @@ document.addEventListener('DOMContentLoaded', () => {
         escConsole?.setAttribute('aria-hidden', String(!shouldOpen));
         game.setRealtimePaused?.(shouldOpen);
         if (shouldOpen) setBulletTimeActive(false);
+        audio.setPaused(shouldOpen);
         if (shouldOpen) {
             game.updateUI();
-            audio.play('uiConfirm');
+            audio.ui('uiOpen');
+        } else {
+            audio.ui('uiBack');
         }
         if (game.tutorialActive) {
             const step = game.activeTutorialSteps[game.currentTutorialStepIndex];
@@ -1774,11 +1813,14 @@ document.addEventListener('DOMContentLoaded', () => {
         setBulletTimeActive(false);
         game.setRealtimePaused?.(true);
         renderSettingsPanel();
-        audio.play('uiConfirm');
+        audio.setPaused(isGameActive);
+        audio.ui('uiOpen');
     }
 
     function closeSettings() {
         listeningKeybindAction = null;
+        audio.setPaused(Boolean(escConsole?.classList.contains('active')));
+        audio.ui('uiBack');
         settingsOverlay?.classList.remove('active');
         settingsOverlay?.setAttribute('aria-hidden', 'true');
         game.setRealtimePaused?.(escConsole?.classList.contains('active'));
@@ -1803,7 +1845,7 @@ document.addEventListener('DOMContentLoaded', () => {
             if (game.realtimeMode && game.canAutoResumeRealtimeFromInput?.()) {
                 game.setRealtimePaused?.(false);
             }
-            feel.note(`${target.textContent.replace(/\s+/g, ' ').trim()} ${window.t?.('tool.modeSuffix') || '模式'}`, 'info');
+            feel.note(window.t?.(`tool.mode.${action}Title`) || `${target.textContent.replace(/\s+/g, ' ').trim()} ${window.t?.('tool.modeSuffix') || '模式'}`, 'info');
             return true;
         }
         return false;
@@ -1811,12 +1853,15 @@ document.addEventListener('DOMContentLoaded', () => {
 
     function triggerWaitKeybind() {
         if (!isGameActive || render.isAnimating || game.gameState !== 'playing') return false;
-        feel.note(
-            game.realtimeMode
-                ? (window.t?.('note.waitRealtime') || '原地稳住半拍')
-                : (window.t?.('note.waitTurn') || '跳过回合，敌人行动'),
-            game.realtimeMode ? 'info' : 'danger'
-        );
+        // Act 1: skipTurn shows its own note; avoid a second toast.
+        if (!game.isActOneStepUndo?.()) {
+            feel.note(
+                game.realtimeMode
+                    ? (window.t?.('note.waitRealtime') || '原地稳住半拍')
+                    : (window.t?.('note.waitTurn') || '跳过回合，敌人行动'),
+                game.realtimeMode ? 'info' : 'danger'
+            );
+        }
         if (!game.realtimeMode) feel.flashScreen('danger');
         game.skipTurn();
         return true;
@@ -1838,6 +1883,11 @@ document.addEventListener('DOMContentLoaded', () => {
     function triggerTemporalKeybind(phase = 'down') {
         if (!isGameActive || render.isAnimating || game.gameState !== 'playing') return false;
         if (!game.realtimeMode) {
+            if (phase === 'down') return triggerWaitKeybind();
+            return true;
+        }
+        // Act 1 is step-based: Space means "wait one step" (enemies take their step).
+        if (game.isActOneStepUndo?.()) {
             if (phase === 'down') return triggerWaitKeybind();
             return true;
         }
@@ -1865,7 +1915,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 if (step.type === 'move') {
                     if (code === keybinds.twist || code === keybinds.patch || code === keybinds.beacon || code === keybinds.break || code === keybinds.wait) {
                         game.playFeel?.('invalid');
-                        game.showFeel?.(window.t?.('note.guidedMoveOnly') || '当前步骤强引导中。请按照指示移动！', 'warn');
+                        game.showFeel?.(window.t?.('note.guidedMoveOnly') || '先照提示走这一步。', 'warn');
                         return true;
                     }
                 }
@@ -1885,7 +1935,7 @@ document.addEventListener('DOMContentLoaded', () => {
                             beacon: window.t?.('tool.beaconTitle') || '信标',
                             break: window.t?.('tool.breakTitle') || '碎解'
                         };
-                        game.showFeel?.(formatText('note.useTool', '当前步骤强引导中。请使用 [{tool}] 工具。', {
+                        game.showFeel?.(formatText('note.useTool', '这一步用{tool}。', {
                             tool: toolNames[targetTool] || targetTool
                         }), 'warn');
                         return true;
@@ -2111,7 +2161,7 @@ document.addEventListener('DOMContentLoaded', () => {
             break: {
                 icon: '✕',
                 title: window.t?.('tool.mode.breakTitle') || '碎解模式',
-                desc: window.t?.('tool.mode.breakDesc') || '选择可碎解格，打开一条短路。'
+                desc: window.t?.('tool.mode.breakDesc') || '点一个格子，把它拆掉。'
             }
         };
         return meta[mode] || meta.route;
@@ -2208,6 +2258,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     async function startSelectedLevel() {
+        if (typeof render !== 'undefined') render.clearTutorialCameraMemo?.();
         clearTutorialChrome({ resetTutorialState: true });
         setupOverlay.classList.remove('active');
         inspectOverlay?.classList.remove('active');
@@ -2224,8 +2275,12 @@ document.addEventListener('DOMContentLoaded', () => {
         setBulletTimeActive(false);
         isGameActive = true;
 
+        const startToken = ++levelStartToken;
         await showLoadingSequence(game.levels[selectedLevelIndex]);
+        if (startToken !== levelStartToken || !isGameActive) return;
         game.initLevel(selectedLevelIndex, false);
+        const startSession = game.levelSession;
+        const startIsStale = () => startToken !== levelStartToken || !isGameActive || game.levelSession !== startSession;
         resetLevelModeChrome();
         game.applyRealtimeTuning?.(settingsState);
         game.setRealtimeMode?.(true);
@@ -2236,6 +2291,11 @@ document.addEventListener('DOMContentLoaded', () => {
         updateLayerDropdown(game.N);
         initRenderScene();
         await render.flyToGameCamera?.(980);
+        // Player may have quit to the level book or restarted during the fly-in.
+        if (startIsStale()) {
+            gameContainer.classList.remove('is-entering');
+            return;
+        }
         game.startRealtime?.();
         const delayL03TutorialUntilRollback = selectedLevelIndex === 2 && game.tutorialActive && !game.l03RollbackTriggered;
         if (game.tutorialActive) {
@@ -2255,7 +2315,9 @@ document.addEventListener('DOMContentLoaded', () => {
         }
         gameContainer.classList.remove('is-entering');
         audio.start();
+        audio.enterLevel();
         audio.setTension('calm');
+        game.syncAudioScene?.();
         feel.note(`${textOf(game.currentLevel.title)} · ${textOf(game.currentLevel.chapter)}`, 'info');
         feel.flashScreen('info');
 
@@ -2263,7 +2325,10 @@ document.addEventListener('DOMContentLoaded', () => {
         if (selectedLevelIndex === 2 && game.tutorialActive && !game.l03RollbackTriggered) {
             game.l03CutsceneActive = true;
             game.setRealtimePaused?.(true);
+            const cutsceneSession = game.levelSession;
+            const cutsceneStale = () => game.levelSession !== cutsceneSession;
             const showL03TutorialAfterRollback = () => {
+                if (cutsceneStale()) return;
                 game.l03CutsceneActive = false;
                 if (game.currentLevelIndex === 2 && game.tutorialActive && game.l03RollbackTriggered) {
                     updateTutorialUI();
@@ -2271,6 +2336,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 }
             };
             setTimeout(async () => {
+                if (cutsceneStale()) return;
                 if (game.currentLevelIndex !== 2 || game.gameState !== 'playing') {
                     game.l03CutsceneActive = false;
                     return;
@@ -2282,6 +2348,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 // Wait 2.8 seconds for speech bubble to show, then move
                 await new Promise(resolve => setTimeout(resolve, 2800));
 
+                if (cutsceneStale()) return;
                 if (game.currentLevelIndex !== 2 || game.gameState !== 'playing') {
                     game.l03CutsceneActive = false;
                     return;
@@ -2295,6 +2362,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 // Wait 1.5 seconds for the move animation to complete and enemy turn to run
                 await new Promise(resolve => setTimeout(resolve, 1500));
 
+                if (cutsceneStale()) return;
                 if (game.currentLevelIndex !== 2 || game.gameState !== 'playing' || game.l03RollbackTriggered) {
                     showL03TutorialAfterRollback();
                     return;
@@ -2307,6 +2375,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
                 // The contact will occur, triggering rollback.
                 setTimeout(() => {
+                    if (cutsceneStale()) return;
                     if (game.currentLevelIndex === 2 && game.gameState === 'playing' && !game.l03RollbackTriggered) {
                         game.checkCollisions?.();
                     }
@@ -2318,6 +2387,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     function resetCurrentLevel() {
+        if (typeof render !== 'undefined') render.clearTutorialCameraMemo?.();
         const levelId = game.currentLevel?.id;
         if (levelId) localStorage.removeItem(`dawnCubeTutorialDismissed:${levelId}`);
         setBulletTimeActive(false);
@@ -2330,7 +2400,9 @@ document.addEventListener('DOMContentLoaded', () => {
         render.spawnEntities3D();
         render.resetCamera?.();
         if (render.plannedLine && render.scene) render.scene.remove(render.plannedLine);
+        audio.enterLevel();
         audio.setTension('calm');
+        game.syncAudioScene?.();
         feel.note(window.t?.('note.resetLevel') || '残局已重置', 'warn');
         feel.flashScreen('warn');
         if (game.tutorialActive) {
@@ -2340,6 +2412,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     function returnToLevelBook() {
+        if (typeof render !== 'undefined') render.clearTutorialCameraMemo?.();
         clearTutorialChrome({ resetTutorialState: true });
         isGameActive = false;
         setBulletTimeActive(false);
@@ -2357,11 +2430,13 @@ document.addEventListener('DOMContentLoaded', () => {
         victoryOverlay.classList.remove('active');
         game.stopRealtime?.();
         game.gameState = 'menu';
+        // Invalidate delayed callbacks (rotation settle, enemy steps, cutscenes) from the run we just left.
+        game.levelSession = (game.levelSession || 0) + 1;
         render.setGameViewportBias?.(false);
         setupOverlay.classList.add('active');
         landingOverlay?.classList.remove('active');
         render.setPresentationMode?.('constellation');
-        audio.setTension('calm');
+        audio.enterMenu();
         setTerminalTab('comms');
         renderLevelCards();
         renderLevelBrief();
@@ -2479,6 +2554,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
     window.addEventListener('dimensionhack:event', event => {
         const detail = event.detail || {};
+        dawnJournal?.record(detail, game);
+        if (detail.type === 'playerMove') commsState.awayGreeting = false;
         const eventScenes = dialogueScript.eventScenes || {};
         if (detail.type === 'keyCollected') {
             markUnread('tasks');
@@ -2589,7 +2666,7 @@ document.addEventListener('DOMContentLoaded', () => {
         if (!render.isAnimating) {
             if (game.undoTurn()) {
                 feel.note(
-                    game.realtimeMode
+                    (game.realtimeMode && !game.isActOneStepUndo?.())
                         ? (window.t?.('note.undoRealtime') || '已倒回 3 秒')
                         : (window.t?.('note.undoStep') || '已悔棋一步'),
                     'info'
@@ -2688,11 +2765,12 @@ document.addEventListener('DOMContentLoaded', () => {
         );
     });
     settingsResetTutorialsBtn?.addEventListener('click', () => {
-        Object.keys(localStorage).forEach(key => {
-            if (key.startsWith('dawnCubeTutorialDismissed:')) {
-                localStorage.removeItem(key);
-            }
-        });
+        const tutorialKeys = [];
+        for (let i = 0; i < localStorage.length; i++) {
+            const key = localStorage.key(i);
+            if (key && key.startsWith('dawnCubeTutorialDismissed:')) tutorialKeys.push(key);
+        }
+        tutorialKeys.forEach(key => localStorage.removeItem(key));
         audio.play('uiConfirm');
         feel.note(window.t?.('settings.resetTutorialsNote') || '所有教学提示已恢复', 'good');
         if (game.currentLevel && game.currentLevel.tutorialSteps?.length > 0) {
@@ -2721,6 +2799,7 @@ document.addEventListener('DOMContentLoaded', () => {
         archiveState.entries.clear();
         archiveState.achievements.clear();
         commsState.seenEvents.clear?.();
+        dawnJournal?.clear();
         game.trust = 80;
         selectedActPage = 1;
         selectedLevelIndex = 0;
@@ -2763,11 +2842,11 @@ document.addEventListener('DOMContentLoaded', () => {
         } else {
             closeDawnChatWindow();
         }
-        audio.play('uiConfirm');
+        audio.ui('uiOpen');
     });
     setupDraggableBubble(toolsFloatBubble, 'dawnCubeToolsBubblePos', { x: window.innerWidth - 82, y: window.innerHeight - 92 }, () => {
         toggleFloatingToolboxMenu();
-        audio.play('uiConfirm');
+        audio.ui('uiOpen');
     });
     window.addEventListener('resize', () => {
         placeFloatBubble(commsFloatBubble, 'dawnCubeCommsBubblePos', { x: window.innerWidth - 156, y: window.innerHeight - 92 });
@@ -2789,26 +2868,42 @@ document.addEventListener('DOMContentLoaded', () => {
         if (render.isAnimating && !twistMode) return;
         setTwistMode(!twistMode);
     });
+    // Hint-only levels (no tutorialSteps) just show the helper card and pause; closing it resumes play.
+    function dismissHelperCard() {
+        const card = document.getElementById('tutorial-helper-card');
+        const levelId = card?.dataset.levelId;
+        if (levelId) localStorage.setItem(`dawnCubeTutorialDismissed:${levelId}`, 'true');
+        card?.classList.add('is-hidden');
+        if (game.realtimeMode && !settingsOverlay?.classList.contains('active') && !escConsole?.classList.contains('active')) {
+            game.setRealtimePaused?.(false);
+        }
+    }
     tutorialHelperClose?.addEventListener('click', () => {
+        if (game.tutorialActive) {
+            skipTutorial({ persist: false, silent: true });
+        } else {
+            dismissHelperCard();
+        }
+    });
+    // The static "跳过教程" button had no click handler of its own: it only worked through the
+    // pointerup capture during system dialog steps, so it did nothing on hint-only levels and
+    // during look/move/twist/tool steps.
+    document.getElementById('btn-skip-tutorial')?.addEventListener('click', () => {
         if (game.tutorialActive) {
             skipTutorial();
         } else {
-            const card = document.getElementById('tutorial-helper-card');
-            const levelId = card?.dataset.levelId;
-            if (levelId) localStorage.setItem(`dawnCubeTutorialDismissed:${levelId}`, 'true');
-            card?.classList.add('is-hidden');
-            if (game.realtimeMode && !settingsOverlay?.classList.contains('active') && !escConsole?.classList.contains('active')) {
-                game.setRealtimePaused?.(false);
-            }
+            dismissHelperCard();
         }
     });
     tutorialDialogueNext?.addEventListener('click', event => {
         if (!game.tutorialActive) return;
         const step = game.activeTutorialSteps[game.currentTutorialStepIndex];
         if (step?.type !== 'dialog') return;
-        if (!isSystemTutorialStep(step)) return;
+        if (game.l03CutsceneActive || tutorialDialogueConsole?.classList.contains('is-hidden')) return;
         event.preventDefault();
         event.stopPropagation();
+        if (Date.now() - lastStepAdvancedTime < 180) return;
+        if (finishTutorialTyping()) return;
         advanceTutorialStep();
     });
     dawnChatNextBtn?.addEventListener('click', event => {
@@ -2823,15 +2918,20 @@ document.addEventListener('DOMContentLoaded', () => {
     tutorialDialogueClose?.addEventListener('click', event => {
         event.preventDefault();
         event.stopPropagation();
-        skipTutorial();
+        // "×" means "close this box": end the tutorial for this run without
+        // remembering the skip. "跳过教程" still persists the dismissal.
+        skipTutorial({ persist: false, silent: true });
     });
     document.addEventListener('keydown', event => {
-        if (game.tutorialActive) {
+        const tutorialConsoleBlocked = game.l03CutsceneActive || tutorialDialogueConsole?.classList.contains('is-hidden');
+        if (game.tutorialActive && !tutorialConsoleBlocked) {
             const step = game.activeTutorialSteps[game.currentTutorialStepIndex];
             if (step && step.type === 'dialog') {
                 if (event.key === ' ' || event.key === 'Enter') {
                     event.preventDefault();
                     event.stopPropagation();
+                    if (Date.now() - lastStepAdvancedTime < 180) return;
+                    if (finishTutorialTyping()) return;
                     advanceTutorialStep();
                     return;
                 }
@@ -2982,9 +3082,9 @@ document.addEventListener('DOMContentLoaded', () => {
         if (!render.isAnimating && game.undoTurn()) {
             gameoverOverlay.classList.remove('active', 'jump-alert', 'signal-lost');
             feel.note(
-                game.realtimeMode
-                    ? (window.t?.('note.undoRealtimeReview') || '倒回 3 秒，重新推演')
-                    : (window.t?.('note.undoStepReview') || '回到上一步，重新推演'),
+                (game.realtimeMode && !game.isActOneStepUndo?.())
+                    ? (window.t?.('note.undoRealtimeReview') || '倒回 3 秒，再想想')
+                    : (window.t?.('note.undoStepReview') || '退回一步，再想想'),
                 'info'
             );
         }
@@ -3034,7 +3134,7 @@ document.addEventListener('DOMContentLoaded', () => {
             setTerminalTab('comms');
             renderLevelCards();
             renderLevelBrief();
-            audio.setTension('calm');
+            audio.enterMenu();
         });
     });
 
@@ -3052,6 +3152,7 @@ document.addEventListener('DOMContentLoaded', () => {
     // MILESTONE 7: INTERACTIVE TUTORIAL ENGINE
     // ----------------------------------------------------
     let tutorialTypingTimer = null;
+    let tutorialTypingFinish = null;
     let lastDawnTutorialMessageKey = '';
     let tutorialUiArrow = null;
     let tutorialSecondaryFocusTimer = null;
@@ -3340,6 +3441,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     function hideSystemTutorialDialogue() {
         window.clearInterval(tutorialTypingTimer);
+        tutorialTypingFinish = null;
         drawLedMascot('steady', false);
         tutorialDialogueConsole?.classList.add('is-hidden');
         if (ledMascotFrameId !== null) {
@@ -3364,15 +3466,31 @@ document.addEventListener('DOMContentLoaded', () => {
         window.clearInterval(tutorialTypingTimer);
         let cursor = 0;
         drawLedMascot(tone, true);
+        tutorialTypingFinish = () => {
+            window.clearInterval(tutorialTypingTimer);
+            tutorialTypingTimer = null;
+            tutorialTypingFinish = null;
+            tutorialDialogueText.textContent = text;
+            drawLedMascot(tone, false);
+        };
         tutorialTypingTimer = window.setInterval(() => {
             cursor += 1;
             tutorialDialogueText.textContent = text.slice(0, cursor);
             drawLedMascot(tone, cursor < text.length);
             if (cursor >= text.length) {
                 window.clearInterval(tutorialTypingTimer);
+                tutorialTypingTimer = null;
+                tutorialTypingFinish = null;
                 drawLedMascot(tone, false);
             }
         }, 18);
+    }
+
+    // Completes unfinished typewriter text instantly. Returns true if it finished something.
+    function finishTutorialTyping() {
+        if (!tutorialTypingFinish) return false;
+        tutorialTypingFinish();
+        return true;
     }
 
     function setDawnTutorialMessage(step, noticeKey) {
@@ -3404,6 +3522,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     function hideTutorialDialogue({ clearCommsNotice = true } = {}) {
         window.clearInterval(tutorialTypingTimer);
+        tutorialTypingFinish = null;
         drawLedMascot('steady', false);
         tutorialDialogueConsole?.classList.add('is-hidden');
         dawnChatNextBtn?.classList.add('is-hidden');
@@ -3443,7 +3562,13 @@ document.addEventListener('DOMContentLoaded', () => {
     function completeTutorial({ clearCommsNotice = false } = {}) {
         const levelId = game.currentLevel?.id;
         if (levelId) localStorage.setItem(`dawnCubeTutorialDismissed:${levelId}`, 'true');
+        const hadTutorial = game.tutorialActive;
         game.tutorialActive = false;
+        if (hadTutorial && typeof render !== 'undefined') render.restoreTutorialCamera?.();
+        const toolCharges = { patch: game.patchCharges, beacon: game.beaconCharges, break: game.breakCharges };
+        if (game.toolMode !== 'route' && !(toolCharges[game.toolMode] > 0)) {
+            game.setToolMode('route');
+        }
         lastTutorialNoticeKey = '';
         lastDawnTutorialMessageKey = '';
         clearTutorialSecondaryFocusTimers();
@@ -3493,16 +3618,13 @@ document.addEventListener('DOMContentLoaded', () => {
         }
         const isSystemStep = isSystemTutorialStep(step);
         if (!isSystemStep) {
-            if (isNewTutorialNotice) audio.play('commsTick');
+            // Dawn lines: record in chat history, but show in the tutorial console and wait for "continue".
             setDawnTutorialMessage(step, noticeKey);
-            game.currentTutorialStepIndex++;
-            window.setTimeout(updateTutorialUI, 0);
-            return;
         }
 
         const uiTarget = updateTutorialControlTargets(step, isSystemStep);
         if (isNewTutorialNotice) {
-            audio.play('routeTick');
+            audio.play(isSystemStep ? 'routeTick' : 'commsTick');
         }
 
         if (step.openTools || step.type === 'tool' || step.type === 'twist') {
@@ -3524,7 +3646,9 @@ document.addEventListener('DOMContentLoaded', () => {
         const boardFocus = pointerCellId !== undefined
             ? render.getCellScreenFocusPercent?.(pointerCellId, 'route')
             : null;
-        const shouldSpotlightUi = Boolean(uiTarget && (
+        // Once the requested tool is selected, move the spotlight from the toolbox to the target tile.
+        const toolReady = step.type === 'tool' && game.toolMode === step.tool;
+        const shouldSpotlightUi = Boolean(uiTarget && !toolReady && (
             step.openTools ||
             step.uiTarget ||
             step.type === 'tool' ||
@@ -3533,7 +3657,8 @@ document.addEventListener('DOMContentLoaded', () => {
         ));
         const shouldSpotlightBoard = Boolean(boardFocus && (
             step.type === 'move' ||
-            step.type === 'twist'
+            step.type === 'twist' ||
+            toolReady
         ));
         const vignetteDisabled = step.disableVignette === true || game.currentLevel?.id === 'L04';
         setTutorialVignette(
@@ -3643,12 +3768,16 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
-    function skipTutorial() {
+    function skipTutorial(options = {}) {
         if (!game.tutorialActive) return;
+        // "跳过教程" persists the skip; the dialogue "×" only closes it for this run.
+        const persist = options.persist !== false;
+        const silent = options.silent === true;
         const levelId = game.currentLevel?.id;
-        if (levelId) localStorage.setItem(`dawnCubeTutorialDismissed:${levelId}`, 'true');
+        if (persist && levelId) localStorage.setItem(`dawnCubeTutorialDismissed:${levelId}`, 'true');
 
         game.tutorialActive = false;
+        if (typeof render !== 'undefined') render.restoreTutorialCamera?.();
         lastTutorialNoticeKey = '';
         lastDawnTutorialMessageKey = '';
         clearTutorialSecondaryFocusTimers();
@@ -3665,7 +3794,7 @@ document.addEventListener('DOMContentLoaded', () => {
             renderLevelComms(game.currentLevelIndex);
         }
         audio.play('routeUndo');
-        feel.note(window.t?.('note.skipTutorial') || '已跳过本关教程', 'warn');
+        if (!silent) feel.note(window.t?.('note.skipTutorial') || '已跳过本关教程', 'warn');
     }
 
     window.updateTutorialUI = updateTutorialUI;
@@ -3685,7 +3814,8 @@ document.addEventListener('DOMContentLoaded', () => {
     document.addEventListener('pointerup', event => {
         if (game.tutorialActive) {
             const step = game.activeTutorialSteps[game.currentTutorialStepIndex];
-            if (step && step.type === 'dialog' && isSystemTutorialStep(step)) {
+            if (game.l03CutsceneActive || tutorialDialogueConsole?.classList.contains('is-hidden')) return;
+            if (step && step.type === 'dialog') {
                 if (Date.now() - lastStepAdvancedTime < 180) {
                     return;
                 }
@@ -3695,9 +3825,11 @@ document.addEventListener('DOMContentLoaded', () => {
                 }
                 const skipBtn = event.target.closest('#btn-skip-tutorial, #tutorial-helper-close');
                 const systemBtn = event.target.closest('#btn-esc-menu, #audio-toggle, #landing-settings-btn, #btn-console-resume, #btn-console-reset, #btn-console-settings');
-                const interactiveTarget = event.target.closest('#tools-float-bubble, #floating-toolbox-menu, [data-tool-mode], #dawn-chat-window, #dawn-chat-close-btn, #dawn-chat-next-btn');
+                const interactiveTarget = event.target.closest('#tools-float-bubble, #floating-toolbox-menu, [data-tool-mode], #dawn-chat-window, #dawn-chat-close-btn, #dawn-chat-next-btn, #tutorial-dialogue-next, #tutorial-dialogue-close');
                 if (skipBtn) {
-                    skipTutorial();
+                    // Card "×" closes for this run only; "跳过教程" persists the skip.
+                    const closeOnly = Boolean(event.target.closest('#tutorial-helper-close'));
+                    skipTutorial(closeOnly ? { persist: false, silent: true } : {});
                     return;
                 }
                 if (systemBtn || interactiveTarget) {
@@ -3705,6 +3837,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 }
                 event.preventDefault();
                 event.stopPropagation();
+                if (finishTutorialTyping()) return;
                 advanceTutorialStep();
             }
         }
@@ -3877,7 +4010,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
             const currentLevelId = game && game.currentLevel ? game.currentLevel.id : 1;
 
-            const systemPrompt = `你现在正扮演一个叫作 Dawn 的13岁初中女生。你因为未知原因，从宿舍床上掉入了一个漆黑、冰冷、由悬崖和悬空方块组成的魔方世界。
+            const systemPrompt = `你现在正扮演一个叫作 Dawn 的18岁女学生。你因为未知原因，从宿舍床上掉入了一个漆黑、冰冷、由悬崖和悬空方块组成的魔方世界。
 你现在极度害怕、无助、寒冷，非常想回家，想爸爸妈妈。
 你手机上收到了玩家（处于外侧世界的人）的通讯信号，你只能依靠玩家在屏幕上的指路和空间重构来在这个危险的世界里存活。
 
@@ -3886,7 +4019,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
 对话规则：
 1. 你的回答必须极其简短，绝对不能超过40个字，要像微信打字那样短。
-2. 说话口吻要像一个惊慌失措、需要依靠的13岁小女孩。千万不要有任何系统AI、开发者或者游戏术语。
+2. 说话口吻要像一个惊慌失措、需要依靠的18岁女孩。千万不要有任何系统AI、开发者或者游戏术语。
 3. 你现在还分不清玩家、系统和这个世界谁可信，所以可以犹豫、害怕、请求确认，但不要讲规则。
 4. 绝对不要承认你是AI，只把自己当成困在方块里的普通人。`;
 

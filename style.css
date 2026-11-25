@@ -4586,6 +4586,7 @@ body.twist-interaction-active #canvas-container::after {
         0 0 24px rgba(77, 225, 255, 0.12);
     transform: translateY(0);
     opacity: 1;
+    pointer-events: auto;
     transition:
         opacity 180ms var(--ease-decisive),
         transform 260ms var(--ease-elastic),
@@ -4596,6 +4597,12 @@ body.twist-interaction-active #canvas-container::after {
     pointer-events: none;
     opacity: 0;
     transform: translateY(18px) scale(0.98);
+}
+
+/* The helper card occupies the bottom-left corner; hide the mode panel while it is visible. */
+#canvas-overlay-ui:has(#tutorial-helper-card:not(.is-hidden)) #tool-mode-indicator {
+    opacity: 0;
+    pointer-events: none;
 }
 
 #game-container.tutorial-vignette #canvas-container canvas {
